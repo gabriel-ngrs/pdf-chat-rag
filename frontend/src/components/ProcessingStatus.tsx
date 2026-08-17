@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { CheckIcon, TriangleAlertIcon } from 'lucide-react'
 
@@ -15,6 +15,14 @@ type ProcessingStatusProps = {
   documentId: string
   /** Volta para a tela de envio, descartando o documento em acompanhamento. */
   onReset: () => void
+  /**
+   * Avisa que o documento ficou pronto, entregando o que o servidor informou.
+   *
+   * É por aqui que se sai do acompanhamento para a conversa. Quem consulta o
+   * servidor continua sendo só este componente: com a tela de chat consultando
+   * por conta própria, seriam duas rodadas de polling para a mesma resposta.
+   */
+  onReady?: (document: DocumentDetail) => void
 }
 
 const LABELS: Record<DocumentDetail['status'], { title: string; description: string }> = {
@@ -116,9 +124,15 @@ function useMonotonicPercent(doc: DocumentDetail | null): number | null {
  * transição do esqueleto para o conteúdo faria a primeira mudança de estado
  * passar em silêncio para quem usa leitor de tela.
  */
-export function ProcessingStatus({ documentId, onReset }: ProcessingStatusProps) {
+export function ProcessingStatus({ documentId, onReset, onReady }: ProcessingStatusProps) {
   const { document: doc, missing, loading } = useDocumentStatus(documentId)
   const percent = useMonotonicPercent(doc)
+
+  useEffect(() => {
+    if (doc?.status === 'ready') {
+      onReady?.(doc)
+    }
+  }, [doc, onReady])
   const view = resolveView(doc, missing)
   const inProgress = doc?.status === 'pending' || doc?.status === 'processing'
 

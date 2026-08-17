@@ -1,5 +1,12 @@
 import { getSessionId } from '@/lib/session'
-import type { AppConfig, DocumentDetail, ErrorEnvelope, UploadAccepted } from '@/lib/types'
+import type {
+  AppConfig,
+  ChatMessage,
+  ConversationCreated,
+  DocumentDetail,
+  ErrorEnvelope,
+  UploadAccepted,
+} from '@/lib/types'
 
 const BASE_URL = '/api'
 const DEFAULT_TIMEOUT_MS = 15_000
@@ -115,4 +122,23 @@ export function uploadDocument(file: File): Promise<UploadAccepted> {
   const body = new FormData()
   body.append('file', file)
   return request<UploadAccepted>('/documents', { method: 'POST', body }, UPLOAD_TIMEOUT_MS)
+}
+
+/**
+ * Abre uma conversa sobre um documento.
+ *
+ * O servidor recusa documento que não esteja `ready` com `documento_nao_pronto`
+ * — quem decide se dá para conversar é ele, não a tela.
+ */
+export function createConversation(documentId: string): Promise<ConversationCreated> {
+  return request<ConversationCreated>('/conversations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ document_id: documentId }),
+  })
+}
+
+/** Histórico da conversa, com as citações presas às respostas. */
+export function listMessages(conversationId: string): Promise<ChatMessage[]> {
+  return request<ChatMessage[]>(`/conversations/${encodeURIComponent(conversationId)}/messages`)
 }
