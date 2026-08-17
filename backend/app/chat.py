@@ -30,7 +30,10 @@ from app.logging_setup import get_logger
 
 logger = get_logger(__name__)
 
-TOKEN_EVENT = "token"
+# Nomes dos eventos de §4.3. O `nosec` é sobre o `bandit`, que lê a constante
+# terminada em `TOKEN` como credencial embutida: aqui "token" é o pedaço de
+# texto que o modelo emite, e o gate de segurança não pode parar por causa disso.
+TOKEN_EVENT = "token"  # nosec B105
 CITATIONS_EVENT = "citations"
 ERROR_EVENT = "error"
 DONE_EVENT = "done"
@@ -249,6 +252,13 @@ async def _answer(
     honestidade da persistência independente do caminho de saída: desconexão do
     cliente, erro do provedor e cancelamento da task saem todos pelo `finally`
     com a marca correta, sem que cada um precise lembrar de marcá-la (FR-9).
+
+    A falha do provedor tem **dois destinos**, decididos por um fato só: se
+    algum token já saiu. Nada emitido significa que a resposta ainda não abriu,
+    e aí a `AppError` sobe para virar envelope HTTP com o status certo — que é o
+    caso comum, porque o `429` do chat estoura na abertura do stream. Depois do
+    primeiro token o status já foi enviado, e a única saída é o evento `error`
+    (FR-11).
     """
     prompt = build_answer_prompt(context.chunks, context.history, question)
     citations = _to_citations(context.chunks)
@@ -257,9 +267,10 @@ async def _answer(
     truncated = True
     failure: AppError | None = None
     stored: Message | None = None
+    stream = chat_client.stream_answer(prompt)
     try:
         try:
-            async for piece in chat_client.stream_answer(prompt):
+            async for piece in stream:
                 if await is_disconnected():
                     logger.warning(
                         "chat.client_disconnected",
@@ -274,9 +285,23 @@ async def _answer(
         except AppError as error:
             failure = error
     finally:
+        # Fechar o iterador aqui, e não deixar para o finalizador do event loop,
+        # é o que torna FR-12 determinístico: sair do laço por `break` não
+        # encerra o gerador do adapter sozinho, e a conexão com o provedor
+        # ficaria aberta por mais algumas voltas do loop.
+        await _close_stream(stream)
         stored = await _persist_answer(
             conversation.id, repository, "".join(parts), citations, truncated
         )
+
+    if failure is not None and not parts:
+        logger.error(
+            "chat.error",
+            conversation_id=str(conversation.id),
+            code=failure.code,
+            phase="pre_stream",
+        )
+        raise failure
 
     logger.info(
         "chat.generated",
@@ -336,6 +361,18 @@ async def _persist_answer(
     except Exception:
         logger.exception("chat.answer_not_persisted", conversation_id=str(conversation_id))
         return None
+
+
+async def _close_stream(stream: AsyncIterator[str]) -> None:
+    """Fecha o iterador do provedor, se ele souber ser fechado.
+
+    `getattr` em vez de `isinstance`: o protocolo `ChatClient` promete um
+    `AsyncIterator`, e nem todo iterador assíncrono é um gerador — o dublê da
+    suíte pode não ser. Quem sabe fechar, fecha.
+    """
+    aclose = getattr(stream, "aclose", None)
+    if aclose is not None:
+        await aclose()
 
 
 def _to_citations(chunks: list[RetrievedChunk]) -> tuple[Citation, ...]:
