@@ -44,6 +44,12 @@ python_version = "3.12"
 strict = true
 warn_unused_ignores = true
 
+# asyncpg não publica py.typed. Ignorar a ausência de stubs é o mínimo para
+# manter o strict valendo no resto do pacote — nada além disso é afrouxado.
+[[tool.mypy.overrides]]
+module = ["asyncpg.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

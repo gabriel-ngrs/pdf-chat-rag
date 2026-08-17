@@ -1,0 +1,34 @@
+[importlinter]
+root_package = app
+include_external_packages = True
+
+[importlinter:contract:layers]
+name = Camadas: api -> adapters -> core
+type = layers
+layers =
+    app.api
+    app.adapters
+    app.core
+
+[importlinter:contract:pure-core]
+name = Nucleo puro: core nao conhece I/O nem framework
+type = forbidden
+source_modules =
+    app.core
+forbidden_modules =
+    fastapi
+    starlette
+    asyncpg
+    google
+    structlog
+    app.adapters
+    app.api
+
+[importlinter:contract:no-rag-framework]
+name = Sem framework de RAG
+type = forbidden
+source_modules =
+    app
+forbidden_modules =
+    langchain
+    llama_index
