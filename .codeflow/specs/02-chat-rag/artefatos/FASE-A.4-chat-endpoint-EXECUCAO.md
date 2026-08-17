@@ -342,6 +342,38 @@ $ uv run pytest --cov=app.adapters.gemini --cov-report=term-missing \
 app/adapters/gemini.py       200      3     36      4    97%   366, 384, 476->exit, 568
 ```
 
+### Revalidação pelo compose, depois do rework
+
+O prazo do turno e a transação que a `A.3` introduziu na busca mexem no caminho quente,
+então o gate da fase foi refeito contra a API real, com o limiar já calibrado da `A.5`:
+
+```text
+$ curl -s http://localhost:8001/api/health
+{"status":"ok","database":"ok"}
+
+# pergunta fundamentada
+PRIMEIRO EVENTO em 1.39s   (NFR-1: teto de 5 s)
+[citations] página 2, chunk_index 6, score 0.761, snippet recortado
+[done] {"message_id": 52, "truncated": false}
+RESPOSTA: A YAITEC foi fundada por Ygor Alves, que é engenheiro eletricista formado
+  pela UFPB e possui mais de 5 anos de experiência em inteligência artificial.
+
+# pergunta de continuação — chat.condensed com used_llm=true, fallback=false
+RESPOSTA: … os clientes e parcerias: ATC Analytics, ChatADV, Langflow, PagBank, StartStak
+
+# pergunta fora do documento, com SIMILARITY_THRESHOLD=0.625
+[citations] {"citations": []}
+RESPOSTA: Não encontrei essa informação no documento enviado. …
+eventos token: 1
+
+# eventos de log dos três turnos
+{"candidates":5,"above_threshold":5,"top_score":0.761,"event":"chat.retrieved"}
+{"token_count":4,"truncated":false,"event":"chat.generated"}
+{"used_llm":true,"fallback":false,"event":"chat.condensed"}
+{"candidates":5,"above_threshold":0,"top_score":0.507,"event":"chat.retrieved"}
+{"top_score":0.507,"event":"chat.refused"}
+```
+
 ## 9. Itens em aberto / dúvidas para o avaliador
 
 - **A tentativa 1 foi commitada sem teste de unidade do adapter**, apostando que o
