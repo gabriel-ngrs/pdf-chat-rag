@@ -19,7 +19,10 @@ export type ErrorDescription = {
   severity: NoticeSeverity
 }
 
-/** Os cinco códigos da §4.3, mais o de falha de rede, que nasce no cliente. */
+/**
+ * Os códigos da `FEAT-0001` §4.3, os do chat (`FEAT-0002` §4.3 e §4.4) e o de
+ * falha de rede, que nasce no cliente.
+ */
 export const ERROR_CODES = [
   'arquivo_grande',
   'arquivo_invalido',
@@ -27,6 +30,8 @@ export const ERROR_CODES = [
   'limite_de_uso',
   'erro_interno',
   'rede_indisponivel',
+  'provedor',
+  'documento_nao_pronto',
 ] as const
 
 export type ErrorCode = (typeof ERROR_CODES)[number]
@@ -67,6 +72,18 @@ const DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
     message: 'Não foi possível falar com a aplicação.',
     action: 'Verifique sua conexão e tente de novo.',
     severity: 'error',
+  },
+  provedor: {
+    title: 'O provedor de IA falhou',
+    message: 'A resposta não pôde ser gerada até o fim.',
+    action: 'Refaça a pergunta em alguns instantes.',
+    severity: 'error',
+  },
+  documento_nao_pronto: {
+    title: 'Documento ainda não está pronto',
+    message: 'A leitura do PDF não terminou, então ainda não dá para conversar sobre ele.',
+    action: 'Espere a leitura terminar e tente de novo.',
+    severity: 'info',
   },
 }
 

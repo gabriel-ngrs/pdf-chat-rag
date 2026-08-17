@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ThemeProvider } from 'next-themes'
 
 import { AppShell } from '@/components/AppShell'
+import { ChatView, forgetConversation } from '@/components/ChatView'
 import { Notices } from '@/components/Notices'
 import { ProcessingStatus } from '@/components/ProcessingStatus'
 import { UploadDropzone } from '@/components/UploadDropzone'
@@ -9,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useNotices } from '@/hooks/useNotices'
 import { loadConfig } from '@/lib/config'
 import type { ConfigState } from '@/lib/config'
-import type { UploadAccepted } from '@/lib/types'
+import type { DocumentDetail, UploadAccepted } from '@/lib/types'
 
 /** O documento em acompanhamento sobrevive a um recarregamento da página. */
 const DOCUMENT_STORAGE_KEY = 'talkdoc:document-id'
@@ -101,6 +102,7 @@ function TalkDoc() {
   const notify = useNotices()
   const config = useAppConfig()
   const [documentId, setDocumentId] = useState<string | null>(null)
+  const [readyDocument, setReadyDocument] = useState<DocumentDetail | null>(null)
 
   useEffect(() => {
     setDocumentId(localStorage.getItem(DOCUMENT_STORAGE_KEY))
@@ -117,8 +119,24 @@ function TalkDoc() {
 
   const handleReset = useCallback(() => {
     localStorage.removeItem(DOCUMENT_STORAGE_KEY)
+    forgetConversation()
     setDocumentId(null)
+    setReadyDocument(null)
   }, [])
+
+  // O acompanhamento entrega o documento pronto e sai de cena: é o gancho que
+  // leva do processamento à conversa sem que ninguém precise clicar em nada.
+  const handleReady = useCallback((document: DocumentDetail) => {
+    setReadyDocument(document)
+  }, [])
+
+  if (readyDocument) {
+    return (
+      <AppShell>
+        <ChatView document={readyDocument} onReset={handleReset} />
+      </AppShell>
+    )
+  }
 
   return (
     <AppShell>
@@ -132,7 +150,7 @@ function TalkDoc() {
         </section>
 
         {documentId ? (
-          <ProcessingStatus documentId={documentId} onReset={handleReset} />
+          <ProcessingStatus documentId={documentId} onReset={handleReset} onReady={handleReady} />
         ) : (
           <UploadDropzone
             limits={config.status === 'ready' ? config.limits : null}

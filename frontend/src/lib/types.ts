@@ -41,3 +41,35 @@ export type ErrorEnvelope = {
   code: string
   message: string
 }
+
+/**
+ * Trecho do documento que sustentou uma resposta, como vem no evento
+ * `citations` da FEAT-0002 §4.3.
+ *
+ * O `snippet` já chega recortado em 240 caracteres pelo servidor — o cliente
+ * exibe, não recorta de novo.
+ */
+export type Citation = {
+  page_number: number
+  snippet: string
+  chunk_index: number
+  score: number
+}
+
+export type ChatRole = 'user' | 'assistant'
+
+/** Item de `GET /api/conversations/{id}/messages` (FEAT-0002 §4.4). */
+export type ChatMessage = {
+  id: number
+  role: ChatRole
+  content: string
+  citations: Citation[]
+  /** A resposta foi persistida incompleta — o stream caiu antes do fim. */
+  truncated: boolean
+  created_at: string
+}
+
+/** Resposta de `POST /api/conversations` (201). */
+export type ConversationCreated = {
+  id: string
+}
