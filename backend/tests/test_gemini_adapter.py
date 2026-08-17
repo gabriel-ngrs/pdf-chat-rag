@@ -12,6 +12,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
+import httpx
 import pytest
 import structlog
 from google.genai import errors, types
@@ -203,12 +204,45 @@ def test_429_persistente_esgota_as_tentativas_e_vira_erro_de_quota() -> None:
     assert erro.value.status_code == 429
 
 
-def test_falha_de_rede_e_tratada_como_transitoria() -> None:
-    models = FakeModels(failures=[TimeoutError("conexão expirou"), None])
+@pytest.mark.parametrize(
+    "falha",
+    [
+        pytest.param(TimeoutError("conexão expirou"), id="TimeoutError da stdlib"),
+        pytest.param(OSError("conexão recusada"), id="OSError da stdlib"),
+        # As três abaixo são as que o cliente real produz. Nenhuma é subclasse de
+        # TimeoutError nem de OSError: com a captura anterior, uma oscilação de
+        # rede não era re-tentada nenhuma vez e a exceção escapava crua.
+        pytest.param(httpx.ReadTimeout("leitura expirou"), id="httpx.ReadTimeout"),
+        pytest.param(httpx.ConnectError("sem rota para o host"), id="httpx.ConnectError"),
+        pytest.param(httpx.RemoteProtocolError("conexão cortada"), id="httpx.RemoteProtocolError"),
+    ],
+)
+def test_falha_de_rede_e_tratada_como_transitoria(falha: Exception) -> None:
+    """Toda falha de transporte é re-tentada, inclusive a do cliente real.
+
+    O teste antigo usava só `OSError`, que o SDK nunca levanta — era verde sobre
+    um caminho que o sistema não percorre.
+    """
+    models = FakeModels(failures=[falha, None])
     client = build_client(models)
 
     assert len(client.embed_documents(["gato"])) == 1
     assert len(models.calls) == 2
+
+
+def test_excecao_do_httpx_nao_escapa_crua_do_adapter() -> None:
+    """Esgotadas as tentativas, o erro sobe como domínio — nunca como httpx.
+
+    Escapar cru levaria a exceção ao catch-all do pipeline, que a transformaria
+    num `erro_interno` genérico em vez da mensagem específica.
+    """
+    models = FakeModels(failures=[httpx.ReadTimeout("expirou")] * 3)
+    client = build_client(models, max_attempts=3)
+
+    with pytest.raises(EmbeddingProviderError):
+        client.embed_documents(["gato"])
+
+    assert len(models.calls) == 3
 
 
 def test_erro_permanente_de_credencial_nao_repete() -> None:

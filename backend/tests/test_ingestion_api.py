@@ -423,3 +423,121 @@ async def test_o_total_embedado_independe_do_tamanho_do_lote(
     gravados = repository.chunks[document_id]
     assert len(embedder.embedded_texts) == len(gravados)
     assert embedder.embedded_texts == [chunk.content for chunk, _ in gravados]
+
+
+# ─── Regressão da avaliação da A.4 (I-1) e da A.2 (I-1, guarda simétrico) ────
+
+
+class FalhaUmaVezDepoisFunciona(FakeEmbeddingClient):
+    """Provedor que falha no primeiro documento e funciona do segundo em diante.
+
+    Reproduz o cenário real que a avaliação apontou: uma oscilação de rede
+    derruba a primeira ingestão, e o usuário faz o que a mensagem manda —
+    envia de novo.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.deve_falhar = True
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        if self.deve_falhar:
+            self.deve_falhar = False
+            self.batches.append(list(texts))
+            raise EmbeddingProviderError(PROVIDER_MESSAGE)
+        return super().embed_documents(texts)
+
+
+async def test_documento_que_falhou_e_reprocessado_no_reenvio(
+    build_client: Callable[..., httpx.AsyncClient], repository: FakeRepository
+) -> None:
+    """O reenvio de um documento `failed` reprocessa, em vez de devolver a falha.
+
+    Antes da correção o dedup por hash não olhava o `status`: o segundo envio
+    devolvia o mesmo registro falho, e como a chave é `(session_id, hash)` e o
+    `session_id` vive no `localStorage`, a única saída do usuário era limpar o
+    navegador. O sistema instruía uma ação que ele próprio impedia.
+    """
+    provedor = FalhaUmaVezDepoisFunciona()
+    data = documento_de_tres_paginas()
+    cabecalho = {"X-Session-Id": "sessao-do-teste"}
+
+    async with build_client(embedding_client=provedor) as client:
+        primeiro = await enviar(client, data, headers=cabecalho)
+        apos_falha = await estado(client, primeiro.json()["id"])
+
+        segundo = await enviar(client, data, headers=cabecalho)
+        apos_reenvio = await estado(client, segundo.json()["id"])
+
+    assert apos_falha["status"] == DocumentStatus.FAILED.value
+    assert segundo.json()["id"] == primeiro.json()["id"]
+    assert apos_reenvio["status"] == DocumentStatus.READY.value
+    assert apos_reenvio["error_message"] is None
+    assert apos_reenvio["chunks_total"] == apos_reenvio["chunks_processed"]
+    assert len(repository.documents) == 1
+    assert repository.retries == [UUID(primeiro.json()["id"])]
+
+
+async def test_reenvio_de_documento_pronto_continua_sem_reprocessar(
+    build_client: Callable[..., httpx.AsyncClient], embedder: FakeEmbeddingClient
+) -> None:
+    """A correção do reenvio não pode desfazer o dedup do AC-15.
+
+    Só o estado `failed` volta a processar; `ready` continua sendo devolvido de
+    graça, que é o que protege a quota.
+    """
+    data = documento_de_tres_paginas()
+    cabecalho = {"X-Session-Id": "sessao-do-teste"}
+
+    async with build_client() as client:
+        primeiro = await enviar(client, data, headers=cabecalho)
+        lotes = len(embedder.batches)
+        segundo = await enviar(client, data, headers=cabecalho)
+
+    assert segundo.json()["id"] == primeiro.json()["id"]
+    assert segundo.json()["status"] == DocumentStatus.READY.value
+    assert len(embedder.batches) == lotes
+
+
+async def test_documento_sem_chunk_nenhum_nao_termina_ready(
+    build_client: Callable[..., httpx.AsyncClient],
+) -> None:
+    """Guarda simétrico ao de `extract_pages`: zero chunks é falha, não sucesso.
+
+    Um PDF cuja camada de texto é só espaço chegava a `ready` com
+    `chunks_total: 0`, e na FEAT-0002 toda pergunta receberia "não encontrei
+    isso no documento" — o diagnóstico errado, porque o problema é o documento.
+    """
+    async with build_client() as client:
+        aceito = await enviar(client, build_text_pdf(["   ", "  \t "]))
+        corpo = await estado(client, aceito.json()["id"])
+
+    assert corpo["status"] == DocumentStatus.FAILED.value
+    assert "OCR" in corpo["error_message"]
+
+
+async def test_chunking_vazio_termina_failed_mesmo_com_texto_extraido(
+    repository: FakeRepository,
+    embedder: FakeEmbeddingClient,
+    settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """O guarda de zero chunks protege contra divergência entre duas noções de "vazio".
+
+    O adapter decide por `str.strip()` e o núcleo por `normalize_whitespace`.
+    Hoje as duas concordam, e por isso **nenhum PDF real alcança este guarda** —
+    medi isso: a suíte inteira passa sem ele. O teste força a condição em vez de
+    fingir um PDF que a produza, para que o guarda seja verificado de verdade e
+    não fique como código decorativo.
+    """
+    monkeypatch.setattr("app.ingestion.chunk_pages", lambda *args, **kwargs: [])
+    document_id = await repository.create("documento.pdf", "hash-sem-chunk", None)
+
+    await run_ingestion(
+        document_id, documento_de_tres_paginas(), "req-sem-chunk", repository, embedder, settings
+    )
+
+    registro = repository.documents[document_id]
+    assert registro.status is DocumentStatus.FAILED
+    assert "OCR" in (registro.error_message or "")
+    assert embedder.batches == []

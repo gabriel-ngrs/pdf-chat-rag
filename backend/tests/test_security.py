@@ -123,6 +123,9 @@ class RecordingRepository:
     ) -> None:
         return None
 
+    async def reset_for_retry(self, document_id: UUID) -> None:
+        return None
+
     async def sweep_orphans(self) -> int:
         return 0
 
