@@ -3,11 +3,11 @@ spec: 02-chat-rag
 fase: A.4
 slug_fase: chat-endpoint
 status: rework
-tentativa: 2
-reprovacoes: 1
+tentativa: 3
+reprovacoes: 2
 sha_inicial: 7fe47de9ac92e62523d38eab7366615b7d70d0bb
-sha_final: e2b78250d82d3317abefa9359ac2a46d694a6105
-range: 7fe47de..e2b7825
+sha_final: defa164b815295c39781376b2fc10fa7f6630b48
+range: 7fe47de..defa164
 ---
 
 # FASE A.4 — Relatório de execução
@@ -36,11 +36,11 @@ de página correta, pergunta de continuação resolvida e recusa sem chamar o LL
 | `backend/app/adapters/gemini.py` | +`ChatClient`, `GeminiChatClient`, `ChatQuotaError`, `ChatProviderError`, `_thinking_config` |
 | `backend/app/api/schemas.py` | +`ConversationCreateRequest`, `ConversationResponse`, `QuestionRequest`, `CitationResponse`, `MessageResponse` |
 | `backend/app/main.py` | Router de conversas + repositório de conversas e cliente de chat no lifespan |
-| `backend/app/config.py` | Default do modelo de chat (ver §4) |
+| `backend/app/config.py` | Default do modelo de chat (ver §4); prazos em `float` (tentativa 3) |
 | `backend/app/errors.py` | +`DocumentNotReadyError` (`documento_nao_pronto`, `409`) |
 | `backend/.importlinter` | `chat` declarado como camada irmã de `ingestion` |
-| `backend/tests/test_gemini_adapter.py` | +12 testes de unidade do cliente de chat (rework, I-3) |
-| `.env.example` | Modelo de chat que o provedor ainda atende (commit `3c89162`) |
+| `backend/tests/test_gemini_adapter.py` | +13 testes de unidade do cliente de chat (rework, I-3 e o achado da tentativa 2) |
+| `.env.example` | Modelo de chat que o provedor ainda atende (`3c89162`); comentário dos dois prazos (`defa164`) |
 
 ## 4. Confirmação do REUSO e decisões de design
 
@@ -245,8 +245,95 @@ $ GET /api/conversations/<id>/messages
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-A avaliação da tentativa 1 deu **RESSALVAS** com três achados IMPORTANTES. Os três estão
-fechados, e o `range` desta tentativa contém todos os commits envolvidos.
+> **Tentativa 3.** A tentativa 1 recebeu RESSALVAS com três achados; a tentativa 2 os
+> fechou e recebeu RESSALVAS de novo, com **um achado novo** — o teste do prazo que a
+> própria tentativa 2 escreveu não exercitava o que dizia exercitar. Este relatório
+> descreve as duas rodadas. **`reprovacoes: 2`: um próximo veredito não-APROVADO fecha o
+> teto de três e a fase precisa ser escalada ao owner** (`ARTIFACTS_SPEC` §2.11.4).
+
+### Achado da tentativa 2 — o teste do prazo não mordia (commit `defa164`)
+
+`test_provedor_que_emudece_estoura_o_prazo_do_turno` rodava com `timeout=0`. Nesse
+regime o prazo estoura na **abertura** do stream: `generate_content_stream` nem chega a
+ser chamado, o `stall=True` do dublê fica inerte, e o teste passa sem nunca entrar no
+laço de leitura. Consequência exata, como a avaliação escreveu: apagar
+`chunk = await self._with_deadline(anext(stream), deadline)` deixaria a suíte inteira
+verde e o defeito do I-2 voltaria sem sinal nenhum.
+
+O código estava certo — a avaliação verificou isso de forma independente. O que faltava
+era o teste morder, que é o padrão que a `A.3` aplicou nesta mesma rodada.
+
+**O que mudou:**
+
+- O prazo passou a ser **curto mas suficiente para abrir** (`timeout=0.05`), e duas
+  asserções travam o regime: `models.models_pedidos == ["modelo-de-teste"]` (o stream
+  foi mesmo aberto) e `models.closed is True` (o iterador foi fechado no estouro).
+- Um `asyncio.wait_for` de fora, com teto de 5 s, garante que a **ausência** do prazo
+  vire falha em segundos em vez de suíte pendurada — sem ele o teste travava para
+  sempre, que é um modo de falha pior que vermelho.
+- Um teste irmão cobre a outra metade do contrato:
+  `test_prazo_ja_estourado_falha_antes_mesmo_de_abrir_o_stream` assere
+  `models.models_pedidos == []`, isto é, quem chega sem tempo não gasta uma chamada.
+- `chat_timeout_seconds` e `condense_timeout_seconds` passaram de `int` para `float`.
+  É como `asyncio.wait_for` os recebe, e é o que permite o prazo de 50 ms no teste sem
+  fazer a suíte esperar um segundo. `.env.example` não mudou de valor.
+
+**Prova de que o teste morde**, a mesma disciplina da `A.3` — removendo só a linha do
+prazo de dentro do laço:
+
+```text
+# sem `chunk = await self._with_deadline(anext(stream), deadline)`
+$ uv run pytest tests/test_gemini_adapter.py -k prazo -q
+E               TimeoutError
+FAILED tests/test_gemini_adapter.py::test_provedor_que_emudece_no_meio_do_stream_estoura_o_prazo_do_turno
+1 failed, 1 passed, 43 deselected in 5.10s
+
+# com a linha
+$ uv run pytest tests/test_gemini_adapter.py -k prazo -q
+..
+2 passed, 43 deselected in 0.12s
+```
+
+Antes disso, a mesma verificação com a versão da tentativa 2 do teste passava nos dois
+casos — que é exatamente o que a avaliação apontou.
+
+### Sugestões abertas da avaliação, também fechadas no commit `defa164`
+
+- **A fixture da `A.3` não mexe mais em estado global.** `enable_seqscan` e
+  `hnsw.ef_search` deixaram o `ALTER ROLE` e passaram para o `server_settings` do pool
+  daquele teste — nascem e morrem com ele, em vez de valerem para toda conexão do
+  projeto (inclusive de outro teste rodando ao lado, e inclusive depois, se a suíte
+  morresse antes de restaurá-las). Verifiquei que a GUC do pgvector é aceita como
+  parâmetro de conexão, e que o teste continua falhando sem a correção do I-1.
+- **O comentário obsoleto de `test_chat_api.py`** — que afirmava que `app.chat` não
+  chama `aclose()` — foi reescrito: o fechamento passou a ser síncrono com a saída do
+  laço no commit `8a1c5f0`, e o laço de polling que o comentário justificava virou uma
+  asserção direta.
+- **`CHAT_TIMEOUT_SECONDS` e `CONDENSE_TIMEOUT_SECONDS` ganharam comentário** no
+  `.env.example`, dizendo o que cada prazo protege e por que um é curto e o outro não.
+
+### Gates depois desta tentativa
+
+```text
+$ make check
+All checks passed! · Success: no issues found in 23 source files
+Contracts: 4 kept, 0 broken.
+Required test coverage of 90% reached. Total coverage: 99.55%
+263 passed, 19 deselected in 11.45s
+Test Files  10 passed (10) | Tests  84 passed (84)
+
+$ cd backend && uv run pytest -m db -p no:cacheprovider --no-cov -q
+19 passed, 263 deselected in 1.78s
+
+$ uv run bandit -q -r app
+(sem saída)                                   exit 0
+```
+
+---
+
+### Tentativa 2 — os três achados da primeira avaliação
+
+Os três estão fechados, e o `range` contém todos os commits envolvidos.
 
 ### I-1 — o `range` descrevia código quebrado
 
@@ -302,7 +389,7 @@ seria dublê de outra fase. Cobrem exatamente o que a avaliação listou:
 | desistência em status não-retentável | `test_status_nao_retentavel_desiste_na_primeira_tentativa` |
 | `chunk.text` nulo filtrado (§4.2) | `test_stream_descarta_pedaco_sem_texto_e_preserva_a_ordem` |
 | quota do chat distinta de falha de provedor | `test_quota_do_chat_vira_erro_de_quota_e_nao_de_provedor` |
-| prazo do turno (I-2) | `test_provedor_que_emudece_estoura_o_prazo_do_turno` |
+| prazo do turno (I-2) | `test_provedor_que_emudece_no_meio_do_stream_estoura_o_prazo_do_turno` e `test_prazo_ja_estourado_falha_antes_mesmo_de_abrir_o_stream` (corrigidos na tentativa 3) |
 | fechamento do iterador (FR-12) | `test_stream_fecha_o_iterador_do_provedor_ao_terminar` |
 | chave ausente | `test_chave_ausente_falha_antes_de_qualquer_chamada_de_chat` |
 
