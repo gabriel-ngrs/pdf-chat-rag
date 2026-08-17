@@ -2,12 +2,12 @@
 spec: 02-chat-rag
 fase: A.4
 slug_fase: chat-endpoint
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: 7fe47de9ac92e62523d38eab7366615b7d70d0bb
-sha_final: 9f0a2b1a512b25f8294edca99971a265552fc355
-range: 7fe47de..9f0a2b1
+sha_final: e2b78250d82d3317abefa9359ac2a46d694a6105
+range: 7fe47de..e2b7825
 ---
 
 # FASE A.4 — Relatório de execução
@@ -39,6 +39,8 @@ de página correta, pergunta de continuação resolvida e recusa sem chamar o LL
 | `backend/app/config.py` | Default do modelo de chat (ver §4) |
 | `backend/app/errors.py` | +`DocumentNotReadyError` (`documento_nao_pronto`, `409`) |
 | `backend/.importlinter` | `chat` declarado como camada irmã de `ingestion` |
+| `backend/tests/test_gemini_adapter.py` | +12 testes de unidade do cliente de chat (rework, I-3) |
+| `.env.example` | Modelo de chat que o provedor ainda atende (commit `3c89162`) |
 
 ## 4. Confirmação do REUSO e decisões de design
 
@@ -118,22 +120,10 @@ ausência ficou registrada em comentário no `main.py`.
    orçamento. A intenção da NFR-1 (mínimo de raciocínio, primeiro token o quanto antes)
    está preservada e medida abaixo.
 
-4. **`.env.example` foi atualizado no commit `3c89162`**, depois do commit desta fase,
-   porque o arquivo estava sendo escrito pela `A.5` em paralelo. O conteúdo pertence a
-   esta fase e está fora do `range` acima — está registrado aqui para o avaliador não
-   procurá-lo no lugar errado.
-
-5. **Defeito de FR-11 desta fase, encontrado e corrigido na `A.6`, no commit `8a1c5f0`
-   — também fora do `range` acima.** A versão commitada aqui tratava a `AppError`
-   levantada na **abertura** do stream como erro mid-stream: ela virava evento `error` e
-   a rota entregava HTTP `200` com `text/event-stream`, quando FR-11 exige o envelope
-   `{code, message}` com o status. Como o `429` do chat estoura justamente na abertura,
-   o caminho quebrado era o caso comum. A correção decide pelo único fato que importa —
-   se algum token já saiu —, e o `phase` do log passa a dizer a verdade nos dois casos.
-   No mesmo commit: o iterador do provedor passou a ser fechado explicitamente ao sair
-   do laço (FR-12 determinístico, em vez de depender do finalizador do event loop) e a
-   constante `TOKEN_EVENT` ganhou `# nosec B105`, porque o `bandit` a lia como
-   credencial embutida e derrubava `make security` por falso positivo.
+4. **`.env.example` e a correção de FR-11 nasceram fora do commit desta fase** — o
+   primeiro no `3c89162`, a segunda no `8a1c5f0`. Nesta segunda tentativa os dois estão
+   **dentro** do `range`, que é o que a avaliação cobrou: o `sha_final` foi estendido e
+   `sha_inicial` preservado. O detalhe do que cada um mudou está no §8.
 
 ## 5. Comandos rodados + saídas reais
 
@@ -154,7 +144,7 @@ Sem framework de RAG KEPT
 Sem ORM nem query builder KEPT
 Contracts: 4 kept, 0 broken.
 
-# suíte offline
+# suíte offline (na tentativa 1; os números do rework estão no §8)
 $ uv run pytest -p no:cacheprovider -q
 Required test coverage of 90% reached. Total coverage: 99.55%
 213 passed, 17 deselected in 9.84s
@@ -247,7 +237,7 @@ $ GET /api/conversations/<id>/messages
 
 ## 7. Definition of Done da fase
 
-- [x] Testes existentes verdes (213 offline); **os testes novos desta funcionalidade são o escopo declarado da fase `A.6`** — ver §9
+- [x] Testes verdes: 260 offline e 19 sob o marker `db`. Os de integração do chat são escopo da `A.6`; os **de unidade do adapter** passaram a existir nesta tentativa (I-3)
 - [x] `ruff`, `mypy`, `lint-imports` e `pytest` zerados
 - [x] Escopo travado respeitado: nenhuma chamada ao Gemini fora do adapter; resposta **não** bufferizada; resposta parcial nunca gravada como completa; nenhum `GZipMiddleware`; `embed_query` reusado; nem prompt integral nem pergunta completa em nível `info` (só `question_len`)
 - [x] Nenhum segredo em log, resposta ou evento SSE
@@ -255,21 +245,114 @@ $ GET /api/conversations/<id>/messages
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+A avaliação da tentativa 1 deu **RESSALVAS** com três achados IMPORTANTES. Os três estão
+fechados, e o `range` desta tentativa contém todos os commits envolvidos.
+
+### I-1 — o `range` descrevia código quebrado
+
+Não é correção de código: é correção de artefato, e a avaliação tem razão no argumento.
+Auditando `7fe47de..9f0a2b1` o avaliador lia um AC-12 quebrado, e só sabia do conserto
+porque o relatório contava — que é exatamente a dependência que a avaliação em chat
+zerado existe para não ter. O `sha_final` foi estendido até conter os dois commits que
+faltavam, com o `sha_inicial` intacto:
+
+- **`8a1c5f0`** — a falha do provedor na **abertura** do stream voltou a caber no
+  envelope HTTP. A versão da tentativa 1 tratava toda `AppError` como erro mid-stream:
+  virava evento `error` e a rota entregava `200 text/event-stream`, quando FR-11 exige
+  `{code, message}` com o status. Como o `429` do chat estoura justamente na abertura, o
+  caminho quebrado era o caso comum. A decisão passou a ser tomada pelo único fato que
+  importa — se algum token já saiu —, e o `phase` do log diz a verdade nos dois casos.
+  No mesmo commit: o iterador do provedor passou a ser fechado explicitamente (FR-12
+  determinístico) e `TOKEN_EVENT` ganhou `# nosec B105`, porque o `bandit` a lia como
+  credencial embutida e derrubava `make security` por falso positivo.
+- **`3c89162`** — o `.env.example` passou a documentar o modelo de chat que o provedor
+  ainda atende.
+
+### I-2 — `CHAT_TIMEOUT_SECONDS` era configuração morta (commit `f1f8be7`)
+
+A variável existia em `config.py` e no `.env.example` e não tinha consumidor nenhum:
+`generate` tinha prazo, `stream_answer` não tinha nenhum. Um provedor que abrisse o
+stream e parasse de emitir prenderia o turno até o `proxy_read_timeout` de 300 s do
+nginx derrubar a conexão — e só então a resposta parcial seria gravada, quatro minutos
+depois.
+
+Escolhi **consumir** a variável, e não removê-la. O prazo vale para o turno inteiro,
+contado da abertura do stream (de modo que o tempo gasto para abrir também conte, que é
+o que alguém entende ao ler "60 s" num arquivo de configuração), e o estouro vira
+`ChatProviderError`. Quem decide se isso sai como envelope HTTP ou como evento `error`
+continua sendo `app.chat`, pelo critério de FR-11 — nada de novo precisou ser ensinado à
+orquestração.
+
+A implementação ficou no adapter, e não em `chat.py`, porque é o adapter que já é dono
+dos prazos do provedor (`generate` já recebia um) e porque o protocolo `ChatClient` de
+§4.2 não tem parâmetro de timeout em `stream_answer` — respeitá-lo evitou mudar o
+contrato que o dublê da `A.6` implementa.
+
+### I-3 — o `GeminiChatClient` não tinha teste de unidade (commit `c64104f`)
+
+Doze testes novos em `tests/test_gemini_adapter.py`, sobre um transporte assíncrono
+falso escrito ali mesmo (`FakeAsyncModels`/`FakeAsyncClient`) — em `tests/fakes.py` ele
+seria dublê de outra fase. Cobrem exatamente o que a avaliação listou:
+
+| Lacuna apontada | Teste |
+|---|---|
+| `_thinking_config` com orçamento 0 e positivo | `test_orcamento_zero_chega_ao_provedor_como_nivel_minimo`, `test_orcamento_positivo_continua_chegando_como_orcamento` |
+| caminho feliz de `generate` | `test_generate_devolve_o_texto_podado_com_o_teto_da_condensacao` |
+| retry por falha transitória | `test_falha_transitoria_na_abertura_do_stream_e_re_tentada_uma_vez`, `test_falha_transitoria_persistente_esgota_as_tentativas` |
+| desistência em status não-retentável | `test_status_nao_retentavel_desiste_na_primeira_tentativa` |
+| `chunk.text` nulo filtrado (§4.2) | `test_stream_descarta_pedaco_sem_texto_e_preserva_a_ordem` |
+| quota do chat distinta de falha de provedor | `test_quota_do_chat_vira_erro_de_quota_e_nao_de_provedor` |
+| prazo do turno (I-2) | `test_provedor_que_emudece_estoura_o_prazo_do_turno` |
+| fechamento do iterador (FR-12) | `test_stream_fecha_o_iterador_do_provedor_ao_terminar` |
+| chave ausente | `test_chave_ausente_falha_antes_de_qualquer_chamada_de_chat` |
+
+A asserção da tradução do raciocínio é sobre **o que chegou ao transporte**, e não sobre
+a função privada: é lá que a diferença entre `thinking_level` e `thinking_budget` existe.
+
+Cobertura de `app/adapters/gemini.py`: **90% → 97%** (de 12 linhas descobertas para 3).
+
+### Sugestões da avaliação que também foram acatadas
+
+O texto de **NFR-1**, **AC-23**, §4.2 e §4.8 da spec cobrava `thinking_budget=0`, e
+`.codeflow/manifest.md` ainda anunciava `gemini-2.5-flash` para geração. Os dois foram
+corrigidos no commit `e2b7825`, junto com o limiar de FR-3 (`< 12` → `< 4` palavras) que
+a avaliação da `A.2` confirmou ser erro da spec, não da implementação.
+
+### Saídas dos gates depois do rework
+
+```text
+$ cd backend && uv run ruff check app tests
+All checks passed!
+
+$ uv run mypy app
+Success: no issues found in 23 source files
+
+$ uv run pytest -p no:cacheprovider -q
+Required test coverage of 90% reached. Total coverage: 99.55%
+260 passed, 19 deselected in 11.49s
+
+$ uv run pytest -m db -p no:cacheprovider --no-cov -q
+19 passed, 260 deselected in 1.86s
+
+$ uv run bandit -q -r app
+(sem saída)                                   exit 0
+
+$ uv run pytest --cov=app.adapters.gemini --cov-report=term-missing \
+      tests/test_gemini_adapter.py tests/test_chat_security.py
+app/adapters/gemini.py       200      3     36      4    97%   366, 384, 476->exit, 568
+```
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 
-- **Esta fase foi commitada sem testes automatizados próprios**, o que contraria a rule
-  `testing` lida isoladamente. Foi decisão de **seguir o fatiamento da spec**: a `A.6`
-  ("Testes de integração e de segurança do chat") declara como seus os arquivos
-  `tests/test_chat_api.py`, `tests/test_chat_security.py` e a extensão de
-  `tests/{fakes,conftest}.py`, e lista exatamente os ACs desta fase. Escrevê-los aqui
-  invadiria o escopo da fase seguinte. A prova desta fase é o gate contra o compose real,
-  colado acima; a prova automatizada chega na `A.6`.
-- **Os desvios 2 e 3 (§4) são mudanças de comportamento externo** e merecem decisão
-  humana explícita: o `README` e o `manifest.md` ainda dizem `gemini-2.5-flash`, e
-  quem já tem um `.env` local precisa atualizá-lo — o `.env` **não foi tocado**, por ser
-  arquivo protegido pela constitution. A validação acima rodou com o modelo passado por
+- **A tentativa 1 foi commitada sem teste de unidade do adapter**, apostando que o
+  fatiamento da spec cobriria a lacuna pela `A.6`. A avaliação mostrou que não cobria:
+  `tests/test_gemini_adapter.py` não pertence a fase nenhuma do Track A, então a lacuna
+  era desta. Fechada nesta tentativa (§8, I-3).
+- **Os desvios 2 e 3 (§4) são mudanças de comportamento externo.** O `manifest.md` e o
+  texto de NFR-1/AC-23 da spec foram corrigidos nesta tentativa (commit `e2b7825`); o
+  `README.md` ainda não menciona modelo algum, e é entregável da fase `B.5`. Quem já tem
+  um `.env` local **precisa atualizá-lo** — o `.env` não foi tocado, por ser arquivo
+  protegido pela constitution. A validação pelo compose rodou com o modelo passado por
   variável de ambiente no container (`docker compose run -e GEMINI_CHAT_MODEL=…`),
   justamente para não editar o `.env`.
 - **A latência medida inclui a rede real** e ficou bem dentro do teto, mas foi medida
