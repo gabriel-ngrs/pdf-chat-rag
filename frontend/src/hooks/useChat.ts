@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { useNotices } from '@/hooks/useNotices'
-import { ApiError, openChatStream } from '@/lib/api'
+import { ApiError, listMessages, openChatStream } from '@/lib/api'
 import { parseChatStream } from '@/lib/sse'
 import type { ChatMessage, Citation } from '@/lib/types'
 
@@ -11,10 +10,22 @@ export type StreamingAnswer = {
   citations: Citation[]
 }
 
+/**
+ * A última falha do turno, com a pergunta que a provocou.
+ *
+ * O hook **reporta** a falha em vez de avisar direto: quem sabe oferecer o
+ * caminho de volta — repor a pergunta no campo, repetir o envio — é a tela.
+ */
+export type ChatFailure = {
+  code: string
+  question: string
+}
+
 export type ChatSession = {
   messages: ChatMessage[]
   /** Não-nulo do envio até o fim do stream; conteúdo vazio = ainda pensando. */
   streaming: StreamingAnswer | null
+  failure: ChatFailure | null
   send: (question: string) => void
   cancel: () => void
 }
@@ -36,11 +47,34 @@ function nowIso(): string {
  * últimos tokens.
  */
 export function useChat(conversationId: string | null): ChatSession {
-  const notify = useNotices()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState<StreamingAnswer | null>(null)
+  const [failure, setFailure] = useState<ChatFailure | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
   const nextLocalId = useRef(-1)
+
+  // Recarregar a página não pode custar a conversa: o histórico volta do
+  // servidor, pela conversa que já existia. Só entra se a lista ainda estiver
+  // vazia — uma pergunta feita antes da resposta chegar não pode ser apagada
+  // por ela.
+  useEffect(() => {
+    if (!conversationId) {
+      return
+    }
+    let active = true
+    void listMessages(conversationId)
+      .then((history) => {
+        if (active && history.length > 0) {
+          setMessages((current) => (current.length === 0 ? history : current))
+        }
+      })
+      .catch(() => {
+        // Histórico indisponível não impede perguntar de novo.
+      })
+    return () => {
+      active = false
+    }
+  }, [conversationId])
 
   // Sair da tela no meio da resposta encerra o stream: sem isto o gerador
   // continuaria consumindo quota de um usuário que já não está olhando.
@@ -65,6 +99,7 @@ export function useChat(conversationId: string | null): ChatSession {
       const openConversationId = conversationId
       const controller = new AbortController()
       controllerRef.current = controller
+      setFailure(null)
 
       setMessages((previous) => [
         ...previous,
@@ -98,7 +133,7 @@ export function useChat(conversationId: string | null): ChatSession {
               // Falha depois do primeiro byte: o que chegou continua valendo,
               // mas a resposta não está completa e não pode parecer completa.
               truncated = true
-              notify.error(event.code)
+              setFailure({ code: event.code, question: asked })
               break
             } else {
               messageId = event.messageId
@@ -108,9 +143,13 @@ export function useChat(conversationId: string | null): ChatSession {
           }
         } catch (error) {
           if (controller.signal.aborted) {
+            // Cancelar é uma decisão de quem pergunta, não uma falha.
             truncated = content.length > 0
           } else {
-            notify.error(error instanceof ApiError ? error.code : 'erro_interno')
+            setFailure({
+              code: error instanceof ApiError ? error.code : 'erro_interno',
+              question: asked,
+            })
           }
         } finally {
           controllerRef.current = null
@@ -133,8 +172,8 @@ export function useChat(conversationId: string | null): ChatSession {
 
       void run()
     },
-    [conversationId, notify],
+    [conversationId],
   )
 
-  return { messages, streaming, send, cancel }
+  return { messages, streaming, failure, send, cancel }
 }

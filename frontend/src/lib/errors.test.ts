@@ -24,7 +24,10 @@ describe('describeError', () => {
       expect(description.title.length).toBeGreaterThan(0)
       expect(description.message.length).toBeGreaterThan(0)
       expect(description.action.length).toBeGreaterThan(0)
-      expect(description.severity).toBe('error')
+      // Nem todo código é erro: `documento_nao_pronto` é estado transitório e
+      // sai como aviso neutro. O que não pode faltar é a severidade estar entre
+      // as que o despacho de avisos conhece.
+      expect(['info', 'success', 'error']).toContain(description.severity)
     }
   })
 

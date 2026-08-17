@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -23,13 +23,25 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
 }))
 
-const { createConversation, openChatStream } = await import('@/lib/api')
+const { createConversation, listMessages, openChatStream } = await import('@/lib/api')
 const { parseChatStream } = await import('@/lib/sse')
 const { toast } = await import('sonner')
 const createConversationMock = vi.mocked(createConversation)
+const listMessagesMock = vi.mocked(listMessages)
 const openChatStreamMock = vi.mocked(openChatStream)
 const parseChatStreamMock = vi.mocked(parseChatStream)
 const toastErrorMock = vi.mocked(toast.error)
+const toastInfoMock = vi.mocked(toast.info)
+
+// O `ScrollArea` do Radix usa `ResizeObserver` para decidir quando mostrar a
+// barra, e o jsdom não o implementa. O dublê existe por causa do ambiente de
+// teste; no navegador a API é nativa.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub)
 
 const DOCUMENT: DocumentDetail = {
   id: 'doc-1',
@@ -106,6 +118,8 @@ describe('ChatView', () => {
     localStorage.clear()
     createConversationMock.mockReset()
     createConversationMock.mockResolvedValue({ id: 'conv-1' })
+    listMessagesMock.mockReset()
+    listMessagesMock.mockResolvedValue([])
     openChatStreamMock.mockReset()
     openChatStreamMock.mockResolvedValue({} as Response)
     parseChatStreamMock.mockReset()
@@ -113,6 +127,7 @@ describe('ChatView', () => {
     // sobre a resposta.
     parseChatStreamMock.mockImplementation(async function* () {})
     toastErrorMock.mockReset()
+    toastInfoMock.mockReset()
   })
 
   afterEach(cleanup)
@@ -161,7 +176,11 @@ describe('ChatView', () => {
 
     render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
 
-    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
+    // Documento ainda em leitura é estado transitório, não falha: sai como
+    // aviso neutro, pelo canal que a severidade do mapa escolhe.
+    await waitFor(() => expect(toastInfoMock).toHaveBeenCalled())
+    expect(toastInfoMock.mock.calls[0]?.[0]).toBe('Documento ainda não está pronto')
+    expect(toastErrorMock).not.toHaveBeenCalled()
     expect(campo().disabled).toBe(true)
   })
 
@@ -190,7 +209,7 @@ describe('ChatView', () => {
     await userEvent.click(campo())
     await userEvent.keyboard('   {Enter}')
 
-    expect(screen.queryByRole('listitem')).toBeNull()
+    expect(within(screen.getByRole('list', { name: 'Conversa' })).queryAllByRole('listitem')).toHaveLength(0)
   })
 
   it('mostra "pensando" e depois a resposta chegando aos poucos', async () => {
@@ -255,7 +274,7 @@ describe('ChatView', () => {
     expect(toastErrorMock.mock.calls[0]?.[0]).toBe('Limite de uso atingido')
     expect(parseChatStreamMock).not.toHaveBeenCalled()
     // Só a pergunta ficou na lista: não há resposta vazia fingindo existir.
-    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(within(screen.getByRole('list', { name: 'Conversa' })).getAllByRole('listitem')).toHaveLength(1)
     await waitFor(() => expect(campo().disabled).toBe(false))
   })
 
@@ -273,6 +292,107 @@ describe('ChatView', () => {
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
     expect(screen.getByText('Metade da resposta')).toBeTruthy()
+  })
+
+  it('devolve a pergunta ao campo e oferece repetir quando o envio falha', async () => {
+    openChatStreamMock.mockRejectedValue(
+      new ApiError('limite_de_uso', 'O provedor recusou por enquanto.', 429),
+    )
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+
+    await perguntar('qual o e-mail de contato?')
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
+    // A pergunta digitada não se perde: ela volta para o campo.
+    await waitFor(() => expect(campo().value).toBe('qual o e-mail de contato?'))
+
+    const aviso = toastErrorMock.mock.calls[0]?.[1] as
+      | { action?: { label: string; onClick: () => void } }
+      | undefined
+    expect(aviso?.action?.label).toBe('Tentar de novo')
+
+    openChatStreamMock.mockClear()
+    const canal = ligarStream()
+    aviso?.action?.onClick()
+
+    await waitFor(() =>
+      expect(openChatStreamMock).toHaveBeenCalledWith(
+        'conv-1',
+        'qual o e-mail de contato?',
+        expect.any(AbortSignal),
+      ),
+    )
+    // Repetido o envio, o campo volta a ficar limpo.
+    await waitFor(() => expect(campo().value).toBe(''))
+    canal.close()
+  })
+
+  it('exibe a recusa como resposta do assistente, sem aviso de erro', async () => {
+    const canal = ligarStream()
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+
+    await perguntar('qual a cotação do dólar?')
+    canal.push({ type: 'token', text: 'Não encontrei isso no documento.' })
+    canal.push({ type: 'citations', citations: [] })
+    canal.push({ type: 'done', messageId: 9, truncated: false })
+    canal.close()
+
+    expect(await screen.findByText('sem base no documento')).toBeTruthy()
+    expect(screen.getByText('Não encontrei isso no documento.')).toBeTruthy()
+    expect(toastErrorMock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /ver trecho/ })).toBeNull()
+  })
+
+  it('restaura o histórico da conversa guardada, sem criar outra', async () => {
+    localStorage.setItem(
+      'talkdoc:conversation',
+      JSON.stringify({ documentId: 'doc-1', conversationId: 'conv-guardada' }),
+    )
+    listMessagesMock.mockResolvedValue([
+      {
+        id: 1,
+        role: 'user',
+        content: 'quais serviços a YAITEC oferece?',
+        citations: [],
+        truncated: false,
+        created_at: '2026-08-17T12:00:00Z',
+      },
+      {
+        id: 2,
+        role: 'assistant',
+        content: 'Consultoria e engenharia de dados.',
+        citations: [{ page_number: 3, snippet: 'trecho', chunk_index: 1, score: 0.9 }],
+        truncated: false,
+        created_at: '2026-08-17T12:00:05Z',
+      },
+    ])
+
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+
+    expect(await screen.findByText('Consultoria e engenharia de dados.')).toBeTruthy()
+    expect(screen.getByText('quais serviços a YAITEC oferece?')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'ver trecho da página 3' })).toBeTruthy()
+    expect(listMessagesMock).toHaveBeenCalledWith('conv-guardada')
+    expect(createConversationMock).not.toHaveBeenCalled()
+  })
+
+  it('parte de uma pergunta sugerida quando a conversa está vazia', async () => {
+    const canal = ligarStream()
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Do que trata este documento?' }))
+
+    await waitFor(() =>
+      expect(openChatStreamMock).toHaveBeenCalledWith(
+        'conv-1',
+        'Do que trata este documento?',
+        expect.any(AbortSignal),
+      ),
+    )
+    canal.close()
   })
 
   it('mostra o nome do documento e o caminho de volta para o envio', async () => {

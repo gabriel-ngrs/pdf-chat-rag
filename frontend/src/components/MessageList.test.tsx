@@ -1,9 +1,19 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { MessageList } from '@/components/MessageList'
 import type { ChatMessage } from '@/lib/types'
+
+// O `ScrollArea` do Radix usa `ResizeObserver` para decidir quando mostrar a
+// barra, e o jsdom não o implementa. O dublê existe por causa do ambiente de
+// teste; no navegador a API é nativa.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub)
 
 function message(overrides: Partial<ChatMessage> & Pick<ChatMessage, 'id' | 'role'>): ChatMessage {
   return {
@@ -81,6 +91,61 @@ describe('MessageList', () => {
 
     expect(screen.queryByRole('button', { name: /ver trecho/ })).toBeNull()
     expect(screen.queryByLabelText('Trechos que fundamentam a resposta')).toBeNull()
+  })
+
+  it('mostra a recusa como resposta legítima, com marca sutil e sem cara de erro', () => {
+    render(
+      <MessageList
+        messages={[
+          message({
+            id: 1,
+            role: 'assistant',
+            content: 'Não encontrei isso no documento.',
+          }),
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Não encontrei isso no documento.')).toBeTruthy()
+    expect(screen.getByText('sem base no documento')).toBeTruthy()
+    // Recusa não é falha: nada de alerta, nada de "interrompida".
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText(/interrompida/)).toBeNull()
+  })
+
+  it('marca a resposta interrompida sem confundi-la com recusa', () => {
+    render(
+      <MessageList
+        messages={[
+          message({
+            id: 1,
+            role: 'assistant',
+            content: 'Metade da resposta',
+            truncated: true,
+          }),
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Resposta interrompida antes do fim.')).toBeTruthy()
+    expect(screen.queryByText('sem base no documento')).toBeNull()
+  })
+
+  it('mostra o estado inicial só enquanto não há mensagem', () => {
+    const { rerender } = render(
+      <MessageList messages={[]} emptyState={<p>Pergunte alguma coisa</p>} />,
+    )
+
+    expect(screen.getByText('Pergunte alguma coisa')).toBeTruthy()
+
+    rerender(
+      <MessageList
+        messages={[message({ id: 1, role: 'user', content: 'olá' })]}
+        emptyState={<p>Pergunte alguma coisa</p>}
+      />,
+    )
+
+    expect(screen.queryByText('Pergunte alguma coisa')).toBeNull()
   })
 
   it('diferencia quem falou também para quem não vê a tela', () => {

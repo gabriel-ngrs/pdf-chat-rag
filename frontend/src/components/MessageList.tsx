@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
+import { SearchXIcon, TriangleAlertIcon } from 'lucide-react'
 
 import { CitationChip } from '@/components/CitationChip'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { StreamingAnswer } from '@/hooks/useChat'
 import type { ChatMessage, Citation } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 /**
  * Folga, em pixels, para considerar que a pessoa está no fim da conversa.
@@ -97,14 +100,53 @@ function Citations({ citations }: { citations: Citation[] }) {
   )
 }
 
-function AssistantMessage({ content, citations }: { content: string; citations: Citation[] }) {
+/**
+ * Recusa por falta de fundamento.
+ *
+ * O sinal vem do contrato: sem nenhum trecho acima do limiar, o servidor
+ * responde a recusa padrão com `citations` vazio (FR-6). Resposta **interrompida**
+ * fica de fora — ela pode estar sem citação só porque o stream caiu antes do
+ * evento, e chamar isso de recusa seria inventar um significado.
+ */
+function isRefusal(message: ChatMessage): boolean {
+  return message.role === 'assistant' && !message.truncated && message.citations.length === 0
+}
+
+type AssistantMessageProps = {
+  content: string
+  citations: Citation[]
+  truncated?: boolean
+  /** Recusa é resposta legítima: marcação sutil, nunca aparência de erro. */
+  refused?: boolean
+}
+
+function AssistantMessage({
+  content,
+  citations,
+  truncated = false,
+  refused = false,
+}: AssistantMessageProps) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-muted-foreground font-mono text-caption tracking-widest uppercase">
+      <p className="text-muted-foreground flex items-center gap-2 font-mono text-caption tracking-widest uppercase">
         <span aria-hidden="true">Resposta</span>
         <span className="sr-only">O TalkDoc respondeu:</span>
+        {refused ? (
+          <span className="flex items-center gap-1 tracking-normal normal-case">
+            <SearchXIcon className="size-3.5" aria-hidden="true" />
+            sem base no documento
+          </span>
+        ) : null}
       </p>
-      <div className="max-w-prose whitespace-pre-wrap">{content}</div>
+      <div className={cn('max-w-prose whitespace-pre-wrap', refused && 'text-muted-foreground')}>
+        {content}
+      </div>
+      {truncated ? (
+        <p className="text-warning flex items-center gap-1 text-caption">
+          <TriangleAlertIcon className="size-3.5" aria-hidden="true" />
+          Resposta interrompida antes do fim.
+        </p>
+      ) : null}
       <Citations citations={citations} />
     </div>
   )
@@ -137,6 +179,8 @@ type MessageListProps = {
   messages: ChatMessage[]
   /** Resposta em construção, ainda fora do histórico. */
   streaming?: StreamingAnswer | null
+  /** O que mostrar antes da primeira pergunta. */
+  emptyState?: ReactNode
 }
 
 /**
@@ -146,7 +190,7 @@ type MessageListProps = {
  * documento, e a resposta é a leitura — quem tem balão é a pergunta, que é o
  * comentário na margem.
  */
-export function MessageList({ messages, streaming = null }: MessageListProps) {
+export function MessageList({ messages, streaming = null, emptyState = null }: MessageListProps) {
   // O que faz a lista crescer é uma mensagem nova ou mais um token: acompanhar
   // esses dois tamanhos evita reagir a render que não mudou nada na conversa.
   const containerRef = useStickToBottom(`${messages.length}:${streaming?.content.length ?? -1}`)
@@ -154,6 +198,7 @@ export function MessageList({ messages, streaming = null }: MessageListProps) {
   return (
     <ScrollArea ref={containerRef} className="h-full">
       <ol
+        aria-label="Conversa"
         className="flex flex-col gap-8 py-6 pr-4"
         // Região viva desde o primeiro render: `aria-live` inserido junto com o
         // conteúdo costuma não ser anunciado pelos leitores de tela.
@@ -165,7 +210,12 @@ export function MessageList({ messages, streaming = null }: MessageListProps) {
             {message.role === 'user' ? (
               <UserMessage content={message.content} />
             ) : (
-              <AssistantMessage content={message.content} citations={message.citations} />
+              <AssistantMessage
+                content={message.content}
+                citations={message.citations}
+                truncated={message.truncated}
+                refused={isRefusal(message)}
+              />
             )}
           </li>
         ))}
@@ -183,6 +233,8 @@ export function MessageList({ messages, streaming = null }: MessageListProps) {
           </li>
         ) : null}
       </ol>
+
+      {messages.length === 0 && !streaming ? emptyState : null}
     </ScrollArea>
   )
 }

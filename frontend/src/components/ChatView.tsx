@@ -124,6 +124,39 @@ function DocumentHeader({ document, onReset }: ChatViewProps) {
 }
 
 /**
+ * Perguntas de partida.
+ *
+ * São genéricas de propósito: o cliente não lê o conteúdo do PDF, e sugerir
+ * "quais serviços a empresa oferece?" para um documento que não fala de empresa
+ * nenhuma ensinaria a desconfiar da sugestão logo na primeira interação.
+ */
+const STARTER_QUESTIONS = [
+  'Do que trata este documento?',
+  'Quais são os pontos principais?',
+  'Há alguma data ou prazo citado?',
+]
+
+function ConversationStart({ onSelect }: { onSelect: (question: string) => void }) {
+  return (
+    <div className="flex flex-col gap-3 pb-6">
+      <p className="text-muted-foreground max-w-prose text-caption">
+        Pergunte o que quiser sobre o documento. Toda resposta vem com a página de onde saiu — ou
+        com um “não encontrei isso aqui”.
+      </p>
+      <ul className="flex flex-wrap gap-2">
+        {STARTER_QUESTIONS.map((starter) => (
+          <li key={starter}>
+            <Button variant="outline" size="sm" onClick={() => onSelect(starter)}>
+              {starter}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/**
  * Tela de conversa.
  *
  * A altura é fixada em relação à viewport para o campo de pergunta ficar sempre
@@ -131,15 +164,33 @@ function DocumentHeader({ document, onReset }: ChatViewProps) {
  * rolar até o fim para perguntar de novo.
  */
 export function ChatView({ document, onReset }: ChatViewProps) {
+  const notify = useNotices()
   const conversation = useConversation(document.id)
   const conversationId = conversation.status === 'open' ? conversation.conversationId : null
-  const { messages, streaming, send, cancel } = useChat(conversationId)
+  const { messages, streaming, failure, send, cancel } = useChat(conversationId)
   const [question, setQuestion] = useState('')
 
-  const handleSubmit = useCallback(() => {
-    send(question)
-    setQuestion('')
-  }, [question, send])
+  const ask = useCallback(
+    (text: string) => {
+      send(text)
+      setQuestion('')
+    },
+    [send],
+  )
+
+  const handleSubmit = useCallback(() => ask(question), [ask, question])
+
+  // A pergunta que falhou volta para o campo — perder o que a pessoa escreveu é
+  // o pior detalhe possível —, e o aviso leva o botão que refaz o envio.
+  useEffect(() => {
+    if (!failure) {
+      return
+    }
+    setQuestion((current) => (current === '' ? failure.question : current))
+    notify.error(failure.code, {
+      action: { label: 'Tentar de novo', onClick: () => ask(failure.question) },
+    })
+  }, [failure, notify, ask])
 
   return (
     // 14rem é o que a casca ocupa fora do conteúdo (cabeçalho, respiro vertical
@@ -155,7 +206,11 @@ export function ChatView({ document, onReset }: ChatViewProps) {
             <Skeleton className="h-4 w-72" />
           </div>
         ) : (
-          <MessageList messages={messages} streaming={streaming} />
+          <MessageList
+            messages={messages}
+            streaming={streaming}
+            emptyState={<ConversationStart onSelect={ask} />}
+          />
         )}
       </div>
 
