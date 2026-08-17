@@ -26,6 +26,14 @@ type ErrorOverrides = {
    * por exemplo o tamanho real do arquivo recusado antes do envio.
    */
   message?: string
+  /**
+   * Ação de recuperação dentro do próprio aviso.
+   *
+   * O mapa diz o que fazer ("tente de novo"); quando a tela sabe **como** fazer,
+   * o aviso passa a ter o botão em vez de deixar a instrução por conta de quem
+   * lê.
+   */
+  action?: { label: string; onClick: () => void }
 }
 
 /**
@@ -50,6 +58,7 @@ export const notify = {
     show(title, {
       description: `${overrides.message ?? message} ${action}`,
       duration,
+      action: overrides.action,
     })
   },
 }
