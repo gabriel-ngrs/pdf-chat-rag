@@ -3,8 +3,8 @@ spec: 02-chat-rag
 fase: B.1
 slug_fase: chat-view
 status: executado
-tentativa: 1
-reprovacoes: 0
+tentativa: 2
+reprovacoes: 1
 sha_inicial: dd621eb
 sha_final: 28159b6
 range: dd621eb..28159b6
@@ -181,6 +181,21 @@ quando o Track B estiver fechado.
 - [ ] Gate de backend real — **pendente da `A.4`**
 
 ## 8. (Em rework) O que mudou nesta tentativa
+
+Rework da avaliação `FASE-B.1-chat-view-AVALIACAO.md` (tentativa 1, REPROVADO,
+score 9,0). Sem BLOQUEANTE de código: o único é o gate contra o backend real,
+que continua aberto (topo deste relatório). As três sugestões foram aplicadas:
+
+- **Histórico descartado quando a pergunta chega primeiro** (`hooks/useChat.ts`):
+  `mergeHistory` junta servidor e tela por `id` em vez de escolher um dos lados.
+  Ids locais são negativos e nunca colidem com os do servidor.
+- **Chips de sugestão clicáveis com a conversa falhada** (`components/ChatView.tsx`):
+  no estado `failed` o lugar das sugestões passa a mostrar o caminho de volta
+  ("recarregue a página"). Botão que não faz nada é pior que botão ausente.
+- **Decisão de acompanhar o fim da lista virou função pura**
+  (`components/MessageList.tsx`, `isNearBottom`): fecha a única lacuna de teste
+  da fase sem inflar abstração — a regra é provável sem layout, que o jsdom não
+  calcula.
 
 Não se aplica — primeira execução.
 

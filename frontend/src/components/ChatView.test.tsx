@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChatView } from '@/components/ChatView'
 import { ApiError } from '@/lib/api'
 import type { ChatStreamEvent } from '@/lib/sse'
-import type { DocumentDetail } from '@/lib/types'
+import type { ChatMessage, DocumentDetail } from '@/lib/types'
 
 vi.mock('@/lib/api', async () => {
   const real = await vi.importActual<typeof import('@/lib/api')>('@/lib/api')
@@ -55,6 +55,11 @@ const DOCUMENT: DocumentDetail = {
 
 function campo(): HTMLTextAreaElement {
   return screen.getByLabelText('Sua pergunta sobre o documento') as HTMLTextAreaElement
+}
+
+/** A lista da conversa, para contar o que de fato ficou nela. */
+function conversa() {
+  return within(screen.getByRole('list', { name: 'Conversa' }))
 }
 
 /**
@@ -273,8 +278,10 @@ describe('ChatView', () => {
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
     expect(toastErrorMock.mock.calls[0]?.[0]).toBe('Limite de uso atingido')
     expect(parseChatStreamMock).not.toHaveBeenCalled()
-    // Só a pergunta ficou na lista: não há resposta vazia fingindo existir.
-    expect(within(screen.getByRole('list', { name: 'Conversa' })).getAllByRole('listitem')).toHaveLength(1)
+    // A conversa fica como estava: nem resposta vazia fingindo existir, nem
+    // pergunta órfã — ela voltou para o campo, de onde a repetição a reenvia.
+    expect(conversa().queryAllByRole('listitem')).toHaveLength(0)
+    await waitFor(() => expect(campo().value).toBe('qual o endereço?'))
     await waitFor(() => expect(campo().disabled).toBe(false))
   })
 
@@ -312,6 +319,11 @@ describe('ChatView', () => {
       | undefined
     expect(aviso?.action?.label).toBe('Tentar de novo')
 
+    // A pergunta que falhou não fica na conversa: ela está de volta no campo, e
+    // um balão órfão viraria pergunta repetida assim que a repetição a
+    // reintroduzisse.
+    expect(conversa().queryAllByRole('listitem')).toHaveLength(0)
+
     openChatStreamMock.mockClear()
     const canal = ligarStream()
     aviso?.action?.onClick()
@@ -325,7 +337,93 @@ describe('ChatView', () => {
     )
     // Repetido o envio, o campo volta a ficar limpo.
     await waitFor(() => expect(campo().value).toBe(''))
+
+    canal.push({ type: 'token', text: 'contato@yaitec.com' })
+    canal.push({ type: 'citations', citations: [] })
+    canal.push({ type: 'done', messageId: 21, truncated: false })
     canal.close()
+
+    // O resultado da repetição é o que a fase promete: **uma** pergunta e
+    // **uma** resposta — não dois balões idênticos sem nada entre eles.
+    await screen.findByText('contato@yaitec.com')
+    expect(screen.getAllByText('qual o e-mail de contato?')).toHaveLength(1)
+    expect(conversa().getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('mantém a pergunta na conversa quando quem cancelou foi a pessoa', async () => {
+    const canal = ligarStream()
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+
+    await perguntar('quais são os prazos?')
+    await userEvent.click(screen.getByRole('button', { name: 'Parar resposta' }))
+
+    // Desistir é decisão de quem perguntou, e a pergunta continua tendo
+    // acontecido: só a falha limpa o balão.
+    await waitFor(() => expect(conversa().getAllByRole('listitem')).toHaveLength(1))
+    expect(screen.getByText('quais são os prazos?')).toBeTruthy()
+    canal.close()
+  })
+
+  it('mescla o histórico do servidor com a pergunta feita antes de ele chegar', async () => {
+    localStorage.setItem(
+      'talkdoc:conversation',
+      JSON.stringify({ documentId: 'doc-1', conversationId: 'conv-guardada' }),
+    )
+    // O histórico chega depois da pergunta: é a corrida que fazia a conversa
+    // anterior sumir da tela pelo resto da sessão.
+    let entregarHistorico = () => {}
+    listMessagesMock.mockImplementation(
+      () =>
+        new Promise<ChatMessage[]>((resolve) => {
+          entregarHistorico = () =>
+            resolve([
+              {
+                id: 1,
+                role: 'user',
+                content: 'do que trata o documento?',
+                citations: [],
+                truncated: false,
+                created_at: '2026-08-17T12:00:00Z',
+              },
+              {
+                id: 2,
+                role: 'assistant',
+                content: 'Da apresentação da YAITEC.',
+                citations: [],
+                truncated: false,
+                created_at: '2026-08-17T12:00:05Z',
+              },
+            ])
+        }),
+    )
+    const canal = ligarStream()
+
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+    await perguntar('e quais são os serviços?')
+
+    entregarHistorico()
+
+    expect(await screen.findByText('Da apresentação da YAITEC.')).toBeTruthy()
+    expect(screen.getByText('do que trata o documento?')).toBeTruthy()
+    expect(screen.getByText('e quais são os serviços?')).toBeTruthy()
+    canal.close()
+  })
+
+  it('troca as sugestões por um caminho de volta quando a conversa não abriu', async () => {
+    createConversationMock.mockRejectedValue(
+      new ApiError('erro_interno', 'Falha no servidor.', 500),
+    )
+
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+
+    // Botão que não faz nada é pior que botão nenhum: sem conversa aberta, o
+    // clique na sugestão morreria calado.
+    expect(
+      await screen.findByText(/Não foi possível abrir a conversa para este documento/),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Do que trata este documento?' })).toBeNull()
   })
 
   it('exibe a recusa como resposta do assistente, sem aviso de erro', async () => {

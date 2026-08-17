@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { MessageList } from '@/components/MessageList'
+import { MessageList, isNearBottom } from '@/components/MessageList'
 import type { ChatMessage } from '@/lib/types'
 
 // O `ScrollArea` do Radix usa `ResizeObserver` para decidir quando mostrar a
@@ -160,5 +160,25 @@ describe('MessageList', () => {
 
     expect(screen.getByText('Você perguntou:')).toBeTruthy()
     expect(screen.getByText('O TalkDoc respondeu:')).toBeTruthy()
+  })
+})
+
+/**
+ * A regra que decide se a conversa continua acompanhando o fim.
+ *
+ * Testada aqui, e não pela tela: o jsdom não calcula layout, e `scrollHeight`
+ * é sempre zero — pela tela, a asserção seria sobre o ambiente de teste.
+ */
+describe('isNearBottom', () => {
+  it('acompanha quem está no fim exato da lista', () => {
+    expect(isNearBottom(1000, 600, 400)).toBe(true)
+  })
+
+  it('tolera a folga de alguns pixels acima do fim', () => {
+    expect(isNearBottom(1000, 560, 400)).toBe(true)
+  })
+
+  it('para de acompanhar quem subiu para reler', () => {
+    expect(isNearBottom(1000, 300, 400)).toBe(false)
   })
 })

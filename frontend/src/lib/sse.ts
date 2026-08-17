@@ -13,6 +13,14 @@ export type ChatStreamEvent =
   | { type: 'error'; code: string; message: string }
   | { type: 'done'; messageId: number | null; truncated: boolean }
 
+/**
+ * Lê as citações do payload, descartando as que não vêm inteiras.
+ *
+ * **Nenhum campo é preenchido por default.** Completar um `score` ausente com
+ * zero produziria "similaridade 0,00" na tela — um número que o servidor nunca
+ * disse —, e um `chunk_index` inventado desempataria a ordenação pela página
+ * errada. Citação incompleta é citação que não se pode exibir como prova.
+ */
 function readCitations(value: unknown): Citation[] {
   if (!Array.isArray(value)) {
     return []
@@ -22,15 +30,20 @@ function readCitations(value: unknown): Citation[] {
       return []
     }
     const record = item as Record<string, unknown>
-    if (typeof record.page_number !== 'number' || typeof record.snippet !== 'string') {
+    if (
+      typeof record.page_number !== 'number' ||
+      typeof record.snippet !== 'string' ||
+      typeof record.chunk_index !== 'number' ||
+      typeof record.score !== 'number'
+    ) {
       return []
     }
     return [
       {
         page_number: record.page_number,
         snippet: record.snippet,
-        chunk_index: typeof record.chunk_index === 'number' ? record.chunk_index : 0,
-        score: typeof record.score === 'number' ? record.score : 0,
+        chunk_index: record.chunk_index,
+        score: record.score,
       },
     ]
   })
@@ -126,7 +139,11 @@ export async function* parseChatStream(response: Response): AsyncGenerator<ChatS
       if (done) {
         break
       }
-      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
+      // A troca de `\r\n` roda sobre o buffer inteiro, e não sobre o chunk: um
+      // `\r` que termina um chunk e o `\n` que abre o seguinte só formam par
+      // depois da junção — feita por chunk, a defesa contra proxy falharia
+      // exatamente no caso que ela existe para cobrir.
+      buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, '\n')
 
       let boundary = buffer.indexOf('\n\n')
       while (boundary !== -1) {

@@ -520,6 +520,63 @@ async def test_quota_na_abertura_do_stream_sai_como_http_429(
     assert response.json() == {"code": "limite_de_uso", "message": CHAT_QUOTA_MESSAGE}
 
 
+async def test_repetir_a_pergunta_que_falhou_nao_a_grava_duas_vezes(
+    build_client: Callable[..., httpx.AsyncClient],
+    repository: FakeRepository,
+    conversations: FakeConversationRepository,
+    chat_client: FakeChatClient,
+) -> None:
+    """Repetir depois da falha retoma o turno em vez de duplicar a pergunta.
+
+    O caminho é o do botão "Tentar de novo" da interface, e o erro é o mais
+    provável na demonstração (o `429`). A pergunta já foi persistida antes da
+    chamada ao provedor (FR-9): gravá-la outra vez deixaria duas linhas
+    idênticas no histórico e as duas entrariam na janela do turno seguinte.
+    """
+    conversations.chunks = FUNDAMENTADOS
+    quebrado = FakeChatClient(stream_error=ChatQuotaError(CHAT_QUOTA_MESSAGE))
+
+    async with build_client(chat=quebrado) as client:
+        conversation_id = await abrir_conversa(client, repository)
+        falha = await perguntar(client, conversation_id)
+    assert falha.status_code == 429
+
+    # Mesma conversa, provedor de volta ao ar: é a repetição do mesmo turno.
+    async with build_client() as client:
+        response = await perguntar(client, conversation_id)
+
+    assert response.status_code == 200
+    assert conversations.contents_of(UUID(conversation_id)) == [
+        (MessageRole.USER.value, PERGUNTA),
+        (MessageRole.ASSISTANT.value, "".join(chat_client.pieces)),
+    ]
+
+
+async def test_repetir_pergunta_diferente_depois_da_falha_grava_as_duas(
+    build_client: Callable[..., httpx.AsyncClient],
+    repository: FakeRepository,
+    conversations: FakeConversationRepository,
+) -> None:
+    """Pergunta nova depois de uma falha continua sendo pergunta nova.
+
+    O contrapeso do teste acima: o que dispensa a gravação é a repetição exata
+    do turno interrompido, não o fato de a última linha ser do usuário.
+    """
+    conversations.chunks = FUNDAMENTADOS
+    quebrado = FakeChatClient(stream_error=ChatQuotaError(CHAT_QUOTA_MESSAGE))
+
+    async with build_client(chat=quebrado) as client:
+        conversation_id = await abrir_conversa(client, repository)
+        await perguntar(client, conversation_id)
+
+    async with build_client() as client:
+        response = await perguntar(client, conversation_id, question=CONTINUACAO)
+
+    assert response.status_code == 200
+    gravadas = conversations.contents_of(UUID(conversation_id))
+    assert [conteudo for _, conteudo in gravadas][:2] == [PERGUNTA, CONTINUACAO]
+
+
 # ─── Desconexão do cliente ───────────────────────────────────────────────────
 
 

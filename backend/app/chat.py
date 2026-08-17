@@ -139,10 +139,19 @@ async def _prepare(
     rota, porque é aqui que a fase é conhecida.
     """
     try:
+        stored = await repository.list_messages(conversation.id)
+        # Repetir a pergunta que falhou é **retomar** aquele turno, não abrir
+        # outro: a pergunta já está gravada (ela é persistida antes da chamada
+        # ao provedor, FR-9, e o `429` estoura depois disso). Gravá-la de novo
+        # deixaria duas linhas idênticas no histórico, e as duas entrariam na
+        # janela do turno seguinte — empurrando para fora dela uma pergunta que
+        # ainda importava.
+        retry = _is_retry(stored, question)
         history = select_history_window(
-            await repository.list_messages(conversation.id), settings.history_window
+            stored[:-1] if retry else stored, settings.history_window
         )
-        await repository.add_message(conversation.id, MessageRole.USER, question)
+        if not retry:
+            await repository.add_message(conversation.id, MessageRole.USER, question)
 
         query = await _condense(conversation.id, history, question, chat_client, settings)
 
@@ -173,6 +182,20 @@ async def _prepare(
         )
         raise
     return TurnContext(history=history, chunks=above, top_score=top_score)
+
+
+def _is_retry(messages: list[Message], question: str) -> bool:
+    """A última mensagem gravada é esta mesma pergunta, ainda sem resposta?
+
+    Só existe uma forma de a conversa terminar numa mensagem do usuário: o
+    turno anterior falhou entre persistir a pergunta e produzir qualquer texto.
+    Com a mesma pergunta chegando em seguida — que é o que o botão "Tentar de
+    novo" da interface envia —, o par é a repetição daquele turno.
+    """
+    if not messages:
+        return False
+    last = messages[-1]
+    return last.role == MessageRole.USER and last.content == question
 
 
 async def _condense(

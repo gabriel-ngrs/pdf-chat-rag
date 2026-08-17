@@ -157,6 +157,22 @@ function ConversationStart({ onSelect }: { onSelect: (question: string) => void 
 }
 
 /**
+ * O que ocupa o lugar das sugestões quando a conversa não chegou a abrir.
+ *
+ * Chip clicável aqui seria pior que chip nenhum: sem conversa, o clique morre
+ * calado e a tela ensina a desconfiar do botão. O aviso da falha já saiu pelo
+ * canal de avisos; o que falta dizer é o caminho de volta.
+ */
+function ConversationUnavailable() {
+  return (
+    <p className="text-muted-foreground max-w-prose py-6 text-caption">
+      Não foi possível abrir a conversa para este documento. Recarregue a página para tentar de
+      novo.
+    </p>
+  )
+}
+
+/**
  * Tela de conversa.
  *
  * A altura é fixada em relação à viewport para o campo de pergunta ficar sempre
@@ -209,7 +225,13 @@ export function ChatView({ document, onReset }: ChatViewProps) {
           <MessageList
             messages={messages}
             streaming={streaming}
-            emptyState={<ConversationStart onSelect={ask} />}
+            emptyState={
+              conversation.status === 'open' ? (
+                <ConversationStart onSelect={ask} />
+              ) : (
+                <ConversationUnavailable />
+              )
+            }
           />
         )}
       </div>

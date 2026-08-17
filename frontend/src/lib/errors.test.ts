@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ERROR_CODES, describeError } from '@/lib/errors'
+import type { ErrorCode, NoticeSeverity } from '@/lib/errors'
 
 /** Os cinco códigos que a §4.3 da spec fixa como contrato entre os dois tracks. */
 const CODIGOS_DA_SPEC = [
@@ -10,6 +11,25 @@ const CODIGOS_DA_SPEC = [
   'limite_de_uso',
   'erro_interno',
 ]
+
+/**
+ * A severidade que cada código deve ter, escrita à mão.
+ *
+ * Tabela explícita, e não "está entre as três severidades": o despacho de
+ * avisos escolhe canal e duração por este campo, então um código marcado
+ * `success` por engano viraria um toast verde para uma falha — e uma asserção
+ * que aceita qualquer uma das três deixaria isso passar.
+ */
+const SEVERIDADE_ESPERADA: Record<ErrorCode, NoticeSeverity> = {
+  arquivo_grande: 'error',
+  arquivo_invalido: 'error',
+  nao_encontrado: 'error',
+  limite_de_uso: 'error',
+  erro_interno: 'error',
+  rede_indisponivel: 'error',
+  provedor: 'error',
+  documento_nao_pronto: 'info',
+}
 
 describe('describeError', () => {
   it('descreve todos os códigos do envelope da spec', () => {
@@ -24,11 +44,18 @@ describe('describeError', () => {
       expect(description.title.length).toBeGreaterThan(0)
       expect(description.message.length).toBeGreaterThan(0)
       expect(description.action.length).toBeGreaterThan(0)
-      // Nem todo código é erro: `documento_nao_pronto` é estado transitório e
-      // sai como aviso neutro. O que não pode faltar é a severidade estar entre
-      // as que o despacho de avisos conhece.
-      expect(['info', 'success', 'error']).toContain(description.severity)
     }
+  })
+
+  it('dá a cada código a severidade que o despacho de avisos espera', () => {
+    // Nem todo código é erro: `documento_nao_pronto` é estado transitório do
+    // documento — sai como aviso neutro, não como falha de quem perguntou.
+    for (const code of ERROR_CODES) {
+      expect(describeError(code).severity).toBe(SEVERIDADE_ESPERADA[code])
+    }
+    // A tabela cobre o mapa inteiro: código novo sem severidade declarada aqui
+    // reprova em vez de entrar sem ninguém decidir como ele aparece.
+    expect(Object.keys(SEVERIDADE_ESPERADA).sort()).toEqual([...ERROR_CODES].sort())
   })
 
   it('não repete a mesma frase para códigos diferentes', () => {

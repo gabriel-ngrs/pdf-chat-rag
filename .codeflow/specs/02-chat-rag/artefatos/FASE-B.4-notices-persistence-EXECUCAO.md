@@ -3,8 +3,8 @@ spec: 02-chat-rag
 fase: B.4
 slug_fase: notices-persistence
 status: executado
-tentativa: 1
-reprovacoes: 0
+tentativa: 2
+reprovacoes: 1
 sha_inicial: 8a1e191
 sha_final: 74afd80
 range: 8a1e191..74afd80
@@ -164,7 +164,68 @@ found 0 vulnerabilities
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+Rework da avaliação `FASE-B.4-notices-persistence-AVALIACAO.md` (tentativa 1,
+REPROVADO, score 8,6). O BLOQUEANTE é o gate contra o backend real e continua
+aberto (topo deste relatório). O que mudou no código:
+
+### I-1 — "Tentar de novo" duplicava a pergunta na conversa
+
+Confirmado: o `send` acrescentava uma mensagem otimista em todo envio, e a
+mensagem da tentativa que falhou permanecia na lista. Acionar a ação do aviso
+deixava dois balões idênticos, sem resposta entre eles.
+
+**Cliente** (`hooks/useChat.ts`): o `send` guarda o id local que gerou, e o
+`finally` o descarta quando o turno terminou **em falha e sem nenhum token**.
+Cancelamento não entra nesse ramo — desistir é decisão de quem perguntou, e a
+pergunta continua tendo acontecido. A pergunta já voltava para o campo; agora a
+conversa também não guarda balão órfão.
+
+**Servidor** (`app/chat.py`, dívida da `A.4` que o mesmo defeito expunha): a
+pergunta é persistida antes da chamada ao provedor (FR-9), então a repetição a
+gravava duas vezes e as duas entravam na janela de histórico do turno seguinte.
+`_is_retry` reconhece a repetição pelo único jeito de a conversa terminar numa
+mensagem do usuário — turno anterior morto entre persistir a pergunta e produzir
+texto — e reaproveita a linha existente em vez de criar outra.
+
+**Testes:** a asserção que faltava está no teste do "Tentar de novo"
+(`ChatView.test.tsx`): depois da repetição bem-sucedida, a conversa tem **uma**
+pergunta e **uma** resposta. Entraram também o contraponto do cancelamento
+(a pergunta permanece) e, no backend, `test_repetir_a_pergunta_que_falhou_nao_a_grava_duas_vezes`
+com o seu contrapeso para pergunta diferente. Os três falham contra o código
+anterior — verificado revertendo a correção antes de fixá-la.
+
+### Sugestões da avaliação, todas aplicadas
+
+- **`errors.test.ts` afrouxado:** a asserção "está entre as três severidades"
+  virou tabela explícita código→severidade, mais a checagem de que a tabela cobre
+  `ERROR_CODES` inteiro — código novo sem severidade declarada reprova em vez de
+  entrar sem ninguém decidir como ele aparece.
+- **Chips clicáveis com a conversa falhada:** o estado vazio passa a mostrar o
+  caminho de volta ("recarregue a página") no lugar das sugestões quando a
+  conversa não abriu, em vez de botões cujo clique morria calado.
+- **Restauração descartava o histórico:** `mergeHistory` junta os dois lados por
+  `id` (os locais são negativos e nunca colidem), então perguntar antes de o
+  histórico chegar deixou de custar a conversa anterior.
+
+### O código `provedor` da §4.3 **é** emitido pelo servidor
+
+A avaliação abriu como pendência da `A.4` ("entrada morta no mapa") a partir de
+um `grep` em `backend/app/errors.py`. O código existe fora desse arquivo:
+`ChatProviderError` em `app/adapters/gemini.py:103` (`code = "provedor"`,
+`status_code = 502`), levantada por `_fail_chat` em toda falha do provedor de
+chat que não seja quota. Já havia teste cobrindo a rota inteira —
+`test_falha_do_provedor_na_abertura_do_stream_nao_vira_mensagem_vazia` assere
+`502` e `{"code": "provedor"}`. Nada a implementar e nada a remover da spec; o
+que falta é só reproduzir o código no gate, e ele é reproduzível.
+
+### Estado da suíte depois do rework
+
+`make check` verde: 250 testes no backend (eram 248; +2 do `_is_retry`),
+cobertura de `core/` em 99,55%, e 84 no frontend (eram 75; +9 entre a asserção
+que faltava, o contrapeso do cancelamento, a mescla do histórico, o estado vazio
+da conversa falhada, `isNearBottom` e os dois do parser). `make security` sem
+achado. Os quatro gates da §5 do track continuam pendentes e fecham na mesma
+passada contra o `docker compose`, com a `A.4` já na `dev`.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 

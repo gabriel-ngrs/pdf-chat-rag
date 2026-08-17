@@ -17,6 +17,17 @@ import { cn } from '@/lib/utils'
  */
 const NEAR_BOTTOM_PX = 48
 
+/**
+ * A pessoa está no fim da conversa (ou perto o bastante)?
+ *
+ * Função pura porque é a única decisão do acompanhamento de scroll que dá para
+ * provar sem layout: o jsdom não calcula altura nenhuma, e testar a regra pela
+ * tela exigiria um navegador de verdade para conferir uma subtração.
+ */
+export function isNearBottom(scrollHeight: number, scrollTop: number, clientHeight: number): boolean {
+  return scrollHeight - scrollTop - clientHeight <= NEAR_BOTTOM_PX
+}
+
 function findViewport(container: HTMLElement | null): HTMLElement | null {
   // O elemento que rola é o viewport interno do Radix, e o wrapper do projeto
   // não expõe ref para ele. Buscar pelo `data-slot` é o acesso estável — é o
@@ -41,8 +52,11 @@ function useStickToBottom(watched: unknown) {
       return
     }
     const handleScroll = () => {
-      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
-      following.current = distanceFromBottom <= NEAR_BOTTOM_PX
+      following.current = isNearBottom(
+        viewport.scrollHeight,
+        viewport.scrollTop,
+        viewport.clientHeight,
+      )
     }
     viewport.addEventListener('scroll', handleScroll, { passive: true })
     return () => viewport.removeEventListener('scroll', handleScroll)

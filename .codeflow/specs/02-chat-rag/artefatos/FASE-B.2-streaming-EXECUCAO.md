@@ -3,8 +3,8 @@ spec: 02-chat-rag
 fase: B.2
 slug_fase: streaming
 status: executado
-tentativa: 1
-reprovacoes: 0
+tentativa: 2
+reprovacoes: 1
 sha_inicial: d1536f0
 sha_final: e0d40d9
 range: d1536f0..e0d40d9
@@ -152,6 +152,22 @@ cd frontend && npm run test
 - [ ] Gate pelo compose — **pendente da `A.4`**
 
 ## 8. (Em rework) O que mudou nesta tentativa
+
+Rework da avaliação `FASE-B.2-streaming-AVALIACAO.md` (tentativa 1, REPROVADO,
+score 9,0). Sem BLOQUEANTE de código: o único é o gate pelo `docker compose`,
+que continua aberto (topo deste relatório). As três sugestões foram aplicadas:
+
+- **Normalização de `\r\n` por chunk** (`lib/sse.ts`): passou a rodar sobre o
+  buffer já concatenado. Um `\r` que termina um chunk e o `\n` que abre o
+  seguinte só formam par depois da junção — feita por chunk, a defesa falhava
+  exatamente no caso que existe para cobrir. Teste novo com o par partido; ele
+  falha contra a versão anterior (verificado).
+- **`readCitations` fabricava `chunk_index: 0` e `score: 0`** (`lib/sse.ts`): os
+  quatro campos passaram a ser exigidos, como já se fazia com `page_number`.
+  "similaridade 0,00" na tela era número que o servidor nunca disse — e a fase
+  `B.3` trava no escopo justamente não fabricar citação.
+- **Trocar `conversationId` não abortava o stream** (`hooks/useChat.ts`): o
+  efeito de limpeza passou a depender do `conversationId`.
 
 Não se aplica — primeira execução.
 

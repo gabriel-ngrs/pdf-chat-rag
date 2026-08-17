@@ -97,8 +97,43 @@ describe('parseChatStream', () => {
     )
 
     expect(events).toEqual([
-      { type: 'citations', citations: [{ page_number: 2, snippet: 'boa', chunk_index: 0, score: 0 }] },
+      // Citação sem `page_number` e citação sem `chunk_index`/`score` caem
+      // juntas: exibir uma delas exigiria inventar o campo que falta.
+      { type: 'citations', citations: [] },
       { type: 'done', messageId: null, truncated: false },
+    ])
+  })
+
+  it('mantém a citação que vem com os quatro campos e descarta a incompleta', async () => {
+    const events = await collect(
+      streamOf([
+        'event: citations\ndata: {"citations":[{"page_number":2,"snippet":"sem score","chunk_index":1},' +
+          '{"page_number":3,"snippet":"inteira","chunk_index":5,"score":0.71}]}\n\n',
+      ]),
+    )
+
+    expect(events).toEqual([
+      {
+        type: 'citations',
+        citations: [{ page_number: 3, snippet: 'inteira', chunk_index: 5, score: 0.71 }],
+      },
+    ])
+  })
+
+  it('junta o `\\r` de um chunk com o `\\n` do seguinte', async () => {
+    // O par `\r\n` partido entre dois chunks só existe depois da junção: uma
+    // normalização por chunk deixaria o `\r` dentro do quadro e o `\n\n` do fim
+    // nunca casaria.
+    const events = await collect(
+      streamOf([
+        'event: token\r\ndata: {"text":"parte"}\r\n\r',
+        '\nevent: token\r\ndata: {"text":"!"}\r\n\r\n',
+      ]),
+    )
+
+    expect(events).toEqual([
+      { type: 'token', text: 'parte' },
+      { type: 'token', text: '!' },
     ])
   })
 

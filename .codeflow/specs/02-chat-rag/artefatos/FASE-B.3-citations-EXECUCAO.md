@@ -3,8 +3,8 @@ spec: 02-chat-rag
 fase: B.3
 slug_fase: citations
 status: executado
-tentativa: 1
-reprovacoes: 0
+tentativa: 2
+reprovacoes: 1
 sha_inicial: 199ce9f
 sha_final: 3d10f34
 range: 199ce9f..3d10f34
@@ -135,6 +135,18 @@ $ grep -nE "#[0-9a-fA-F]{3,6}|text-(gray|slate|zinc)-" src/components/CitationCh
 - [ ] Gate com citação real — **pendente do Track A**
 
 ## 8. (Em rework) O que mudou nesta tentativa
+
+Rework da avaliação `FASE-B.3-citations-AVALIACAO.md` (tentativa 1, REPROVADO,
+score 9,4). Nenhuma mudança em `CitationChip.tsx` nem em `MessageList.tsx` —
+não havia BLOQUEANTE de código nem IMPORTANTE, e o único bloqueio é o gate com
+citação real do `Exemplo-YAITEC.pdf`, que continua aberto (topo deste relatório).
+
+As duas dúvidas do §9 foram resolvidas pela avaliação, ambas a favor do que está
+no código: o par `--highlight` / `--highlight-foreground` dá 10,68:1 (claro) e
+8,92:1 (escuro), e a decisão de não deduplicar chips da mesma página fica como
+está. A terceira observação — `score` chegando ao diálogo sem validação de faixa
+— foi corrigida onde nasce, no parser da `B.2`: citação sem `score` ou sem
+`chunk_index` passou a ser descartada em vez de completada com zero.
 
 Não se aplica — primeira execução.
 
