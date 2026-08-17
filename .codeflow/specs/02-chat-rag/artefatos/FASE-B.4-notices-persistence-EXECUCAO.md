@@ -145,9 +145,10 @@ found 0 vulnerabilities
   quando a conversa está vazia": o clique envia a pergunta; o estado inicial some
   quando a primeira mensagem entra.
 - [x] **Nunca exibir stack trace, código de exceção ou chave** — o que a tela
-  mostra vem sempre de `describeError(code)`; `ApiError.status` existe só para
-  diagnóstico e não é renderizado em lugar nenhum (grep por `\.status` nos
-  componentes: nenhum uso).
+  mostra vem sempre de `describeError(code)`. `ApiError.status` existe só para
+  diagnóstico: nenhum componente o lê (os `.status` que aparecem em
+  `frontend/src/components/` são todos de estado de documento, envio ou
+  conversa, conferidos um a um).
 - [x] **Não usar `alert()`** — `grep -rn "alert(" frontend/src` → 0.
 - [ ] **Critério de conclusão contra o backend real**: **PENDENTE**, `A.4`.
 
