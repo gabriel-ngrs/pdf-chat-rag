@@ -49,6 +49,40 @@ describe('MessageList', () => {
     expect(screen.getByRole('list')).toBe(lista)
   })
 
+  it('lista as citações da resposta ordenadas por página', () => {
+    render(
+      <MessageList
+        messages={[
+          message({
+            id: 1,
+            role: 'assistant',
+            content: 'A YAITEC oferece consultoria.',
+            citations: [
+              { page_number: 7, snippet: 'depois', chunk_index: 12, score: 0.71 },
+              { page_number: 2, snippet: 'antes', chunk_index: 3, score: 0.88 },
+            ],
+          }),
+        ]}
+      />,
+    )
+
+    const chips = screen.getAllByRole('button', { name: /ver trecho da página/ })
+    expect(chips.map((chip) => chip.textContent)).toEqual(['página 2', 'página 7'])
+  })
+
+  it('não desenha área de citação quando a resposta não tem nenhuma', () => {
+    render(
+      <MessageList
+        messages={[
+          message({ id: 1, role: 'assistant', content: 'Não encontrei isso no documento.' }),
+        ]}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: /ver trecho/ })).toBeNull()
+    expect(screen.queryByLabelText('Trechos que fundamentam a resposta')).toBeNull()
+  })
+
   it('diferencia quem falou também para quem não vê a tela', () => {
     render(
       <MessageList

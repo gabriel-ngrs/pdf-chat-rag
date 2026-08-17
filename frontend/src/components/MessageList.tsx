@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 
+import { CitationChip } from '@/components/CitationChip'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { StreamingAnswer } from '@/hooks/useChat'
-import type { ChatMessage } from '@/lib/types'
+import type { ChatMessage, Citation } from '@/lib/types'
 
 /**
  * Folga, em pixels, para considerar que a pessoa está no fim da conversa.
@@ -68,7 +69,35 @@ function UserMessage({ content }: { content: string }) {
   )
 }
 
-function AssistantMessage({ content }: { content: string }) {
+/**
+ * As citações de uma resposta, da página menor para a maior.
+ *
+ * Resposta sem citação não rende área nenhuma — nem título, nem espaço vazio:
+ * citação vazia é recusa por falta de fundamento, e a `B.4` cuida de mostrá-la
+ * como resposta legítima. Um cabeçalho "Citações" sobre o nada diria que algo
+ * falhou.
+ */
+function Citations({ citations }: { citations: Citation[] }) {
+  if (citations.length === 0) {
+    return null
+  }
+  const ordered = [...citations].sort(
+    (left, right) =>
+      left.page_number - right.page_number || left.chunk_index - right.chunk_index,
+  )
+
+  return (
+    <ul aria-label="Trechos que fundamentam a resposta" className="flex flex-wrap gap-2 pt-1">
+      {ordered.map((citation) => (
+        <li key={`${citation.page_number}-${citation.chunk_index}`}>
+          <CitationChip citation={citation} />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function AssistantMessage({ content, citations }: { content: string; citations: Citation[] }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-muted-foreground font-mono text-caption tracking-widest uppercase">
@@ -76,6 +105,7 @@ function AssistantMessage({ content }: { content: string }) {
         <span className="sr-only">O TalkDoc respondeu:</span>
       </p>
       <div className="max-w-prose whitespace-pre-wrap">{content}</div>
+      <Citations citations={citations} />
     </div>
   )
 }
@@ -135,7 +165,7 @@ export function MessageList({ messages, streaming = null }: MessageListProps) {
             {message.role === 'user' ? (
               <UserMessage content={message.content} />
             ) : (
-              <AssistantMessage content={message.content} />
+              <AssistantMessage content={message.content} citations={message.citations} />
             )}
           </li>
         ))}
@@ -146,7 +176,7 @@ export function MessageList({ messages, streaming = null }: MessageListProps) {
           // mensagem pronta entra na lista acima.
           <li aria-live="off" aria-busy="true">
             {streaming.content ? (
-              <AssistantMessage content={streaming.content} />
+              <AssistantMessage content={streaming.content} citations={streaming.citations} />
             ) : (
               <ThinkingIndicator />
             )}
