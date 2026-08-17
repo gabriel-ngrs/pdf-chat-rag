@@ -32,8 +32,11 @@
      Nenhum hex e nenhuma cor Tailwind crua (`text-gray-500`) em componente.
    - Tamanho de texto só nos quatro degraus: text-display, text-title,
      text-body, text-caption. Se precisar de um quinto, o problema é hierarquia.
-   - Espaçamento na escala do Tailwind, e só nos degraus 1/2/3/4/6/8/12/16
-     (4px…64px). Valor fora disso vira remendo.
+   - Espaçamento na escala do Tailwind. Dentro de componente, os degraus
+     1/2/3/4/6/8 (4px…32px); para respiro de seção e de página, 10/12/14/16
+     (40px…64px). Fora dessa lista só com razão registrada — hoje há uma:
+     `pt-0.5` nos números em mono, que é alinhamento óptico da linha de base
+     contra o texto ao lado, não espaçamento de layout.
    - Profundidade por hierarquia (peso, tamanho, espaço, 1px de borda), não por
      sombra. Há exatamente uma sombra no sistema, e ela é para elemento flutuante
      (dialog, toast).
