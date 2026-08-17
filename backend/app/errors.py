@@ -65,6 +65,36 @@ class InternalError(AppError):
     status_code = 500
 
 
+class PdfPageLimitError(AppError):
+    """O PDF tem mais páginas do que `MAX_PDF_PAGES` permite.
+
+    É distinta de `FileTooLargeError` porque o arquivo pode caber no limite de
+    bytes e ainda assim estourar a quota de embeddings — o usuário precisa
+    saber qual dos dois limites ele bateu para conseguir corrigir o envio.
+    """
+
+    code = "pdf_muitas_paginas"
+    status_code = 422
+
+
+class PdfTextLimitError(AppError):
+    """O texto extraído do PDF passa de `MAX_EXTRACTED_CHARS`."""
+
+    code = "pdf_texto_longo"
+    status_code = 422
+
+
+class PdfWithoutTextError(AppError):
+    """O PDF não tem camada de texto — tipicamente é um documento escaneado.
+
+    Tem código próprio porque a ação do usuário é diferente das outras falhas:
+    não adianta reenviar o mesmo arquivo, já que OCR está fora do escopo.
+    """
+
+    code = "pdf_sem_texto"
+    status_code = 422
+
+
 def error_body(code: str, message: str) -> dict[str, str]:
     """Monta o corpo do envelope de erro."""
     return {"code": code, "message": message}
