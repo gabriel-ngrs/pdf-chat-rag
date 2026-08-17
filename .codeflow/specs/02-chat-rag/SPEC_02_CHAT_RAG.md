@@ -3,7 +3,7 @@ id: FEAT-0002
 slug: 02-chat-rag
 title: "Chat com RAG: condensação, retrieval com limiar, citações, streaming, eval e entrega"
 type: feature
-status: draft
+status: active
 priority: P0
 size: L
 wave: multi
