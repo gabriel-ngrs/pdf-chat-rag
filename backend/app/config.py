@@ -23,7 +23,11 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_embedding_model: str = "gemini-embedding-001"
     embedding_dim: int = 768
-    gemini_chat_model: str = "gemini-2.5-flash"
+    # `gemini-2.5-flash` saiu do ar para chaves novas durante a FEAT-0002: o
+    # provedor responde `404 NOT_FOUND` dizendo, com essas palavras, para usar
+    # `gemini-3.6-flash`. O modelo continua listado em `models.list()`, então a
+    # falha só aparece na primeira geração — e apareceu no gate da fase A.4.
+    gemini_chat_model: str = "gemini-3.6-flash"
     gemini_thinking_budget: int = 0
 
     max_upload_mb: int = 25

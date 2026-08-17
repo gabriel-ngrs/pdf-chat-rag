@@ -66,6 +66,19 @@ class InternalError(AppError):
     status_code = 500
 
 
+class DocumentNotReadyError(AppError):
+    """O documento existe, mas ainda não terminou de ser processado.
+
+    Não é `404` — o documento está lá — nem `422`, porque o pedido está
+    correto: só chegou cedo demais. O `409` diz exatamente isso, e o código
+    próprio deixa o frontend mandar o usuário esperar o processamento em vez de
+    sugerir que ele mudou alguma coisa errada.
+    """
+
+    code = "documento_nao_pronto"
+    status_code = 409
+
+
 class PdfPageLimitError(AppError):
     """O PDF tem mais páginas do que `MAX_PDF_PAGES` permite.
 
