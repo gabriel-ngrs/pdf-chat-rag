@@ -11,6 +11,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, FastAPI, Request
 
 from app.adapters.db import Database
+from app.adapters.gemini import GeminiEmbeddingClient
+from app.adapters.repository import PostgresDocumentRepository
+from app.api.documents import router as documents_router
 from app.api.middleware import RequestIdMiddleware
 from app.api.schemas import ConfigResponse, HealthResponse
 from app.config import Settings, get_settings
@@ -63,8 +66,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     database = Database(settings.database_url)
     await database.connect()
     await database.verify_embedding_dimension(settings.embedding_dim)
-    swept = await database.sweep_orphans()
+    repository = PostgresDocumentRepository(database)
+    swept = await repository.sweep_orphans()
     app.state.database = database
+    app.state.repository = repository
+    app.state.embedder = GeminiEmbeddingClient(settings)
     logger.info("app.started", orphans_swept=swept)
     try:
         yield
@@ -79,6 +85,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestIdMiddleware)
     register_error_handlers(app)
     app.include_router(router, prefix="/api")
+    app.include_router(documents_router, prefix="/api")
     return app
 
 

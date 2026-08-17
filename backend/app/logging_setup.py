@@ -14,6 +14,7 @@ from typing import Any
 import structlog
 
 REQUEST_ID_KEY = "request_id"
+DOCUMENT_ID_KEY = "document_id"
 
 
 def configure_logging() -> None:
@@ -31,7 +32,10 @@ def configure_logging() -> None:
             structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(),
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(20),
+        # DEBUG e não INFO: `embedding.batch` é catalogado como debug em §4.4, e o
+        # AC-18 exige encontrar no log um evento por lote de embedding. Com o
+        # filtro em INFO os dois requisitos não podem valer ao mesmo tempo.
+        wrapper_class=structlog.make_filtering_bound_logger(10),
         logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=False,
     )
@@ -45,6 +49,15 @@ def get_logger(name: str) -> Any:
 def bind_request_id(request_id: str) -> None:
     """Amarra o `request_id` ao contexto da task assíncrona corrente."""
     structlog.contextvars.bind_contextvars(**{REQUEST_ID_KEY: request_id})
+
+
+def bind_document_id(document_id: str) -> None:
+    """Amarra o `document_id` ao contexto, para os eventos da ingestão o herdarem.
+
+    Amarrado uma vez no início do pipeline em vez de repetido em cada chamada:
+    é o que permite `grep` por documento sem que cada etapa lembre do campo.
+    """
+    structlog.contextvars.bind_contextvars(**{DOCUMENT_ID_KEY: document_id})
 
 
 def clear_request_context() -> None:
