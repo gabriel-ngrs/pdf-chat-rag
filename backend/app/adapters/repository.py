@@ -15,7 +15,8 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from app.adapters.db import Database
-from app.core.models import Chunk, Citation, DocumentStatus, Message, MessageRole
+from app.core.models import Chunk, Citation, DocumentStatus, Message, MessageRole, RetrievedChunk
+from app.core.retrieval import similarity_from_distance
 from app.errors import InternalError
 
 _CREATE_SQL = """
@@ -107,6 +108,23 @@ _LIST_MESSAGES_SQL = """
      ORDER BY created_at, id
 """
 
+# O `<=>` é obrigatório e não é preferência de estilo: o índice de `001_init.sql`
+# é `hnsw (embedding vector_cosine_ops)`, e qualquer outro operador de distância
+# o ignora em silêncio — a busca continua devolvendo o resultado certo, só que
+# varrendo a tabela inteira, sem nenhum erro que denuncie a troca.
+#
+# O filtro por `document_id` vem antes de tudo na leitura desta query porque é
+# ele que sustenta o AC-6: a conversa é sobre um documento, e um chunk vizinho
+# vindo de outro PDF produziria uma citação apontando para um arquivo que o
+# usuário nem tem aberto.
+_SEARCH_CHUNKS_SQL = """
+    SELECT chunk_index, page_number, content, embedding <=> $2::vector AS distance
+      FROM chunks
+     WHERE document_id = $1
+     ORDER BY embedding <=> $2::vector
+     LIMIT $3
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class DocumentRecord:
@@ -173,6 +191,11 @@ class ConversationRepository(Protocol):
     mexe no ciclo de vida de documento. E o dublê da suíte offline (`fakes.py`)
     implementa `DocumentRepository`: engordar aquele protocolo obrigaria todo
     teste de ingestão a arrastar métodos de conversa que não usa.
+
+    A busca vetorial entra aqui, e não num terceiro protocolo, porque ela é um
+    passo do turno de chat como os outros: quem persiste a pergunta é quem
+    recupera os trechos e quem grava a resposta. Separá-la só produziria duas
+    dependências que sempre viajam juntas e sempre apontam para o mesmo objeto.
     """
 
     async def create_conversation(self, document_id: UUID, session_id: str | None) -> UUID: ...
@@ -189,6 +212,10 @@ class ConversationRepository(Protocol):
     ) -> Message: ...
 
     async def list_messages(self, conversation_id: UUID) -> list[Message]: ...
+
+    async def search_chunks(
+        self, document_id: UUID, embedding: list[float], limit: int
+    ) -> list[RetrievedChunk]: ...
 
 
 def serialize_citations(citations: tuple[Citation, ...]) -> str:
@@ -452,6 +479,36 @@ class PostgresConversationRepository:
         """
         rows = await self._database.pool.fetch(_LIST_MESSAGES_SQL, conversation_id)
         return [_to_message(row) for row in rows]
+
+    async def search_chunks(
+        self, document_id: UUID, embedding: list[float], limit: int
+    ) -> list[RetrievedChunk]:
+        """Recupera os `limit` chunks mais próximos da pergunta, só deste documento.
+
+        O `document_id` não é parâmetro opcional nem filtro aplicado depois: ele
+        entra no `WHERE` da própria busca, para que um chunk de outro PDF não
+        chegue sequer a ser candidato. Filtrar em Python o que voltou seria pior
+        de duas formas — gastaria vizinhos do top-k com trechos que já se sabe
+        que serão descartados, e deixaria o isolamento na mão de quem chama.
+
+        A distância volta convertida em similaridade por `core.retrieval`, e não
+        crua, porque `1 - distância` só é um cosseno legítimo com os vetores
+        normalizados em L2 — condição que o adapter de embeddings garante e que
+        precisa valer nos dois lados da conta. O resto do pipeline recebe um
+        score em `[0,1]` e nunca precisa saber que existiu uma distância.
+        """
+        rows = await self._database.pool.fetch(
+            _SEARCH_CHUNKS_SQL, document_id, vector_literal(embedding), limit
+        )
+        return [
+            RetrievedChunk(
+                chunk_index=row["chunk_index"],
+                page_number=row["page_number"],
+                content=row["content"],
+                score=similarity_from_distance(float(row["distance"])),
+            )
+            for row in rows
+        ]
 
 
 def _to_message(row: Any) -> Message:
