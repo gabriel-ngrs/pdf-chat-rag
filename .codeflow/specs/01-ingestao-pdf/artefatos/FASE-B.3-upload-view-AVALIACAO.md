@@ -222,10 +222,14 @@ do `docker compose`" — está cumprido e verificado de forma independente.
 
 **Pendências da FEAT-0001, não desta fase:**
 
-- `A.4` continua formalmente **reprovada** (`RESSALVAS`, tentativa 1, sem rework
-  nesta branch). Ver §2: não bloqueia esta fase, mas bloqueia o fechamento da
-  spec. Se o rework da `A.4` mexer na §4.5 — não deveria, pelos achados que ela
-  tem —, `B.3` e `B.4` precisam de um re-check rápido do contrato.
+- `A.4` estava formalmente **reprovada** (`RESSALVAS`, tentativa 1) quando esta
+  avaliação começou — ver §2. Durante a redação, o rework do Track A foi mergeado
+  em `dev` (`7c2d6a4`) e uma sessão paralela passou a gravar as avaliações de
+  tentativa 2. Conferi o que o merge fez com o que medi: `frontend/` e `Makefile`
+  intactos, e **`backend/app/api/schemas.py` intacto** — ou seja, o contrato da
+  §4.5 que eu li do backend real continua valendo, e o re-check que eu tinha
+  ressalvado deixou de ser necessário. `make check` re-rodado no HEAD: exit 0. O
+  fechamento da spec segue dependendo de `APROVADO` em todas as fases do Track A.
 - "Identificadores em inglês" (DoD global) — §6.1.
 
 ## 9. Divergências entre o relatório e o código real

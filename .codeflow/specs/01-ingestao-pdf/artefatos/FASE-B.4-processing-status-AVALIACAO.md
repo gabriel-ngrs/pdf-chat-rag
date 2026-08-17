@@ -206,8 +206,13 @@ verificado de forma independente.
 
 **Pendências da FEAT-0001, não desta fase:**
 
-- `A.1` a `A.4` seguem com `RESSALVAS` na tentativa 1 e sem rework nesta branch;
-  pela §2.11.3 continuam reprovadas, e a spec não fecha enquanto isso.
+- `A.1` a `A.4` estavam com `RESSALVAS` na tentativa 1 quando esta avaliação
+  começou. Durante a redação, o rework do Track A foi mergeado em `dev`
+  (`7c2d6a4`) e uma sessão paralela passou a gravar as avaliações de tentativa 2.
+  O merge não tocou `frontend/`, `Makefile` nem `backend/app/api/schemas.py`
+  (contrato de resposta), então o payload da §4.5 que eu li do backend real
+  continua valendo e nada do que medi foi invalidado. `make check` re-rodado no
+  HEAD: exit 0. A spec só fecha com `APROVADO` em todas as fases do Track A.
 - "Identificadores em inglês" (DoD global) — detalhe na avaliação da `B.2`, §5.1.
 - Fragmento da `GEMINI_API_KEY` no histórico do git (commit pai de `34cb479`) —
   matéria do Track A, mas é decisão do owner rotacionar a chave antes de publicar.

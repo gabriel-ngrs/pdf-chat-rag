@@ -173,9 +173,15 @@ que na tentativa 1 eram `[—]`.
 
 **Pendências que são da FEAT-0001, não desta fase** (registro para o fechamento):
 
-- `A.1`, `A.2`, `A.3` e `A.4` estão com `RESSALVAS` na tentativa 1 e sem rework
-  nesta branch — pela §2.11.3 continuam **reprovadas**. A spec não vai a
-  `status: done` enquanto elas não fecharem.
+- `A.1` a `A.4` estavam com `RESSALVAS` na tentativa 1 quando esta avaliação
+  começou. Durante a redação, o rework do Track A foi mergeado em `dev`
+  (`7c2d6a4`) e uma sessão paralela passou a gravar as avaliações de tentativa 2.
+  Reconferi o que isso muda aqui: o merge **não tocou `frontend/` nem o
+  `Makefile`** (`git diff 7b36f53..HEAD -- frontend Makefile` vazio) e não tocou
+  `backend/app/api/schemas.py`, que é o contrato de resposta — então nada do que
+  medi nas três fases do Track B foi invalidado. `make check` re-rodado no HEAD
+  com o Track A dentro: **exit 0**. A spec só vai a `status: done` quando todas
+  as fases do Track A tiverem `APROVADO` da tentativa corrente.
 - "Identificadores em inglês" (DoD global) — ver §5.1.
 - O commit `34cb479` removeu um fragmento de 9 caracteres da `GEMINI_API_KEY` de
   um relatório da `A.1`. O fragmento **continua no histórico do git**, no commit
