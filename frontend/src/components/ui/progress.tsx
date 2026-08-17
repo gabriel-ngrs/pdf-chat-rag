@@ -11,6 +11,11 @@ function Progress({
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
+      // O `value` precisa chegar à Root, não só ao indicador: é dele que o
+      // primitivo deriva `aria-valuenow`, `data-state` e `data-value`. Sem
+      // isto a barra desenha certo e fica muda para leitor de tela, e todo
+      // estilo em `data-[state=...]` morre em silêncio.
+      value={value}
       className={cn(
         "relative flex h-1 w-full items-center overflow-x-hidden rounded-full bg-muted",
         className
