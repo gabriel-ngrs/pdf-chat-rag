@@ -1,14 +1,20 @@
-"""Adapter de embeddings: lote, backoff, normalização e sigilo da chave.
+"""Adapter do Gemini: embeddings e chat.
+
+Da metade de embeddings: lote, backoff, normalização e sigilo da chave. Da
+metade de chat: a tradução do orçamento de raciocínio para o que o SDK aceita,
+o descarte de pedaço sem texto, o retry na abertura do stream e o prazo do
+turno.
 
 Nenhum teste deste arquivo chama a API real — o transporte é sempre um dublê.
 A conferência contra a API de verdade vive em `scripts/check_embeddings.py` e o
 resultado está registrado em `eval/README.md`.
 """
 
+import asyncio
 import logging
 import math
 import random
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
 from typing import Any
 
@@ -19,11 +25,17 @@ from google.genai import errors, types
 from structlog.testing import capture_logs
 
 from app.adapters.gemini import (
+    CHAT_MAX_OUTPUT_TOKENS,
+    CHAT_TEMPERATURE,
+    CONDENSATION_MAX_OUTPUT_TOKENS,
     TASK_TYPE_DOCUMENT,
     TASK_TYPE_QUERY,
+    ChatProviderError,
+    ChatQuotaError,
     EmbeddingPayloadError,
     EmbeddingProviderError,
     EmbeddingQuotaError,
+    GeminiChatClient,
     GeminiEmbeddingClient,
     MissingApiKeyError,
     backoff_delay,
@@ -434,3 +446,228 @@ def test_emite_embedding_batch_por_lote() -> None:
     assert [entry["batch_size"] for entry in lotes] == [2, 1]
     assert all(entry["duration_ms"] >= 0 for entry in lotes)
     assert all(entry["log_level"] == "debug" for entry in lotes)
+
+
+# --- Cliente de chat: configuração, streaming, retry e prazo ----------------------
+#
+# O transporte continua sendo dublê. O que muda em relação aos testes de
+# embedding acima é a face do SDK: o cliente de chat fala com `client.aio.models`,
+# porque o cancelamento precisa chegar ao provedor quando quem pergunta desiste.
+
+
+class FakeAsyncModels:
+    """`client.aio.models` sem rede: devolve os pedaços que o teste combinar.
+
+    `stream_failures` é consumida uma entrada por tentativa de **abertura** do
+    stream; `None` significa sucesso. É assim que o teste exercita o retry sem
+    esperar nenhum backoff real.
+    """
+
+    def __init__(
+        self,
+        *,
+        pieces: tuple[str | None, ...] = ("olá", " mundo"),
+        text: str = "  pergunta reescrita  ",
+        stream_failures: list[Exception | None] | None = None,
+        stall: bool = False,
+    ) -> None:
+        self.pieces = pieces
+        self.text = text
+        self.configs: list[types.GenerateContentConfig] = []
+        self.models_pedidos: list[str] = []
+        self.closed = False
+        self._stream_failures = list(stream_failures or [])
+        self._stall = stall
+
+    async def generate_content(
+        self, *, model: str, contents: Any, config: types.GenerateContentConfig
+    ) -> types.GenerateContentResponse:
+        self.models_pedidos.append(model)
+        self.configs.append(config)
+        return types.GenerateContentResponse(
+            candidates=[
+                types.Candidate(
+                    content=types.Content(parts=[types.Part(text=self.text)], role="model")
+                )
+            ]
+        )
+
+    async def generate_content_stream(
+        self, *, model: str, contents: Any, config: types.GenerateContentConfig
+    ) -> AsyncIterator[types.GenerateContentResponse]:
+        self.models_pedidos.append(model)
+        self.configs.append(config)
+        if self._stream_failures:
+            falha = self._stream_failures.pop(0)
+            if falha is not None:
+                raise falha
+        return self._emitir()
+
+    async def _emitir(self) -> AsyncIterator[types.GenerateContentResponse]:
+        try:
+            if self._stall:
+                await asyncio.Event().wait()
+            for piece in self.pieces:
+                partes = [types.Part(text=piece)] if piece is not None else []
+                yield types.GenerateContentResponse(
+                    candidates=[types.Candidate(content=types.Content(parts=partes, role="model"))]
+                )
+        finally:
+            self.closed = True
+
+
+class FakeAsyncApi:
+    def __init__(self, models: FakeAsyncModels) -> None:
+        self.models = models
+
+
+class FakeAsyncClient:
+    """Cliente do SDK reduzido ao único atributo que o cliente de chat alcança."""
+
+    def __init__(self, models: FakeAsyncModels) -> None:
+        self.aio = FakeAsyncApi(models)
+
+
+def build_chat_client(
+    models: FakeAsyncModels, *, max_attempts: int = 2, timeout: int = 60, thinking: int = 0
+) -> GeminiChatClient:
+    """Cliente de chat com o transporte falso e sem espera real de backoff."""
+
+    async def sem_espera(_seconds: float) -> None:
+        return None
+
+    return GeminiChatClient(
+        Settings(
+            _env_file=None,
+            gemini_api_key=FAKE_KEY,
+            gemini_chat_model="modelo-de-teste",
+            gemini_thinking_budget=thinking,
+            chat_timeout_seconds=timeout,
+        ),
+        client=FakeAsyncClient(models),
+        sleep=sem_espera,
+        max_attempts=max_attempts,
+        rng=random.Random(7),
+    )
+
+
+async def coletar(client: GeminiChatClient, prompt: str = "prompt") -> list[str]:
+    return [piece async for piece in client.stream_answer(prompt)]
+
+
+async def test_orcamento_zero_chega_ao_provedor_como_nivel_minimo() -> None:
+    """A tradução que o desvio da fase A.4 introduziu, contra o que o SDK aceita.
+
+    `thinking_budget=0` é recusado com `400` pela geração 3.x do modelo; o que
+    a configuração do projeto pede — "não raciocine" — passou a viajar como
+    nível mínimo. A asserção é sobre o que **chegou ao transporte**, que é onde
+    a diferença entre as duas formas existe.
+    """
+    models = FakeAsyncModels()
+
+    await coletar(build_chat_client(models, thinking=0))
+
+    thinking = models.configs[0].thinking_config
+    assert thinking is not None
+    assert thinking.thinking_level == types.ThinkingLevel.MINIMAL
+    assert thinking.thinking_budget is None
+
+
+async def test_orcamento_positivo_continua_chegando_como_orcamento() -> None:
+    """Quem quiser ligar o raciocínio muda a variável de ambiente, não o código."""
+    models = FakeAsyncModels()
+
+    await coletar(build_chat_client(models, thinking=128))
+
+    thinking = models.configs[0].thinking_config
+    assert thinking is not None
+    assert thinking.thinking_budget == 128
+    assert thinking.thinking_level is None
+
+
+async def test_stream_descarta_pedaco_sem_texto_e_preserva_a_ordem() -> None:
+    """§4.2: `chunk.text` pode vir `None`, e emitir isso escreveria "null" na tela."""
+    models = FakeAsyncModels(pieces=("primeiro ", None, "segundo"))
+
+    assert await coletar(build_chat_client(models)) == ["primeiro ", "segundo"]
+
+
+async def test_stream_pede_o_modelo_configurado_com_o_teto_de_saida_do_chat() -> None:
+    models = FakeAsyncModels()
+
+    await coletar(build_chat_client(models))
+
+    assert models.models_pedidos == ["modelo-de-teste"]
+    assert models.configs[0].max_output_tokens == CHAT_MAX_OUTPUT_TOKENS
+    assert models.configs[0].temperature == CHAT_TEMPERATURE
+
+
+async def test_stream_fecha_o_iterador_do_provedor_ao_terminar() -> None:
+    """FR-12: a conexão com o provedor não fica aberta depois do último pedaço."""
+    models = FakeAsyncModels()
+
+    await coletar(build_chat_client(models))
+
+    assert models.closed is True
+
+
+async def test_generate_devolve_o_texto_podado_com_o_teto_da_condensacao() -> None:
+    models = FakeAsyncModels(text="  Quais serviços a YAITEC oferece?  ")
+    client = build_chat_client(models)
+
+    assert await client.generate("prompt", timeout=5) == "Quais serviços a YAITEC oferece?"
+    assert models.configs[0].max_output_tokens == CONDENSATION_MAX_OUTPUT_TOKENS
+
+
+async def test_falha_transitoria_na_abertura_do_stream_e_re_tentada_uma_vez() -> None:
+    models = FakeAsyncModels(stream_failures=[httpx.ConnectError("rede caiu"), None])
+
+    assert await coletar(build_chat_client(models)) == ["olá", " mundo"]
+
+
+async def test_falha_transitoria_persistente_esgota_as_tentativas() -> None:
+    models = FakeAsyncModels(stream_failures=[TimeoutError(), TimeoutError()])
+
+    with pytest.raises(ChatProviderError):
+        await coletar(build_chat_client(models))
+
+
+async def test_quota_do_chat_vira_erro_de_quota_e_nao_de_provedor() -> None:
+    models = FakeAsyncModels(stream_failures=[quota_error(), quota_error()])
+
+    with pytest.raises(ChatQuotaError):
+        await coletar(build_chat_client(models))
+
+
+async def test_status_nao_retentavel_desiste_na_primeira_tentativa() -> None:
+    """O `404` do modelo descontinuado é o caso real: repetir não muda nada."""
+    models = FakeAsyncModels(
+        stream_failures=[
+            errors.ClientError(404, {"error": {"message": "modelo sumiu", "status": "NOT_FOUND"}}),
+            None,
+        ]
+    )
+
+    with pytest.raises(ChatProviderError):
+        await coletar(build_chat_client(models))
+    # A segunda entrada da lista continua lá: não houve segunda tentativa.
+    assert models.models_pedidos == ["modelo-de-teste"]
+
+
+async def test_provedor_que_emudece_estoura_o_prazo_do_turno() -> None:
+    """`CHAT_TIMEOUT_SECONDS` é prazo de verdade, não configuração decorativa.
+
+    Sem ele, um provedor que abre o stream e para de emitir prenderia o turno
+    até o `proxy_read_timeout` do nginx derrubar a conexão.
+    """
+    models = FakeAsyncModels(stall=True)
+
+    with pytest.raises(ChatProviderError):
+        await coletar(build_chat_client(models, timeout=0))
+
+
+async def test_chave_ausente_falha_antes_de_qualquer_chamada_de_chat() -> None:
+    client = GeminiChatClient(Settings(_env_file=None, gemini_api_key=""))
+
+    with pytest.raises(MissingApiKeyError):
+        await client.generate("prompt", timeout=5)
