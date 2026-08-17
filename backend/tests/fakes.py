@@ -18,19 +18,46 @@ Duas escolhas merecem registro:
   precisa produzir o mesmo vetor entre execuções, e normalizado porque um dublê
   que não respeitasse essa garantia esconderia regressões na distância de
   cosseno.
+
+Os dois dublês do chat seguem a mesma disciplina, com um acréscimo:
+
+* `FakeChatClient` guarda **o prompt que recebeu** em cada método. É o que
+  permite asserir sobre o que o turno entregou ao provedor — a ordem das partes
+  do prompt (NFR-8) e o fato de a recusa nem chegar a chamá-lo (AC-8) — sem
+  depender do texto que um modelo real devolveria, que não é determinístico.
+* `FakeConversationRepository` guarda **o embedding que chegou ao
+  `search_chunks`**. A query condensada não é observável na resposta; o vetor
+  que foi buscar é, e como o `FakeEmbeddingClient` é determinístico, comparar o
+  vetor com `deterministic_vector(query_esperada)` prova qual texto foi ao
+  retrieval (AC-5).
+
+Os dois aceitam um `journal` compartilhado porque a garantia de FR-9 — a
+pergunta é gravada **antes** de qualquer chamada ao provedor — atravessa dois
+colaboradores, e uma linha do tempo única é a única forma de asseri-la sem
+inspecionar o código de produção.
 """
 
 import asyncio
 import hashlib
+import itertools
 import math
-from dataclasses import replace
+from collections.abc import AsyncIterator, Sequence
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from google.genai import types
 
-from app.adapters.repository import DocumentRecord
-from app.core.models import Chunk, DocumentStatus
+from app.adapters.repository import ConversationRecord, DocumentRecord
+from app.core.models import (
+    Chunk,
+    Citation,
+    DocumentStatus,
+    Message,
+    MessageRole,
+    RetrievedChunk,
+)
 
 # Pequena de propósito na suíte offline: o valor de produção é 768 e nada no
 # pipeline depende do número, então vetor curto só torna o teste mais barato.
@@ -248,3 +275,212 @@ class StubGenaiClient:
 
     def __init__(self, models: StubGenaiModels) -> None:
         self.models = models
+
+
+# ─── Dublês do chat ──────────────────────────────────────────────────────────
+
+DEFAULT_ANSWER_PIECES: tuple[str, ...] = (
+    "A YAITEC ",
+    "atende empresas ",
+    "com projetos de software (página 2).",
+)
+
+DEFAULT_CONDENSED_QUERY = "quais servicos a YAITEC oferece para empresas?"
+
+
+def matches_embedding(embedding: list[float], text: str, dim: int = DEFAULT_DIM) -> bool:
+    """Diz se o vetor que chegou ao retrieval é o vetor do texto dado.
+
+    A ponte entre "qual query foi buscar" e "qual vetor foi buscado" é o
+    determinismo do `FakeEmbeddingClient`: o mesmo texto sempre produz o mesmo
+    vetor, então comparar vetores é comparar textos — sem que o teste precise
+    inspecionar a chamada intermediária.
+    """
+    return embedding == deterministic_vector(text, dim)
+
+
+class FakeChatClient:
+    """Implementa `ChatClient` sem rede, com os caminhos que só aparecem sob falha.
+
+    Quatro modos, todos configuráveis pelo construtor, porque são exatamente os
+    quatro que o uso normal nunca exercita:
+
+    * `stream_error` com `error_after=0` — o provedor recusa **na abertura** do
+      stream, antes de qualquer token. É o caso comum do `429` do free tier.
+    * `stream_error` com `error_after=n` — o provedor morre depois de `n`
+      pedaços já entregues, que é a metade `mid_stream` de FR-11.
+    * `generate_error` / `generate_delay` — a condensação falha ou estoura o
+      prazo. O prazo é honrado com o mesmo `asyncio.wait_for` do adapter real,
+      para que o `TimeoutError` venha de um timeout de verdade e não de uma
+      exceção escolhida à mão (AC-5).
+    * `echo_prompt` — a resposta é o próprio prompt. É o que torna a ordem das
+      partes do prompt observável de fora, pelo stream (AC-27).
+
+    `emitted` e `closed` existem para a desconexão (AC-13): o primeiro mostra
+    que o consumo parou antes do fim, e o segundo que o iterador do provedor foi
+    fechado — o `finally` do gerador só roda no `aclose()`.
+    """
+
+    def __init__(
+        self,
+        *,
+        pieces: Sequence[str] = DEFAULT_ANSWER_PIECES,
+        condensed: str = DEFAULT_CONDENSED_QUERY,
+        stream_error: Exception | None = None,
+        error_after: int = 0,
+        generate_error: Exception | None = None,
+        generate_delay: float | None = None,
+        echo_prompt: bool = False,
+        journal: list[str] | None = None,
+    ) -> None:
+        self.pieces = list(pieces)
+        self.condensed = condensed
+        self.stream_error = stream_error
+        self.error_after = error_after
+        self.generate_error = generate_error
+        self.generate_delay = generate_delay
+        self.echo_prompt = echo_prompt
+        self.journal = journal if journal is not None else []
+        self.stream_prompts: list[str] = []
+        self.generate_prompts: list[str] = []
+        self.emitted: list[str] = []
+        self.closed = False
+
+    @property
+    def stream_calls(self) -> int:
+        """Quantas vezes o turno pediu geração — zero é o que a recusa promete."""
+        return len(self.stream_prompts)
+
+    async def generate(self, prompt: str, *, timeout: float) -> str:
+        self.generate_prompts.append(prompt)
+        self.journal.append("generate")
+        if self.generate_error is not None:
+            raise self.generate_error
+        if self.generate_delay is not None:
+            await asyncio.wait_for(asyncio.sleep(self.generate_delay), timeout)
+        return self.condensed
+
+    async def stream_answer(self, prompt: str) -> AsyncIterator[str]:
+        self.stream_prompts.append(prompt)
+        self.journal.append("stream_answer")
+        pieces = [prompt] if self.echo_prompt else self.pieces
+        try:
+            for position, piece in enumerate(pieces):
+                self._fail_if_due(position)
+                self.emitted.append(piece)
+                yield piece
+            self._fail_if_due(len(pieces))
+        finally:
+            self.closed = True
+
+    def _fail_if_due(self, emitted: int) -> None:
+        """Levanta a falha injetada quando ela é devida depois de `emitted` pedaços."""
+        if self.stream_error is not None and emitted >= self.error_after:
+            raise self.stream_error
+
+
+@dataclass(frozen=True, slots=True)
+class SearchCall:
+    """Uma chamada ao `search_chunks`, como ela chegou ao repositório."""
+
+    document_id: UUID
+    embedding: list[float]
+    limit: int
+
+
+class FakeConversationRepository:
+    """Implementa `ConversationRepository` sobre listas em memória.
+
+    Os ids de mensagem são inteiros crescentes, como o `bigserial` da tabela: o
+    evento `done` devolve esse id ao cliente, e um dublê que devolvesse sempre o
+    mesmo esconderia a troca de uma mensagem por outra.
+
+    `chunks` e seus scores são configuráveis porque é o score que decide entre
+    responder e recusar — é o único parâmetro que separa o caminho fundamentado
+    do caminho de recusa (AC-8).
+    """
+
+    def __init__(
+        self,
+        *,
+        chunks: Sequence[RetrievedChunk] = (),
+        journal: list[str] | None = None,
+    ) -> None:
+        self.conversations: dict[UUID, ConversationRecord] = {}
+        self.messages: dict[UUID, list[Message]] = {}
+        self.chunks = list(chunks)
+        self.searches: list[SearchCall] = []
+        self.operations: list[str] = []
+        self.journal = journal if journal is not None else []
+        self.fail_on: str | None = None
+        self.failure: Exception | None = None
+        self._ids = itertools.count(1)
+
+    async def _enter(self, operation: str) -> None:
+        """Cede o loop, registra a chamada e dispara a falha injetada, se houver."""
+        await asyncio.sleep(0)
+        self.operations.append(operation)
+        self.journal.append(operation)
+        if self.fail_on == operation and self.failure is not None:
+            raise self.failure
+
+    async def create_conversation(self, document_id: UUID, session_id: str | None) -> UUID:
+        await self._enter("create_conversation")
+        conversation_id = uuid4()
+        self.conversations[conversation_id] = ConversationRecord(
+            id=conversation_id,
+            document_id=document_id,
+            session_id=session_id,
+            created_at=datetime.now(UTC),
+        )
+        self.messages[conversation_id] = []
+        return conversation_id
+
+    async def get_conversation(self, conversation_id: UUID) -> ConversationRecord | None:
+        await self._enter("get_conversation")
+        return self.conversations.get(conversation_id)
+
+    async def add_message(
+        self,
+        conversation_id: UUID,
+        role: MessageRole,
+        content: str,
+        citations: tuple[Citation, ...] = (),
+        truncated: bool = False,
+    ) -> Message:
+        await self._enter("add_message")
+        message = Message(
+            id=next(self._ids),
+            role=role,
+            content=content,
+            citations=tuple(citations),
+            truncated=truncated,
+            created_at=datetime.now(UTC),
+        )
+        self.messages.setdefault(conversation_id, []).append(message)
+        return message
+
+    async def list_messages(self, conversation_id: UUID) -> list[Message]:
+        await self._enter("list_messages")
+        return list(self.messages.get(conversation_id, []))
+
+    async def search_chunks(
+        self, document_id: UUID, embedding: list[float], limit: int
+    ) -> list[RetrievedChunk]:
+        """Devolve os `limit` chunks configurados, do mais similar para o menos.
+
+        A ordenação é refeita aqui porque é o que o `ORDER BY` do SQL real faz —
+        um dublê que devolvesse na ordem em que o teste montou a lista deixaria
+        passar um `take_top_k` que dependesse da ordem de chegada.
+        """
+        await self._enter("search_chunks")
+        self.searches.append(SearchCall(document_id, list(embedding), limit))
+        ranked = sorted(self.chunks, key=lambda chunk: chunk.score, reverse=True)
+        return ranked[:limit]
+
+    def contents_of(self, conversation_id: UUID) -> list[tuple[str, str]]:
+        """Papel e texto de cada mensagem gravada, na ordem — o histórico cru."""
+        return [
+            (message.role.value, message.content)
+            for message in self.messages.get(conversation_id, [])
+        ]
