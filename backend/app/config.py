@@ -40,7 +40,9 @@ class Settings(BaseSettings):
     embedding_batch_size: int = 16
 
     retrieval_top_k: int = 5
-    similarity_threshold: float = 0.55
+    # Medido, não estimado: ver `backend/eval/README.md` para a distribuição de
+    # similaridade que separa positivas de negativas e justifica este corte.
+    similarity_threshold: float = 0.625
     history_window: int = 6
     chat_timeout_seconds: int = 60
     condense_timeout_seconds: int = 5

@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "document": "Exemplo-YAITEC.pdf",
+  "notes": [
+    "Perguntas escritas a partir do texto extraído do PDF (3 páginas, 10 chunks de 500 chars).",
+    "Página 1 = chunks 0-3, página 2 = chunks 4-7, página 3 = chunks 8-9.",
+    "Cada positiva tem resposta em UMA página só. Temas que aparecem em duas páginas — o mais",
+    "notório é 'RAG evita alucinação', presente nas páginas 2 e 3 — foram deliberadamente",
+    "evitados: com resposta ambígua, o recall mediria a sorte do desempate, não o retrieval.",
+    "As negativas são assuntos que o documento não menciona nem de raspão; elas existem para",
+    "que a calibração do limiar não seja circular (ver eval/README.md)."
+  ],
+  "items": [
+    {
+      "id": "P01",
+      "group": "positive",
+      "kind": "fato pontual",
+      "question": "A YAITEC atende que tipo de mercado?",
+      "expected_page": 1
+    },
+    {
+      "id": "P02",
+      "group": "positive",
+      "kind": "fato pontual",
+      "question": "O que os agentes SQL da YAITEC fazem?",
+      "expected_page": 1
+    },
+    {
+      "id": "P03",
+      "group": "positive",
+      "kind": "fato pontual",
+      "question": "O que inclui o serviço de consultoria e prototipação da YAITEC?",
+      "expected_page": 1
+    },
+    {
+      "id": "P04",
+      "group": "positive",
+      "kind": "nome próprio",
+      "question": "Quem fundou a YAITEC?",
+      "expected_page": 2
+    },
+    {
+      "id": "P05",
+      "group": "positive",
+      "kind": "número",
+      "question": "Quantos projetos e clientes a YAITEC já entregou?",
+      "expected_page": 2
+    },
+    {
+      "id": "P06",
+      "group": "positive",
+      "kind": "lista de nomes próprios",
+      "question": "Quais empresas estão entre os clientes e parcerias da YAITEC?",
+      "expected_page": 2
+    },
+    {
+      "id": "P07",
+      "group": "positive",
+      "kind": "lista",
+      "question": "Quais são os valores da YAITEC?",
+      "expected_page": 2
+    },
+    {
+      "id": "P08",
+      "group": "positive",
+      "kind": "termo exato",
+      "question": "Qual é o e-mail de contato da YAITEC?",
+      "expected_page": 3
+    },
+    {
+      "id": "P09",
+      "group": "positive",
+      "kind": "fato pontual",
+      "question": "A atuação da YAITEC é presencial ou remota?",
+      "expected_page": 3
+    },
+    {
+      "id": "P10",
+      "group": "positive",
+      "kind": "fato pontual",
+      "question": "Em que cidade o time da YAITEC se reúne no coworking?",
+      "expected_page": 3
+    },
+    {
+      "id": "C01",
+      "group": "positive",
+      "kind": "continuação (anáfora por elipse)",
+      "question": "e a formação?",
+      "expected_page": 2,
+      "history": [
+        { "role": "user", "content": "Quem fundou a YAITEC?" },
+        { "role": "assistant", "content": "A YAITEC foi fundada por Ygor Alves, fundador e CEO." }
+      ]
+    },
+    {
+      "id": "C02",
+      "group": "positive",
+      "kind": "continuação (marcador anafórico 'lá')",
+      "question": "e quem mora longe de lá?",
+      "expected_page": 3,
+      "history": [
+        { "role": "user", "content": "Onde o time da YAITEC se reúne?" },
+        {
+          "role": "assistant",
+          "content": "Em um coworking em João Pessoa, uma vez por semana."
+        }
+      ]
+    },
+    {
+      "id": "N01",
+      "group": "negative",
+      "kind": "fora do documento",
+      "question": "Qual é a receita do bolo de cenoura com cobertura de chocolate?",
+      "expected_page": null
+    },
+    {
+      "id": "N02",
+      "group": "negative",
+      "kind": "fora do documento",
+      "question": "Quantos gols Pelé marcou pela seleção brasileira?",
+      "expected_page": null
+    },
+    {
+      "id": "N03",
+      "group": "negative",
+      "kind": "fora do documento",
+      "question": "De quanto em quanto tempo devo trocar o óleo do motor do carro?",
+      "expected_page": null
+    },
+    {
+      "id": "N04",
+      "group": "negative",
+      "kind": "fora do documento",
+      "question": "Quais são os sintomas da dengue?",
+      "expected_page": null
+    }
+  ]
+}
