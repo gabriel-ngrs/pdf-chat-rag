@@ -20,6 +20,7 @@ import time
 from collections.abc import Callable, Iterator, Sequence
 from typing import NoReturn, Protocol
 
+import httpx
 from google.genai import Client, errors, types
 
 from app.config import Settings, get_settings
@@ -205,8 +206,15 @@ class GeminiEmbeddingClient:
                     self._fail(reason, status, EmbeddingPayloadError(PAYLOAD_MESSAGE))
                 if status not in RETRYABLE_STATUS:
                     self._fail(reason, status, EmbeddingProviderError(PROVIDER_MESSAGE))
-            except (TimeoutError, OSError) as exc:
+            except (TimeoutError, OSError, httpx.TransportError) as exc:
                 # Falha de transporte não diz nada sobre o pedido: é transitória.
+                #
+                # `httpx.TransportError` está aqui porque é a classe que o cliente
+                # real produz: o google-genai fala httpx, e ReadTimeout,
+                # ConnectError e ConnectTimeout não são subclasse de TimeoutError
+                # nem de OSError. Sem ela, uma oscilação de rede de um segundo não
+                # era re-tentada nenhuma vez — a exceção escapava crua do adapter
+                # e o documento terminava `failed` por um problema transitório.
                 status = None
                 reason = self._sanitize(f"{type(exc).__name__}: {exc}")
 

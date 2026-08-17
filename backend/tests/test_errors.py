@@ -67,3 +67,51 @@ async def test_erro_inesperado_nao_vaza_detalhe_interno() -> None:
 def test_cada_erro_de_dominio_tem_codigo_e_status_proprios() -> None:
     assert (NotFoundError.code, NotFoundError.status_code) == ("nao_encontrado", 404)
     assert (FileTooLargeError.code, FileTooLargeError.status_code) == ("arquivo_grande", 413)
+
+
+# ─── Regressão da avaliação da A.1 (I-1) ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_rota_inexistente_sai_no_envelope() -> None:
+    """O 404 do próprio framework também respeita o contrato de §4.3.
+
+    Antes deste handler a resposta era `{"detail": "Not Found"}`, que o
+    frontend não sabe mapear: ele lê `code`, nunca status.
+    """
+    async with build_app_with_failing_routes() as client:
+        response = await client.get("/api/rota-que-nao-existe")
+
+    assert response.status_code == 404
+    assert set(response.json()) == {"code", "message"}
+    assert response.json()["code"] == "nao_encontrado"
+
+
+@pytest.mark.asyncio
+async def test_metodo_nao_permitido_sai_no_envelope() -> None:
+    async with build_app_with_failing_routes() as client:
+        response = await client.delete("/api/boom-dominio")
+
+    assert response.status_code == 405
+    assert set(response.json()) == {"code", "message"}
+
+
+@pytest.mark.asyncio
+async def test_nenhuma_resposta_de_erro_usa_a_chave_detail() -> None:
+    """Varre os caminhos de erro e recusa o formato do framework.
+
+    É a asserção que amarra o AC-17 ao seu literal — "qualquer erro 4xx/5xx" —
+    em vez de só aos caminhos que alguém lembrou de listar.
+    """
+    async with build_app_with_failing_routes() as client:
+        respostas = [
+            await client.get("/api/rota-que-nao-existe"),
+            await client.delete("/api/boom-dominio"),
+            await client.get("/api/boom-dominio"),
+            await client.get("/api/boom-inesperado"),
+            await client.get("/api/precisa-de-numero?quantidade=abc"),
+        ]
+
+    for resposta in respostas:
+        assert "detail" not in resposta.json(), resposta.text
+        assert set(resposta.json()) == {"code", "message"}, resposta.text

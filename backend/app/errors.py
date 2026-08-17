@@ -8,6 +8,7 @@ permite reusar as mesmas mensagens no streaming, onde não há status HTTP.
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.logging_setup import get_logger
 
@@ -100,6 +101,28 @@ def error_body(code: str, message: str) -> dict[str, str]:
     return {"code": code, "message": message}
 
 
+# Traduz os erros HTTP que o próprio framework levanta (404 de rota inexistente,
+# 405 de método errado) para os códigos de §4.3. Status sem código próprio caem
+# em `erro_interno`: a tabela de códigos é contrato consumido pelos dois tracks,
+# e inventar um código aqui quebraria o mapa do frontend em vez de completá-lo.
+_HTTP_ERROR_CODES = {
+    404: NotFoundError.code,
+    413: FileTooLargeError.code,
+    422: InvalidFileError.code,
+    429: RateLimitError.code,
+}
+
+_HTTP_ERROR_MESSAGES = {
+    404: "O endereço pedido não existe.",
+    405: "Este endereço não aceita esse método.",
+    413: "O arquivo excede o limite de upload.",
+    422: "Os dados enviados são inválidos.",
+    429: "O limite de uso foi atingido. Tente de novo em alguns minutos.",
+}
+
+DEFAULT_HTTP_MESSAGE = "Não foi possível completar a requisição."
+
+
 def register_error_handlers(app: FastAPI) -> None:
     """Registra os handlers que garantem o envelope único em toda saída de erro.
 
@@ -136,6 +159,24 @@ def register_error_handlers(app: FastAPI) -> None:
             ),
         )
 
+    async def handle_http_error(request: Request, exc: Exception) -> JSONResponse:
+        """Envelopa os erros que o framework levanta por conta própria.
+
+        Sem este handler, `404` de rota inexistente e `405` de método errado
+        saem como `{"detail": ...}` — formato que o frontend não mapeia, porque
+        ele lê `code` e nunca status. O AC-17 fala de **qualquer** erro 4xx/5xx.
+        """
+        status_code = getattr(exc, "status_code", 500)
+        logger.warning("request.http_error", status=status_code, path=request.url.path)
+        return JSONResponse(
+            status_code=status_code,
+            content=error_body(
+                _HTTP_ERROR_CODES.get(status_code, InternalError.code),
+                _HTTP_ERROR_MESSAGES.get(status_code, DEFAULT_HTTP_MESSAGE),
+            ),
+        )
+
     app.add_exception_handler(AppError, handle_app_error)
     app.add_exception_handler(RequestValidationError, handle_validation_error)
+    app.add_exception_handler(StarletteHTTPException, handle_http_error)
     app.add_exception_handler(Exception, handle_unexpected_error)

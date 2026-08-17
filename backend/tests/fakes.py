@@ -110,6 +110,7 @@ class FakeRepository:
         self.operations: list[tuple[str, UUID]] = []
         self.status_calls: list[tuple[UUID, DocumentStatus]] = []
         self.progress_calls: list[tuple[UUID, int]] = []
+        self.retries: list[UUID] = []
         self.fail_on: str | None = None
         self.failure: Exception | None = None
 
@@ -180,6 +181,19 @@ class FakeRepository:
     ) -> None:
         await self._enter("insert_chunks", document_id)
         self.chunks[document_id] = list(zip(chunks, embeddings, strict=True))
+
+    async def reset_for_retry(self, document_id: UUID) -> None:
+        await self._enter("reset_for_retry", document_id)
+        self.retries.append(document_id)
+        self.chunks.pop(document_id, None)
+        self.documents[document_id] = replace(
+            self.documents[document_id],
+            status=DocumentStatus.PENDING,
+            error_message=None,
+            page_count=None,
+            chunks_total=None,
+            chunks_processed=0,
+        )
 
     async def sweep_orphans(self) -> int:
         pending = [

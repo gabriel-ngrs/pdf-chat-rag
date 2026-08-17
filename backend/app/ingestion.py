@@ -14,12 +14,12 @@ from collections.abc import Iterator, Sequence
 from uuid import UUID
 
 from app.adapters.gemini import EmbeddingClient
-from app.adapters.pdf import extract_pages
+from app.adapters.pdf import NO_TEXT_MESSAGE, extract_pages
 from app.adapters.repository import DocumentRepository
 from app.config import Settings
 from app.core.chunking import chunk_pages
 from app.core.models import Chunk, DocumentStatus
-from app.errors import AppError, InternalError
+from app.errors import AppError, InternalError, PdfWithoutTextError
 from app.logging_setup import bind_document_id, bind_request_id, clear_request_context, get_logger
 
 logger = get_logger(__name__)
@@ -49,6 +49,11 @@ async def run_ingestion(
     O `request_id` chega por parâmetro porque a task roda fora do contexto da
     requisição que a agendou: reamarrá-lo aqui é o que faz a ingestão inteira
     aparecer num único `grep` no log.
+
+    O `total_duration_ms` de `document.ready` conta **desde o início da task,
+    incluindo a espera pelo semáforo** — e não só o processamento. É a leitura
+    que responde "quanto o usuário esperou", que é a pergunta que a métrica
+    serve para responder; as durações por etapa ficam nos eventos de etapa.
     """
     bind_request_id(request_id)
     bind_document_id(str(document_id))
@@ -102,6 +107,13 @@ async def _process(
     started = time.perf_counter()
     chunks = chunk_pages(pages, settings.chunk_size, settings.chunk_overlap)
     logger.info("document.chunked", chunk_count=len(chunks), duration_ms=_elapsed_ms(started))
+
+    # Defesa em profundidade sobre o guarda de `extract_pages`: um documento sem
+    # chunk nenhum não pode terminar `ready`. Se terminasse, a tela diria
+    # "pronto" e toda pergunta receberia "não encontrei isso no documento" — o
+    # diagnóstico errado, porque o problema é o documento e não a pergunta.
+    if not chunks:
+        raise PdfWithoutTextError(NO_TEXT_MESSAGE)
 
     await repository.set_totals(document_id, page_count=len(pages), chunks_total=len(chunks))
 

@@ -130,17 +130,26 @@ async def upload_document(
     content_hash = hashlib.sha256(data).hexdigest()
 
     existing = await repository.find_by_hash(session_id, content_hash)
-    if existing is not None:
+    if existing is not None and existing.status is not DocumentStatus.FAILED:
         logger.info("document.duplicate", document_id=str(existing.id), content_hash=content_hash)
         return UploadAcceptedResponse(id=existing.id, status=existing.status)
 
-    document_id = await repository.create(filename, content_hash, session_id)
-    logger.info(
-        "document.received",
-        document_id=str(document_id),
-        filename=filename,
-        size_bytes=len(data),
-    )
+    if existing is not None:
+        # Um documento que falhou não pode ser deduplicado: a mensagem exibida
+        # manda o usuário enviar de novo, e devolver o mesmo registro falho
+        # tornaria essa instrução impossível de cumprir — a única saída seria
+        # limpar o localStorage. Reprocessa a linha existente.
+        document_id = existing.id
+        await repository.reset_for_retry(document_id)
+        logger.info("document.retry", document_id=str(document_id), content_hash=content_hash)
+    else:
+        document_id = await repository.create(filename, content_hash, session_id)
+        logger.info(
+            "document.received",
+            document_id=str(document_id),
+            filename=filename,
+            size_bytes=len(data),
+        )
 
     # O request_id é capturado agora, no contexto da requisição: dentro da task
     # ele já não existe, e sem ele a ingestão não aparece no mesmo `grep`.

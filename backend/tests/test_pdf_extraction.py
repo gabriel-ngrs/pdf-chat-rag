@@ -82,3 +82,45 @@ def test_as_tres_violacoes_de_parse_tem_codigos_distintos() -> None:
     codigos = {PdfPageLimitError.code, PdfTextLimitError.code, PdfWithoutTextError.code}
 
     assert len(codigos) == 3
+
+
+# ─── Regressão da avaliação da A.2 (I-1) ─────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("rotulo", "paginas"),
+    [
+        ("uma pagina so com espacos", ["   "]),
+        ("espaco e tabulacao", ["  \t  "]),
+        ("varias paginas em branco", ["   ", "  "]),
+    ],
+)
+def test_camada_de_texto_so_com_espaco_conta_como_sem_texto(
+    rotulo: str, paginas: list[str]
+) -> None:
+    """Espaço em branco não é texto extraível, ainda que ocupe bytes.
+
+    O guarda antigo somava `len(page.text)` e deixava passar: o documento
+    chegava a `ready` com zero chunks, e o usuário recebia "pronto" onde devia
+    receber o aviso de OCR.
+    """
+    data = build_text_pdf(paginas)
+
+    with pytest.raises(PdfWithoutTextError) as erro:
+        extract_pages(data, **LIMITS)
+
+    assert "ocr" in str(erro.value).lower()
+
+
+def test_pagina_em_branco_ao_lado_de_pagina_com_texto_nao_derruba_o_documento() -> None:
+    """Só o documento inteiro sem conteúdo é recusado, não a página vazia.
+
+    Sem esta contrapartida, a correção do guarda passaria a rejeitar PDFs
+    legítimos que têm uma folha de rosto ou uma página separadora em branco.
+    """
+    data = build_text_pdf(["   ", "Conteudo de verdade na segunda pagina."])
+
+    pages = extract_pages(data, **LIMITS)
+
+    assert len(pages) == 2
+    assert pages[1].text.strip() != ""

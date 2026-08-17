@@ -2,12 +2,12 @@
 spec: 01-ingestao-pdf
 fase: A.1
 slug_fase: foundation
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: 26ba58610514ac27c86595b01ee657795d382c92
-sha_final: c7e05f406f69253427835628b0639aad97b5b8ab
-range: 26ba58610514ac27c86595b01ee657795d382c92..c7e05f406f69253427835628b0639aad97b5b8ab
+sha_final: 8cc9eb14ab19faed861817a6e74ef2871b901c52
+range: 26ba58610514ac27c86595b01ee657795d382c92..8cc9eb14ab19faed861817a6e74ef2871b901c52
 ---
 
 # FASE A.1 — Relatório de execução
@@ -222,7 +222,52 @@ $ docker compose logs backend | grep -c 'postgresql://'
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+Tentativa 2, motivada pelo veredito **RESSALVAS** (score 9,0) da avaliação da
+tentativa 1. Dois achados IMPORTANTES, zero BLOQUEANTES.
+
+### I-1 · O envelope único não valia para os erros HTTP do framework — CORRIGIDO
+
+O AC-17 fala de **qualquer** erro 4xx/5xx. Estavam registrados três handlers
+(`AppError`, `RequestValidationError`, `Exception`); faltava o de
+`StarletteHTTPException`, que é quem responde 404 de rota inexistente e 405 de
+método errado. O avaliador mediu:
+
+```text
+GET    /api/rota-que-nao-existe   -> 404  chaves=['detail']
+DELETE /api/config                -> 405  chaves=['detail']
+```
+
+O relatório da tentativa 1 marcava AC-17 como `[x]` — mais forte do que o
+código sustentava. Correção em `app/errors.py`: handler de
+`StarletteHTTPException` mais duas tabelas (`_HTTP_ERROR_CODES`,
+`_HTTP_ERROR_MESSAGES`). **Status sem código próprio caem em `erro_interno`**,
+de propósito: a tabela de cinco códigos de §4.3 é contrato consumido pelos dois
+tracks, e inventar um código para o 405 quebraria o mapa do `errors.ts` da B.2
+em vez de completá-lo. Medido depois da correção, através do nginx:
+
+```text
+GET    /api/rota-que-nao-existe -> 404 {"code":"nao_encontrado","message":"O endereço pedido não existe."}
+DELETE /api/config              -> 405 {"code":"erro_interno","message":"Este endereço não aceita esse método."}
+```
+
+Três testes novos em `tests/test_errors.py`, o último varrendo os cinco
+caminhos de erro e recusando a chave `detail` em todos — que é o que amarra o
+AC-17 ao seu literal em vez de aos casos lembrados. **Verificado por mutação:**
+removendo o handler, os testes falham.
+
+### I-2 · Fragmento da chave real no histórico — NÃO CORRIGIDO, por decisão
+
+`d6f42d3` contém 9 caracteres literais da chave real, acima do limiar de 8 que o
+próprio projeto trata como fragmento identificável. A ponta está limpa desde
+`34cb479`, mas o histórico é entregável.
+
+**Não foi corrigido nesta tentativa, e não deveria ser:** reescrever a `dev` com
+o Track B já mergeado e outros agentes trabalhando sobre ela causaria mais
+estrago que o achado. A remediação real de um segredo exposto é **rotacionar a
+chave** — o que vale de todo modo, já que ela também transitou por chats. Se o
+owner quiser história limpa, o momento é antes de adicionar o colaborador ao
+repositório privado, com `git filter-repo` e force-push coordenado. Fica como
+item aberto para o owner, não para o executor.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 

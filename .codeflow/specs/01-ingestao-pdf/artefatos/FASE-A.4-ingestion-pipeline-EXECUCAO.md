@@ -2,12 +2,12 @@
 spec: 01-ingestao-pdf
 fase: A.4
 slug_fase: ingestion-pipeline
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: a3a775c
-sha_final: 27093c4b6bc4faccbea96e6962da11c253bf8ab4
-range: a3a775c..27093c4b6bc4faccbea96e6962da11c253bf8ab4
+sha_final: 8cc9eb14ab19faed861817a6e74ef2871b901c52
+range: a3a775c..8cc9eb14ab19faed861817a6e74ef2871b901c52
 ---
 
 # FASE A.4 — Relatório de execução
@@ -245,7 +245,75 @@ $ docker compose logs backend | grep -c 'postgresql://'  -> 0
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+Tentativa 2, motivada pelo veredito **RESSALVAS** (score 9,3). Dois achados
+IMPORTANTES e uma sugestão implementada.
+
+### I-1 · Documento `failed` deduplicado para sempre — CORRIGIDO
+
+A checagem de dedup não olhava o `status`. O sistema exibia "Tente enviar de
+novo" e, quando o usuário obedecia, devolvia o mesmo registro falho sem
+reprocessar. Como a chave é `(session_id, content_hash)` e o `session_id` vive
+no `localStorage`, **a única saída era limpar o navegador** — o sistema
+instruía uma ação que ele próprio impedia. Somado ao furo de retry da `A.3`,
+qualquer oscilação de rede produzia esse estado.
+
+Correção em `app/api/documents.py`: o dedup passa a exigir que o estado não seja
+`FAILED`, e o caminho de falha **reaproveita a linha existente** via
+`reset_for_retry` — criar outra colidiria com `UNIQUE (session_id, content_hash)`,
+e o usuário espera reenviar "o mesmo documento", não ganhar um id novo. O novo
+método do repositório limpa status, mensagem, totais e progresso, e **apaga os
+chunks** na mesma transação: se a falha tivesse acontecido depois da inserção,
+reprocessar sem limpar duplicaria o conteúdo indexado. Evento `document.retry`
+distingue o caso do `document.duplicate` no log.
+
+Verificado ponta a ponta no compose, com o provedor falhando de verdade
+(backend subido com chave inválida) e depois funcionando:
+
+```text
+1o envio -> failed | O provedor de IA recusou o conteúdo enviado.
+2o envio -> mesmo id  (7871c4ea-…)
+estado final: ready | page_count 3 | chunks 10/10 | error_message null
+{"event": "document.retry", "document_id": "7871c4ea-…", "request_id": "a1a567ba-…"}
+```
+
+Dois testes novos: o do reprocessamento e **o da contrapartida** — reenvio de
+documento `ready` continua sem reprocessar, que é o AC-15 e o que protege a
+quota. **Verificado por mutação:** removendo a condição de status, o teste falha.
+
+### I-2 · Quatro métodos públicos sem docstring — CORRIGIDO
+
+`get`, `set_status`, `set_totals` e `update_progress` de
+`PostgresDocumentRepository` não tinham docstring, contra a NFR-9 e o AC-29 —
+enquanto os quatro vizinhos tinham. A afirmação "verificado à mão" do relatório
+da `A.5` não se sustentou, e a varredura por AST do avaliador provou isso.
+Cada um ganhou docstring dizendo o que faz **e por quê**, no padrão do arquivo.
+`reset_for_retry`, criado nesta tentativa, também.
+
+### S-1 · Documento sem chunk nenhum não termina `ready` — IMPLEMENTADO, com ressalva honesta
+
+Guarda em `app/ingestion.py`: chunking vazio levanta `PdfWithoutTextError`.
+
+**A ressalva importa mais que o guarda.** Medi que ele é **inalcançável hoje**:
+a suíte inteira passa sem ele, porque o `strip()` do adapter e o
+`normalize_whitespace` do núcleo concordam sobre o que é vazio (testei inclusive
+espaço fino, NBSP e zero-width). É defesa em profundidade contra uma divergência
+futura entre as duas noções, não um caminho vivo.
+
+Por isso o teste **não finge um PDF que o dispare** — ele força a condição
+substituindo `chunk_pages`, e a docstring diz exatamente isso. A alternativa
+seria deixar código sem cobertura real ou inventar um cenário que não existe;
+ambas piores. **Verificado por mutação:** sem o guarda, o teste falha.
+
+### Sugestões não implementadas, e por quê
+
+- **`error_page 413` no nginx:** escopo de infraestrutura, e a B.2 já cobre com
+  o fallback de resposta não-JSON. Fora do escopo do rework.
+- **`_elapsed_ms` em `document.ready` inclui a espera pelo semáforo.** O
+  avaliador pediu para escolher um dos dois sentidos e dizer qual. Escolhido:
+  **desde que a task começou**, incluindo a espera — é o número que responde
+  "quanto o usuário esperou", que é o que a métrica serve para responder. O
+  comportamento não mudou; o que faltava era dizê-lo, e a docstring de
+  `run_ingestion` passou a declarar isso explicitamente.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 

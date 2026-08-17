@@ -2,12 +2,12 @@
 spec: 01-ingestao-pdf
 fase: A.3
 slug_fase: gemini-embeddings
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: d6f42d3
-sha_final: 06d79614b976d0413a932bad724519ff56faedf3
-range: d6f42d3..06d79614b976d0413a932bad724519ff56faedf3
+sha_final: 8cc9eb14ab19faed861817a6e74ef2871b901c52
+range: d6f42d3..8cc9eb14ab19faed861817a6e74ef2871b901c52
 ---
 
 # FASE A.3 — Relatório de execução
@@ -222,7 +222,71 @@ por uma verificação manual de uma vez só.
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+Tentativa 2, motivada pelo veredito **RESSALVAS** (score 8,7 — o mais baixo do
+track). Um achado IMPORTANTE, e o avaliador o chamou de o mais consequente.
+
+### I-1 · O backoff não cobria o transporte real do SDK — CORRIGIDO
+
+A captura era `except (TimeoutError, OSError)`. O comentário estava certo sobre
+a intenção e errado sobre o alcance: **nenhuma** exceção que o cliente real
+produz é subclasse dessas duas. Confirmado por sonda própria:
+
+```text
+httpx.ReadTimeout      e TimeoutError? False | e OSError? False
+httpx.ConnectError     e TimeoutError? False | e OSError? False
+httpx.ConnectTimeout   e TimeoutError? False | e OSError? False
+httpx.RemoteProtocolError e TimeoutError? False | e OSError? False
+```
+
+Consequências, todas reais: a FR-6 não valia para o transitório que acontece na
+prática (uma oscilação de rede de um segundo não era re-tentada **nenhuma** vez,
+das cinco tentativas disponíveis); a exceção não era `AppError`, então caía no
+catch-all da `A.4` e virava `erro_interno` genérico onde havia mensagem
+específica; e, somada ao dedup de documento `failed` (I-1 da `A.4`), o usuário
+ficava sem caminho de recuperação.
+
+Correção em `app/adapters/gemini.py`:
+
+```python
+except (TimeoutError, OSError, httpx.TransportError) as exc:
+```
+
+A reclassificação continua explícita — nada de `except Exception`, que o escopo
+travado proíbe. **`httpx` passou a ser declarada como dependência direta** em
+`pyproject.toml`: o adapter agora a importa, e importar sem declarar deixaria o
+retry refém de uma dependência transitiva do `google-genai` que pode sumir numa
+atualização. Não é ampliação de escopo, é a consequência correta do import.
+
+**Correção no teste, que era o segundo lado do achado.**
+`test_falha_de_rede_e_tratada_como_transitoria` usava `OSError` — verde sobre um
+caminho que o SDK nunca percorre, a definição de teste que não protege nada.
+Agora é parametrizado em cinco exceções, incluindo as três do cliente real, mais
+um teste novo provando que, esgotadas as tentativas, o erro sobe como domínio e
+não como `httpx`.
+
+Sonda direta contra o adapter real, depois da correção:
+
+```text
+tentativas feitas: 5 (antes da correção: 1)
+subiu como erro de domínio? True -> EmbeddingProviderError
+mensagem ao usuário: Não foi possível gerar os embeddings do documento. Tente de novo.
+segredo na mensagem? False
+embedding.retry attempt=1..4 com reason='ReadTimeout: ... ?key=[REDACTED]'
+```
+
+Repare que a URL ecoada sai redigida: a correção de segurança da `A.6` e esta
+correção de retry cobrem os dois lados do mesmo achado — a chave parou de vazar
+naquela, e agora o transitório passou a ser re-tentado nesta. **Verificado por
+mutação:** revertendo a captura, os testes falham.
+
+### Sugestões da avaliação
+
+- `sanitize_message` O(n²): o avaliador pediu explicitamente para **não mexer**
+  (depois da A.6 o caminho comum já é linear). Não mexi.
+- Duas autoridades sobre o tamanho do lote (o adapter fatia e a `A.4` também).
+  Fica registrado aqui: **quem manda é a `A.4`**, que fatia antes de chamar para
+  poder gravar progresso entre lotes; o fatiamento do adapter é a rede de
+  segurança de quem o chamar direto. O total continua `ceil(N/B)`.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 

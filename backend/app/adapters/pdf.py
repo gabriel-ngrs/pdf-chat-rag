@@ -61,7 +61,12 @@ def extract_pages(data: bytes, *, max_pages: int, max_chars: int) -> list[PageTe
             f"O PDF tem {total} caracteres de texto e o limite é {max_chars}. "
             "Envie um documento menor."
         )
-    if total == 0:
+    # `strip()` e não `len(text)`: há gerador de PDF que emite operadores de texto
+    # vazios, e documento vindo de imagem costuma trazer uma camada só de espaço.
+    # Contando bytes, esses passariam pelo guarda e o chunking os reduziria a
+    # zero chunks — o documento terminaria "pronto" e sem conteúdo, dando ao
+    # usuário o diagnóstico errado no lugar do aviso de OCR.
+    if not any(page.text.strip() for page in pages):
         raise PdfWithoutTextError(NO_TEXT_MESSAGE)
 
     return pages

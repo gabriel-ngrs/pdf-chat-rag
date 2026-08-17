@@ -61,6 +61,18 @@ _INSERT_CHUNK_SQL = """
          VALUES ($1, $2, $3, $4, $5::vector)
 """
 
+_RESET_FOR_RETRY_SQL = """
+    UPDATE documents
+       SET status = $2,
+           error_message = NULL,
+           page_count = NULL,
+           chunks_total = NULL,
+           chunks_processed = 0
+     WHERE id = $1
+"""
+
+_DELETE_CHUNKS_SQL = "DELETE FROM chunks WHERE document_id = $1"
+
 
 @dataclass(frozen=True, slots=True)
 class DocumentRecord:
@@ -98,6 +110,8 @@ class DocumentRepository(Protocol):
         self, document_id: UUID, chunks: list[Chunk], embeddings: list[list[float]]
     ) -> None: ...
 
+    async def reset_for_retry(self, document_id: UUID) -> None: ...
+
     async def sweep_orphans(self) -> int: ...
 
 
@@ -124,6 +138,11 @@ class PostgresDocumentRepository:
         return UUID(str(document_id))
 
     async def get(self, document_id: UUID) -> DocumentRecord | None:
+        """Lê o estado de um documento, ou `None` se ele não existir.
+
+        Devolver `None` em vez de levantar mantém a decisão de virar `404` na
+        rota, que é quem conhece o envelope de erro.
+        """
         row = await self._database.pool.fetchrow(_GET_SQL, document_id)
         return _to_record(row)
 
@@ -142,12 +161,28 @@ class PostgresDocumentRepository:
     async def set_status(
         self, document_id: UUID, status: DocumentStatus, error_message: str | None = None
     ) -> None:
+        """Move o documento de estado, gravando junto a mensagem ao usuário.
+
+        `error_message` é escrita sempre, inclusive como `NULL`: assim uma
+        transição de saída de `failed` não deixa para trás o texto do erro
+        anterior, que a tela exibiria como se ainda valesse.
+        """
         await self._database.pool.execute(_SET_STATUS_SQL, document_id, status.value, error_message)
 
     async def set_totals(self, document_id: UUID, page_count: int, chunks_total: int) -> None:
+        """Publica os totais assim que o chunking termina.
+
+        Enquanto `chunks_total` é nulo a tela mostra progresso indeterminado —
+        é a ausência deste valor que a distingue de "processou zero chunks".
+        """
         await self._database.pool.execute(_SET_TOTALS_SQL, document_id, page_count, chunks_total)
 
     async def update_progress(self, document_id: UUID, chunks_processed: int) -> None:
+        """Grava quantos chunks já foram embedados.
+
+        Chamada a cada lote, e não ao final, porque a ingestão passa de meio
+        minuto no teto da spec e uma barra parada em zero parece travamento.
+        """
         await self._database.pool.execute(_UPDATE_PROGRESS_SQL, document_id, chunks_processed)
 
     async def insert_chunks(
@@ -170,6 +205,22 @@ class PostgresDocumentRepository:
         ]
         async with self._database.pool.acquire() as connection, connection.transaction():
             await connection.executemany(_INSERT_CHUNK_SQL, rows)
+
+    async def reset_for_retry(self, document_id: UUID) -> None:
+        """Devolve um documento que falhou ao estado inicial, para reprocessar.
+
+        Reaproveita a linha existente em vez de criar outra porque
+        `UNIQUE (session_id, content_hash)` impediria a segunda — e porque o
+        usuário espera reenviar "o mesmo documento", não ganhar um id novo.
+
+        Os chunks são apagados junto: se a falha aconteceu depois da inserção,
+        reprocessar sem limpar duplicaria o conteúdo indexado.
+        """
+        async with self._database.pool.acquire() as connection, connection.transaction():
+            await connection.execute(_DELETE_CHUNKS_SQL, document_id)
+            await connection.execute(
+                _RESET_FOR_RETRY_SQL, document_id, DocumentStatus.PENDING.value
+            )
 
     async def sweep_orphans(self) -> int:
         """Delega ao `Database`, que já implementa a varredura usada no startup."""
