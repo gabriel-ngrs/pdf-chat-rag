@@ -226,9 +226,33 @@ Não se aplica — primeira execução.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 
-1. **O gate "três serviços a frio" está incompleto por dependência de track.** É
-   o único item que não pude fechar sozinho (desvio 3 da §4). Sugiro conferi-lo
-   depois do merge da B.1 na `dev`, com `docker compose up --build` sem override.
+1. **~~O gate "três serviços a frio" está incompleto por dependência de track.~~
+   FECHADO em 2026-08-17, depois do merge do Track B.** Com `frontend/src`
+   presente, o `docker compose up --build` foi rodado **duas vezes a frio, com
+   os três serviços reais** (sem o override de imagem; só as portas seguem
+   remapeadas, porque o Track B ocupa a 5173 e a 8000 nesta máquina):
+
+   ```text
+   # boot a frio #1 e #2, cada um depois de `down -v` (volume REMOVIDO)
+   db Healthy -> backend Started -> frontend Started      pronto em 3s
+   $ curl -is http://localhost:5273/api/health
+   HTTP/1.1 200 OK
+   x-request-id: 2d5d7e8e-331d-47f4-ba06-bb12e423ec4b
+   {"status":"ok","database":"ok"}
+   $ curl -s http://localhost:5273/          # a SPA real é servida pelo nginx
+   <!doctype html><html lang="pt-BR"> ... <title>TalkDoc — converse com o seu PDF</title>
+
+   # ponta a ponta no stack completo
+   POST /api/documents -> 202 {"id":"b16d30ff-...","status":"pending"}
+   GET  /api/documents/{id} -> {"status":"ready","page_count":3,
+                                "chunks_total":10,"chunks_processed":10}
+   chunks | paginas | dims  ->  10 | 3 | 768
+   grep da chave no log: 0        grep de 'postgresql://' no log: 0
+   ```
+
+   Com isso **AC-26 está integralmente satisfeito** e o desvio 3 da §4 deixa de
+   existir. `make check` e `make security` retornam **zero** com os gates de
+   frontend incluídos.
 2. **`atttypmod` como fonte da dimensão.** Funciona no pgvector 0.8 (conferido
    contra a coluna real, que devolveu 768). Se o avaliador preferir algo menos
    dependente de detalhe interno, a alternativa é `format_type(atttypid,
