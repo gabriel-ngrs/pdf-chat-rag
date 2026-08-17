@@ -3,6 +3,7 @@ import { ThemeProvider } from 'next-themes'
 
 import { AppShell } from '@/components/AppShell'
 import { Notices } from '@/components/Notices'
+import { ProcessingStatus } from '@/components/ProcessingStatus'
 import { UploadDropzone } from '@/components/UploadDropzone'
 import { Card, CardContent } from '@/components/ui/card'
 import { useNotices } from '@/hooks/useNotices'
@@ -114,6 +115,11 @@ function TalkDoc() {
     [notify],
   )
 
+  const handleReset = useCallback(() => {
+    localStorage.removeItem(DOCUMENT_STORAGE_KEY)
+    setDocumentId(null)
+  }, [])
+
   return (
     <AppShell>
       <div className="flex flex-col gap-12">
@@ -126,12 +132,7 @@ function TalkDoc() {
         </section>
 
         {documentId ? (
-          <Card>
-            <CardContent className="flex flex-col gap-1">
-              <p className="text-body font-medium">Documento recebido</p>
-              <p className="text-muted-foreground tabular font-mono text-caption">{documentId}</p>
-            </CardContent>
-          </Card>
+          <ProcessingStatus documentId={documentId} onReset={handleReset} />
         ) : (
           <UploadDropzone
             limits={config.status === 'ready' ? config.limits : null}
