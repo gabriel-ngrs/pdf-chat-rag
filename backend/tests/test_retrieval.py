@@ -279,3 +279,84 @@ async def test_documento_sem_chunks_devolve_lista_vazia(
     )
 
     assert recuperados == []
+
+
+@pytest.fixture
+async def busca_com_indice_forcado(
+    database: Database,
+) -> AsyncIterator[PostgresConversationRepository]:
+    """Entrega um repositório que roda no regime em que o índice HNSW é usado.
+
+    Com poucas dezenas de linhas o planejador escolhe varredura sequencial, que
+    é exata — e nesse regime o defeito que este teste persegue **não aparece**.
+    Desligar o `seqscan` e apertar o `ef_search` reproduz, com dados pequenos, o
+    que aconteceria naturalmente num corpus grande: o índice devolve os vizinhos
+    globais mais próximos, e o filtro por documento descarta parte deles.
+
+    As opções entram no papel (`ALTER ROLE`) e o pool é criado **depois** —
+    nessa ordem, e não em outra: configuração de papel só vale para conexão
+    aberta a partir dali, e um pool já conectado seguiria com os defaults, o que
+    faria este teste passar sem exercitar nada.
+    """
+    await database.pool.execute("ALTER ROLE talkdoc SET enable_seqscan = off")
+    await database.pool.execute("ALTER ROLE talkdoc SET hnsw.ef_search = 2")
+    forcado = Database(Settings().database_url)
+    await forcado.connect(timeout_seconds=5.0)
+    try:
+        yield PostgresConversationRepository(forcado)
+    finally:
+        await forcado.close()
+        await database.pool.execute("ALTER ROLE talkdoc RESET enable_seqscan")
+        await database.pool.execute("ALTER ROLE talkdoc RESET hnsw.ef_search")
+
+
+@pytest.mark.db
+async def test_busca_entrega_o_limite_pedido_mesmo_com_o_indice_em_uso(
+    documentos: tuple[PostgresDocumentRepository, PostgresConversationRepository],
+    session_id: str,
+    busca_com_indice_forcado: PostgresConversationRepository,
+) -> None:
+    """O `LIMIT` pedido é o `LIMIT` entregue — senão a falta vira recusa falsa.
+
+    Este é o teste do achado I-1 da avaliação da fase. Sem a varredura iterativa,
+    o índice entrega os vizinhos globais e o `WHERE document_id` descarta o que
+    veio do documento vizinho **sem repor**: a busca devolve uma ou duas linhas
+    de um documento que tem dezenas, `has_grounding` dá falso, e o turno recusa
+    uma pergunta que o documento responde — sem erro e sem log anômalo.
+
+    O documento vizinho é maior de propósito: é ele que ocupa os candidatos
+    globais e empurra os chunks do documento certo para fora do `ef_search`.
+    """
+    documents, _ = documentos
+    alvo = [f"trecho {index} do documento consultado" for index in range(20)]
+    vizinho = [f"trecho {index} do documento vizinho e maior" for index in range(200)]
+    document_a = await _ingest(documents, session_id, "alvo.pdf", alvo)
+    await _ingest(documents, session_id, "vizinho.pdf", vizinho)
+    query = deterministic_vector("pergunta qualquer sobre o documento", EMBEDDING_DIM)
+
+    recuperados = await busca_com_indice_forcado.search_chunks(document_a, query, limit=5)
+
+    assert len(recuperados) == 5
+    assert {chunk.content for chunk in recuperados} <= set(alvo)
+
+
+@pytest.mark.db
+async def test_a_varredura_iterativa_nao_vaza_para_as_outras_consultas(
+    database: Database,
+    documentos: tuple[PostgresDocumentRepository, PostgresConversationRepository],
+    session_id: str,
+) -> None:
+    """`SET LOCAL` morre com a transação da busca, e não fica preso na conexão.
+
+    Uma opção de planejamento que sobrevivesse à transação mudaria em silêncio o
+    comportamento de toda consulta que pegasse aquela conexão do pool depois.
+    """
+    documents, conversations = documentos
+    document_a = await _ingest(documents, session_id, "a.pdf", TRECHOS_DO_DOCUMENTO_A)
+
+    await conversations.search_chunks(
+        document_a, deterministic_vector("pergunta", EMBEDDING_DIM), limit=3
+    )
+
+    for _ in range(3):
+        assert await database.pool.fetchval("SHOW hnsw.iterative_scan") == "off"
