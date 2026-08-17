@@ -125,6 +125,23 @@ _SEARCH_CHUNKS_SQL = """
      LIMIT $3
 """
 
+# Sem isto, a busca **devolve menos linhas do que o `LIMIT` pede** — e a falha é
+# silenciosa. Num `Index Scan` sobre HNSW o pgvector entrega os vizinhos
+# **globais** mais próximos (até `ef_search`) e só então o `WHERE document_id`
+# descarta o que veio de outro documento; com a varredura iterativa desligada,
+# que é o default do pgvector 0.8, o que foi descartado não é reposto. O efeito
+# no produto é o pior possível: `has_grounding` dá falso e o turno vira recusa
+# numa pergunta que o documento responde, sem erro nem log anômalo.
+#
+# `relaxed_order` e não `strict_order` porque o pipeline reordena por score em
+# `core.retrieval.take_top_k`: pagar pela ordenação estrita no banco seria pagar
+# duas vezes pela mesma garantia.
+#
+# É `SET LOCAL`, então vale só dentro da transação e não vaza para as outras
+# consultas que compartilham a conexão do pool. O valor é constante literal —
+# GUC não aceita placeholder, e nada aqui vem de entrada externa.
+_ITERATIVE_SCAN_SQL = "SET LOCAL hnsw.iterative_scan = relaxed_order"
+
 
 @dataclass(frozen=True, slots=True)
 class DocumentRecord:
@@ -496,10 +513,16 @@ class PostgresConversationRepository:
         normalizados em L2 — condição que o adapter de embeddings garante e que
         precisa valer nos dois lados da conta. O resto do pipeline recebe um
         score em `[0,1]` e nunca precisa saber que existiu uma distância.
+
+        A transação existe só para o `SET LOCAL` da varredura iterativa (ver a
+        constante): é ele que garante que o `LIMIT` pedido seja o `LIMIT`
+        entregue quando o planejador escolhe o índice HNSW.
         """
-        rows = await self._database.pool.fetch(
-            _SEARCH_CHUNKS_SQL, document_id, vector_literal(embedding), limit
-        )
+        async with self._database.pool.acquire() as connection, connection.transaction():
+            await connection.execute(_ITERATIVE_SCAN_SQL)
+            rows = await connection.fetch(
+                _SEARCH_CHUNKS_SQL, document_id, vector_literal(embedding), limit
+            )
         return [
             RetrievedChunk(
                 chunk_index=row["chunk_index"],

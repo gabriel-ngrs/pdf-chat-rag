@@ -24,6 +24,8 @@ quality_gate:
 
 > **Nota de planning (2026-08-17, revisão 3):** reescrita após revisão adversarial e auditoria de rastreabilidade. Mudanças materiais em relação à versão anterior: o frontend passou a ser dono da **criação da conversa** (antes ninguém era, e o chat não tinha como começar); o protocolo do cliente de chat inclui a chamada **não-streaming** que a condensação exige; o eval ganhou **perguntas negativas** (sem elas a calibração do limiar é circular); acrescentou-se **logging estruturado do chat**, **teste de resistência a injeção de prompt** e uma **fase de entrega com gate**, incluindo o convite ao colaborador. Registro em `.codeflow/decisions/2026-08-17-revisao-adversarial-das-specs.md`.
 >
+> **Nota de correção (2026-08-17, revisão 4):** três pontos do texto foram corrigidos contra fatos apurados na execução do Track A, e nenhum deles muda escopo. (1) **FR-3** dizia "< 12 palavras", limiar que tornava o **AC-3** impossível de cumprir — "qual o endereço da empresa?" tem cinco palavras e o AC exige que ela **não** seja condensada; passou a "< 4 palavras", que é o que a implementação faz e o que preserva o motivo da heurística existir. (2) **NFR-1**, **AC-23**, §4.2 e §4.8 cobravam `thinking_budget=0`; a geração 3.x do modelo recusa esse valor com `400` e expõe o mesmo controle como nível de raciocínio. O texto passou a cobrar a **intenção** — o mínimo de raciocínio —, e `GEMINI_THINKING_BUDGET=0` continua sendo como se pede isso no ambiente. (3) O modelo `gemini-2.5-flash` saiu do ar para chaves novas; o `manifest.md` foi atualizado. As três descobertas estão medidas contra a API real nos relatórios de execução das fases `A.4` e `A.5`.
+>
 > **Pré-requisito externo:** `FEAT-0001` concluída — **Track A até `A.4`** para o backend daqui; **Track B até `B.4`** para o frontend daqui, porque estas fases consomem o design system, o cliente HTTP, o sistema de avisos e o gancho de "documento pronto".
 >
 > **Fora do escopo:** upload e ingestão (`FEAT-0001`); biblioteca de múltiplos documentos e exclusão (cortadas); busca cross-documento; autenticação e autorização; re-ranking com modelo dedicado; observabilidade com métricas e tracing.
@@ -84,7 +86,7 @@ Itens 1–5 de `.codeflow/constitution.md`, versionada aqui; itens 6–8 das rul
 
 - **FR-1** — `POST /api/conversations` cria uma conversa vinculada a um `document_id`. Documento que não esteja `ready` é recusado com `409` e `code: "documento_nao_pronto"`.
 - **FR-2** — `POST /api/conversations/{id}/messages` recebe `{"question": "..."}` e responde por SSE, emitindo tokens incrementalmente.
-- **FR-3** — A pergunta é condensada **apenas quando parece depender de contexto**: há histórico **e** a pergunta é curta (< 12 palavras) ou contém marcador anafórico (`isso, isto, esse, essa, ele, ela, lá, e quanto a, e sobre, detalhe mais, por quê, quais deles`). Pergunta autocontida vai direto ao retrieval.
+- **FR-3** — A pergunta é condensada **apenas quando parece depender de contexto**: há histórico **e** a pergunta é curta demais para se sustentar sozinha (< 4 palavras) ou contém marcador anafórico (`isso, isto, esse, essa, ele, ela, lá, e quanto a, e sobre, detalhe mais, por quê, quais deles`). Pergunta autocontida vai direto ao retrieval.
 - **FR-4** — Se a condensação falhar ou estourar `CONDENSE_TIMEOUT_SECONDS`, a query passa a ser a concatenação da última pergunta do usuário com a atual — fallback determinístico, sem custo e sem erro visível.
 - **FR-5** — O retrieval busca por similaridade de cosseno no pgvector, **sempre filtrando por `document_id`**, e devolve os `RETRIEVAL_TOP_K` melhores chunks com score em `[0,1]`.
 - **FR-6** — Chunks abaixo de `SIMILARITY_THRESHOLD` são descartados. Se nenhum sobrevive, a API responde a recusa padrão em pt-BR com citações vazias e **não chama o LLM**.
@@ -105,7 +107,7 @@ Itens 1–5 de `.codeflow/constitution.md`, versionada aqui; itens 6–8 das rul
 
 ### Não-funcionais
 
-- **NFR-1** — O primeiro token chega em ≤ 5 s em condições normais de free tier, com `thinking_budget=0` no modelo de chat.
+- **NFR-1** — O primeiro token chega em ≤ 5 s em condições normais de free tier, com o **mínimo de raciocínio** que o modelo de chat oferecer. `GEMINI_THINKING_BUDGET=0` é a forma de pedir isso no ambiente; como o provedor traduz esse pedido é detalhe do adapter.
 - **NFR-2** — Condensação, retrieval, fusão e montagem de prompt vivem em `backend/app/core/` e são testáveis sem rede e sem banco.
 - **NFR-3** — Nenhuma chave aparece em log, resposta ou evento SSE.
 - **NFR-4** — `make check` retorna zero, com `make test` offline (sem chave, sem banco), e cobertura de `core/` ≥ 90%.
@@ -140,7 +142,7 @@ Itens 1–5 de `.codeflow/constitution.md`, versionada aqui; itens 6–8 das rul
 - **AC-20** (FR-19) — *Dado* uma conversa em andamento, *quando* recarrego a página, *então* documento e histórico são restaurados.
 - **AC-21** (FR-20) — *Dado* o README entregue, *então* contém a tabela de decisões com alternativas rejeitadas, limitações conhecidas, seção de ferramentas de IA, resultados do eval, exemplo de uso e link da demonstração — e nenhum `<!-- TODO -->`.
 - **AC-22** (FR-20) — *Dado* um clone limpo numa pasta nova, *quando* sigo o README, *então* o app sobe e `scripts/demo.sh` imprime uma resposta com citação.
-- **AC-23** (NFR-1) — *Dado* uma pergunta comum sobre o PDF de exemplo, *então* o primeiro token chega em ≤ 5 s, com `thinking_budget=0` configurado.
+- **AC-23** (NFR-1) — *Dado* uma pergunta comum sobre o PDF de exemplo, *então* o primeiro token chega em ≤ 5 s, com `GEMINI_THINKING_BUDGET=0` configurado e o mínimo de raciocínio chegando ao provedor.
 - **AC-24** (NFR-2) — *Dado* que alguém acrescente `import asyncpg` a um módulo novo de `core/`, *quando* rodo `make arch`, *então* falha apontando o contrato violado.
 - **AC-25** (NFR-3, NFR-4) — *Dado* nenhuma `GEMINI_API_KEY` e nenhum banco, *quando* rodo `make check`, *então* retorna zero; e nenhum log capturado contém a chave.
 - **AC-26** (NFR-6) — *Dado* `RETRIEVAL_TOP_K=2` no ambiente, *então* o retrieval considera no máximo 2 chunks, sem mudança de código.
@@ -190,7 +192,7 @@ class ChatClient(Protocol):
     def stream_answer(self, prompt: str) -> AsyncIterator[str]: ...
 ```
 
-`generate` é a chamada única que a condensação usa; `stream_answer` é a geração incremental. Sem esse protocolo nomeado, o fake dos testes não teria interface para implementar. Ambos passam `thinking_budget=0`, `temperature=0.2` e `max_output_tokens`. O `chunk.text` do SDK pode vir `None` — filtrar antes de emitir.
+`generate` é a chamada única que a condensação usa; `stream_answer` é a geração incremental. Sem esse protocolo nomeado, o fake dos testes não teria interface para implementar. Ambos passam o mínimo de raciocínio, `temperature=0.2` e `max_output_tokens`. O `chunk.text` do SDK pode vir `None` — filtrar antes de emitir.
 
 ### 4.3 Protocolo SSE
 
@@ -263,7 +265,7 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
 | Condensação gasta chamada extra | dobraria o consumo por turno | heurística de FR-3 corta a maioria dos turnos; fallback de FR-4 não custa nada |
 | Recusa abaixo do limiar | — | economiza a chamada de geração (FR-6) |
 | Chat ~250k TPM | histórico inflaria o prompt | `HISTORY_WINDOW` (NFR-5) |
-| `thinking` ligado por default | latência antes do primeiro token | `thinking_budget=0` (NFR-1) |
+| `thinking` ligado por default | latência antes do primeiro token | mínimo de raciocínio, pedido por `GEMINI_THINKING_BUDGET=0` (NFR-1) |
 
 ## 5. Plano de desenvolvimento por fases
 
@@ -300,7 +302,7 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
 - **Contexto que o agente precisa:** a chamada ao LLM **não acontece aqui** — esta fase só monta strings e decide booleanos; quem chama é a `A.4`. Isso é o que mantém o módulo puro e testável. A heurística de `should_condense` existe porque "condensar só quando há histórico" não controla custo: sempre há histórico a partir da segunda pergunta, e cada condensação é uma chamada num teto de ~10 RPM. A delimitação do bloco de contexto no prompt de resposta não é estética: é a defesa contra texto malicioso dentro do PDF (NFR-8), e a instrução do sistema vem **depois** do conteúdo.
 - **Arquivos novos:** `backend/app/core/{condensation,prompt}.py`, `backend/tests/test_{condensation,prompt}.py`. **Arquivos alterados:** nenhum.
 - **Passos:**
-  1. **`should_condense(history, question) -> bool`** — verdadeiro se há histórico **e** (a pergunta tem menos de 12 palavras **ou** contém um dos marcadores anafóricos de FR-3). Lista de marcadores como constante nomeada e documentada.
+  1. **`should_condense(history, question) -> bool`** — verdadeiro se há histórico **e** (a pergunta tem menos de 4 palavras **ou** contém um dos marcadores anafóricos de FR-3). Lista de marcadores como constante nomeada e documentada.
   2. **`select_history_window(messages, window) -> list[Message]`** — últimas `window` mensagens, preservando ordem.
   3. **`build_condensation_prompt(history, question) -> str`** — instrui, em pt-BR, a reescrever a pergunta como pergunta autocontida e a **devolver apenas ela**, sem preâmbulo. Inclui a janela de histórico.
   4. **`fallback_query(history, question) -> str`** — concatena a última pergunta do usuário com a atual. Documentar por que funciona: restaura o referente da anáfora sem custo nem latência.
@@ -340,7 +342,7 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
 - **Contexto que o agente precisa:** use `fastapi.sse.EventSourceResponse` (verificado disponível em 0.141.1) — ele já cuida de `Content-Type`, `Cache-Control`, `X-Accel-Buffering` e keep-alive; escrever o frame à mão é retrabalho com risco de divergir do parser do cliente. **Não adicione `GZipMiddleware`**: compressão quebra SSE. O `429` do Gemini chega majoritariamente na **primeira** chamada, isto é, antes de qualquer byte sair — por isso a distinção pré/mid-stream de FR-11 não é caso de borda, é o caso comum. `embed_query` **já existe** desde `FEAT-0001 A.3`: consuma, não reimplemente.
 - **Arquivos novos:** `backend/app/api/conversations.py`, `backend/app/chat.py`. **Arquivos alterados:** `backend/app/{main,api/schemas,config}.py`, `backend/app/adapters/gemini.py`.
 - **Passos:**
-  1. Implementar `ChatClient` (§4.2) em `gemini.py`: `generate` e `stream_answer`, reusando backoff e sanitização já existentes, com `thinking_budget=0`, `temperature=0.2` e `max_output_tokens`. Filtrar `chunk.text` nulo antes de emitir.
+  1. Implementar `ChatClient` (§4.2) em `gemini.py`: `generate` e `stream_answer`, reusando backoff e sanitização já existentes, com o mínimo de raciocínio, `temperature=0.2` e `max_output_tokens`. Filtrar `chunk.text` nulo antes de emitir.
   2. `POST /api/conversations` validando que o documento está `ready` → `409` com `documento_nao_pronto`.
   3. `POST /api/conversations/{id}/messages` com `EventSourceResponse`.
   4. Orquestrar em `chat.py`, nesta ordem: **persistir a pergunta primeiro** (deixa o histórico consistente mesmo se o processo morrer) → `should_condense`? → se sim, `generate` com `CONDENSE_TIMEOUT_SECONDS` e, em falha ou timeout, `fallback_query` → `embed_query` → `search_chunks` → filtrar e top-k → **se `not has_grounding`, emitir a recusa e `done`, sem chamar `stream_answer`** → montar prompt → streamar.

@@ -2,12 +2,12 @@
 spec: 02-chat-rag
 fase: A.3
 slug_fase: retrieval
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: 604391b091686eb4ad60533f307b2006f0313b60
-sha_final: 7fe47de9ac92e62523d38eab7366615b7d70d0bb
-range: 604391b..7fe47de
+sha_final: e2b78250d82d3317abefa9359ac2a46d694a6105
+range: 604391b..e2b7825
 ---
 
 # FASE A.3 — Relatório de execução
@@ -18,20 +18,25 @@ range: 604391b..7fe47de
 o índice HNSW de cosseno atende — e o filtro por `document_id` dentro da própria query.
 `core/retrieval.py` concentra as regras puras: conversão de distância em similaridade em
 `[0,1]`, limiar, top-k e recorte do trecho da citação em fronteira de palavra. 17 testes
-offline e 4 contra o Postgres real; o plano de execução foi conferido com `EXPLAIN`.
+offline e 6 contra o Postgres real; o plano de execução foi conferido com `EXPLAIN`.
+
+**Nesta segunda tentativa**, o achado I-1 da avaliação foi corrigido: a busca passou a
+ligar a varredura iterativa do HNSW, sem a qual ela devolvia **menos linhas do que o
+`LIMIT` pedia** no regime em que o índice é de fato usado — e a falta virava recusa falsa
+silenciosa. Ver §8.
 
 ## 2. Arquivos CRIADOS
 
 | Arquivo | Propósito |
 |---------|-----------|
 | `backend/app/core/retrieval.py` | `similarity_from_distance`, `filter_by_threshold`, `take_top_k`, `has_grounding`, `build_snippet` |
-| `backend/tests/test_retrieval.py` | 17 testes offline + 4 sob o marker `db` |
+| `backend/tests/test_retrieval.py` | 17 testes offline + 6 sob o marker `db` |
 
 ## 3. Arquivos ALTERADOS
 
 | Arquivo | O que mudou |
 |---------|-------------|
-| `backend/app/adapters/repository.py` | +`_SEARCH_CHUNKS_SQL` e `search_chunks` (protocolo + implementação) |
+| `backend/app/adapters/repository.py` | +`_SEARCH_CHUNKS_SQL`, `_ITERATIVE_SCAN_SQL` e `search_chunks` (protocolo + implementação) |
 
 ## 4. Confirmação do REUSO e decisões de design
 
@@ -56,6 +61,12 @@ foi estendido, não duplicado. Nenhuma dependência nova.
   chegada tornaria o resultado sensível a quem chamou antes.
 - **As reticências entram dentro do limite** de 240 caracteres, para que o texto
   exibido nunca passe do que a spec promete.
+- **A busca roda dentro de uma transação, só para caber o `SET LOCAL`** da varredura
+  iterativa. `SET LOCAL` e não `SET`: a conexão volta ao pool sem levar consigo uma
+  opção de planejamento que mudaria, em silêncio, o comportamento da próxima consulta a
+  pegá-la. `relaxed_order` e não `strict_order` porque `take_top_k` já reordena por
+  score — pagar pela ordenação estrita no banco seria pagar duas vezes pela mesma
+  garantia.
 
 Nenhum desvio da spec nesta fase.
 
@@ -73,21 +84,21 @@ Success: no issues found in 21 source files
 # testes offline da fase
 $ uv run pytest tests/test_retrieval.py -p no:cacheprovider --no-cov -q
 .................
-17 passed, 4 deselected in 0.05s
+17 passed, 6 deselected in 0.03s
 
 # testes contra o Postgres do compose
 $ uv run pytest tests/test_retrieval.py -m db -p no:cacheprovider --no-cov -q
-....
-4 passed, 17 deselected in 0.28s
+......
+6 passed, 17 deselected in 1.34s
 
-# gate agregado do projeto
+# gate agregado do projeto (árvore inteira, já com Track B integrado)
 $ make check
 All checks passed!
-Success: no issues found in 21 source files
+Success: no issues found in 23 source files
 Contracts: 4 kept, 0 broken.
 Required test coverage of 90% reached. Total coverage: 99.55%
-189 passed, 17 deselected in 10.33s
-Test Files  6 passed (6) | Tests  40 passed (40)
+260 passed, 19 deselected in 11.49s
+Test Files  10 passed (10) | Tests  75 passed (75)
 
 # grep de segredo/PII no diff (esperado: 0)
 $ git diff 604391b..7fe47de | grep -ciE "AIza|api[_-]?key *=|postgresql://.*:.*@"
@@ -126,6 +137,11 @@ de que o operador escolhido casa com o opclass `vector_cosine_ops` do índice HN
   maior que o limite.
 - [x] **Busca real devolve o chunk certo** — `test_busca_devolve_o_chunk_certo_com_score_maximo`:
   o vetor da própria frase recupera aquela frase, com score `1.0` e a página correta.
+- [x] **Gate da fase, na leitura estrita: a busca devolve a quantidade pedida** —
+  `test_busca_entrega_o_limite_pedido_mesmo_com_o_indice_em_uso`, no regime em que o
+  índice é usado. Ver §8 para a prova de que ele falha sem a correção.
+- [x] **A opção de planejamento não vaza da transação** —
+  `test_a_varredura_iterativa_nao_vaza_para_as_outras_consultas`.
 
 ## 7. Definition of Done da fase
 
@@ -137,7 +153,53 @@ de que o operador escolhido casa com o opclass `vector_cosine_ops` do índice HN
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+**Achado I-1 da avaliação — corrigido.** A avaliação mostrou que, num `Index Scan` sobre
+HNSW, o pgvector devolve os vizinhos **globais** mais próximos (até `ef_search`) e só
+então o `WHERE document_id` descarta o que veio de outro documento; com a varredura
+iterativa desligada — o default do pgvector 0.8 — o descartado **não é reposto**. A busca
+devolvia menos linhas do que o `LIMIT` pedia, `has_grounding` dava falso, e o turno
+recusava uma pergunta que o documento responde. Sem erro, sem log anômalo.
+
+**A correção** foi a primeira das três opções sugeridas: `SET LOCAL hnsw.iterative_scan =
+relaxed_order` na transação da busca (`repository.py`), com o porquê registrado numa
+constante nomeada. `relaxed_order` porque `take_top_k` já reordena por score.
+
+**O teste que faltava** foi escrito e é o ponto que dá valor à correção. Ele reproduz o
+regime com dados pequenos: `ALTER ROLE talkdoc SET enable_seqscan = off` e
+`hnsw.ef_search = 2`, um pool **criado depois disso** (configuração de papel só vale para
+conexão nova — sem essa ordem o teste passaria sem exercitar nada), um documento alvo com
+20 chunks e um documento vizinho com 200.
+
+Prova de que o teste morde — a mesma suíte, com e sem a linha da correção:
+
+```text
+# sem `SET LOCAL hnsw.iterative_scan = relaxed_order`
+$ uv run pytest tests/test_retrieval.py -m db -p no:cacheprovider --no-cov -q
+>       assert len(recuperados) == 5
+E       assert 0 == 5
+E        +  where 0 = len([])
+FAILED tests/test_retrieval.py::test_busca_entrega_o_limite_pedido_mesmo_com_o_indice_em_uso
+1 failed, 5 passed, 17 deselected in 0.97s
+
+# com a correção
+$ uv run pytest tests/test_retrieval.py -m db -p no:cacheprovider --no-cov -q
+......
+6 passed, 17 deselected in 0.72s
+```
+
+Reprodução independente do efeito, contra o banco do projeto, antes de escrever o teste:
+
+```text
+seqscan: off | ef_search: 2
+   Limit  (cost=10.43..1027.09 rows=5 width=12)
+     ->  Index Scan using chunks_embedding_idx on chunks  (cost=10.43..4077.05 rows=20 width=12)
+           Order By: (embedding <=> '[...]'::vector)
+           Filter: (document_id = 'd0e3979c-...'::uuid)
+SEM iterative_scan -> linhas: 0
+COM iterative_scan -> linhas: 5
+```
+
+Nada mais foi tocado: as regras puras de `core/retrieval.py` não mudaram uma linha.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 
@@ -146,10 +208,15 @@ Não se aplica — primeira execução.
   `Exemplo-YAITEC.pdf` o planejador escolheria varredura sequencial — e estaria certo:
   numa tabela desse tamanho ela é mais barata. O que precisava ser provado é que o
   operador da query casa com o opclass do índice, e é isso que o plano acima mostra.
-- **Não há teste automatizado do plano de execução.** Um teste que dependesse da escolha
-  do planejador seria frágil por natureza (muda com o volume de dados). O teste
-  automatizado que existe desde a `FEAT-0001` (`test_o_indice_de_chunks_e_hnsw_de_cosseno`)
-  garante o lado que é estável: o opclass declarado no índice.
+- **O teste novo força o regime em vez de esperá-lo.** Ele mexe em duas opções de
+  planejamento do papel `talkdoc` e as devolve num `finally`. É a única forma que
+  encontrei de exercitar o caminho com dados pequenos; a alternativa — inserir milhares
+  de chunks para o planejador escolher o índice sozinho — seria mais lenta e menos
+  determinística. Se o avaliador preferir a segunda forma, o teste é reescrevível.
+- **Continua não havendo teste automatizado da *escolha* do planejador**, e
+  deliberadamente: ela muda com o volume de dados e um teste assim seria frágil por
+  natureza. O que passou a ter teste é a **consequência** que importa — a quantidade de
+  linhas devolvida quando o índice é usado.
 - **`similarity_from_distance` arredonda a 3 casas.** É a precisão que alguém lê num
   chip de citação; se o avaliador preferir o score cru no payload e o arredondamento só
   na exibição, é uma linha.

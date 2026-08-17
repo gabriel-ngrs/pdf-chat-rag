@@ -447,10 +447,22 @@ class GeminiChatClient:
 
         Retry acontece só na abertura do stream: uma vez que o primeiro token
         saiu, repetir a chamada duplicaria o texto já exibido na tela.
+
+        `CHAT_TIMEOUT_SECONDS` é o prazo do **turno inteiro**, e não de cada
+        pedaço: um provedor que abre o stream e para de emitir prenderia o turno
+        até o `proxy_read_timeout` do nginx derrubar a conexão, quatro minutos
+        depois, e só então a resposta parcial seria gravada. O prazo é contado
+        da abertura, de modo que o tempo gasto para abrir também conta — é o que
+        o operador entende ao ler "60 s" no arquivo de configuração.
         """
-        stream = await self._open_stream(prompt)
+        deadline = asyncio.get_running_loop().time() + self._settings.chat_timeout_seconds
+        stream = await self._with_deadline(self._open_stream(prompt), deadline)
         try:
-            async for chunk in stream:
+            while True:
+                try:
+                    chunk = await self._with_deadline(anext(stream), deadline)
+                except StopAsyncIteration:
+                    break
                 text = chunk.text
                 if text:
                     yield text
@@ -463,6 +475,23 @@ class GeminiChatClient:
             aclose = getattr(stream, "aclose", None)
             if aclose is not None:
                 await aclose()
+
+    async def _with_deadline[T](self, awaitable: Awaitable[T], deadline: float) -> T:
+        """Espera pelo `awaitable` até o prazo do turno, e desiste com clareza.
+
+        O estouro vira `ChatProviderError` — e não um `TimeoutError` cru —
+        porque para quem está do outro lado da tela um provedor que emudece é
+        indistinguível de um provedor que falhou, e a ação sugerida é a mesma:
+        perguntar de novo. Quem decide se isso vira envelope HTTP ou evento
+        `error` é `app.chat`, pelo critério de FR-11.
+        """
+        remaining = deadline - asyncio.get_running_loop().time()
+        try:
+            return await asyncio.wait_for(awaitable, max(0.0, remaining))
+        except TimeoutError:
+            self._fail_chat(
+                f"o provedor não respondeu dentro de {self._settings.chat_timeout_seconds}s", None
+            )
 
     async def _generate(self, prompt: str) -> str:
         response = await self._call_with_retry(

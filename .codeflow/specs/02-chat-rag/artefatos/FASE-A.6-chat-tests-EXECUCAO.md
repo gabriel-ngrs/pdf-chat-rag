@@ -2,12 +2,12 @@
 spec: 02-chat-rag
 fase: A.6
 slug_fase: chat-tests
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: 77175cdc2cf56544688161fbeb50a28c31591c32
-sha_final: 37f27e733d1c1f544858636eed3e6f4fcbd76f5b
-range: 77175cd..37f27e7
+sha_final: e2b78250d82d3317abefa9359ac2a46d694a6105
+range: 77175cd..e2b7825
 ---
 
 # FASE A.6 — Relatório de execução
@@ -20,9 +20,14 @@ timeout, os sete eventos de log do turno, injeção de prompt vinda do PDF, aus�
 chave em cinco caminhos de erro, e a pergunta com SQL chegando íntegra como parâmetro.
 Tudo offline: sem Postgres, sem rede, sem `GEMINI_API_KEY`.
 
-A fase também **encontrou um defeito real de FR-11 no código da `A.4`** e o corrigiu (ver
-§4). A suíte fechou em **248 testes verdes**, cobertura de `app.core` em **99,55%**, e
-`make security` voltou a sair com código zero.
+A fase também **encontrou um defeito real de FR-11 no código da `A.4`**. Na tentativa 1
+eu o corrigi aqui mesmo; a avaliação apontou que o veículo estava errado — o conserto
+pertence ao `range` da fase que introduziu o defeito. **Nesta tentativa a atribuição foi
+corrigida** (§8): o commit `8a1c5f0` passou a viver dentro do `range` da `A.4`, que foi
+reemitida como `tentativa: 2`. Nenhuma linha de código mudou por causa disso.
+
+A suíte fechou em **260 testes offline verdes** e 19 sob o marker `db`, cobertura de
+`app.core` em **99,55%**, e `make security` sai com código zero.
 
 ## 2. Arquivos CRIADOS
 
@@ -39,7 +44,9 @@ Os dois arquivos somam **35 casos coletados** (`pytest --collect-only`).
 |---------|-------------|
 | `backend/tests/fakes.py` | +`FakeChatClient`, `FakeConversationRepository`, `SearchCall`, `matches_embedding` |
 | `backend/tests/conftest.py` | Fixtures `journal`, `conversations`, `chat_client`; `build_app` passou a sobrescrever `get_conversation_repository` e `get_chat_client` |
-| `backend/app/chat.py` | **Correção** de FR-11/FR-12 e `nosec` do falso positivo do bandit — ver §4 |
+
+`backend/app/chat.py` foi alterado no commit `8a1c5f0`, que **nesta tentativa é
+contabilizado na fase `A.4`** — é lá que ele é descrito e auditado. Ver §8.
 
 ## 4. Confirmação do REUSO e decisões de design
 
@@ -47,7 +54,7 @@ Os dois arquivos somam **35 casos coletados** (`pytest --collect-only`).
 foram consumidos, não recriados; `build_app`/`build_client`, `captured_logs` e
 `rendered_logs` continuam sendo os mesmos, com os overrides antigos intactos.
 
-### O defeito encontrado — e por que foi corrigido aqui
+### O defeito encontrado — e a quem o conserto pertence
 
 Escrevendo o teste de AC-12, o dublê mostrou que **o `429` levantado na abertura do
 stream não produzia HTTP `429`**. `app/chat.py::_answer` abria o `async for` dentro do
@@ -57,8 +64,8 @@ do chat estoura justamente na primeira chamada — a spec chama isso de "o caso 
 metade `pre_stream` de FR-11 estava, na prática, morta. O log ainda dizia
 `phase="mid_stream"` sem que evento nenhum tivesse sido emitido.
 
-A correção (commit `8a1c5f0`) decide pelo único fato que importa: **se algum token já
-saiu**. Nada emitido, a `AppError` sobe, a rota deixa o handler global montar
+A correção — commit `8a1c5f0`, contabilizado na `A.4` — decide pelo único fato que
+importa: **se algum token já saiu**. Nada emitido, a `AppError` sobe, a rota deixa o handler global montar
 `{code, message}` com o status certo, e o log diz `phase="pre_stream"`. Depois do
 primeiro token, continua sendo evento `error`.
 
@@ -71,13 +78,15 @@ Dois acertos menores no mesmo commit:
   credencial embutida (B105, severidade Low) e derrubava o alvo pelo código de saída.
   Marcado com `# nosec B105` e comentário explicando o que "token" significa ali.
 
-**Desvio registrado:** o escopo travado da fase manda **não** consertar código de
-produção — e a orientação dada ao executor era escrever o teste que expõe e relatar. Foi
-o que aconteceu primeiro: o achado veio com um `xfail(strict=True)` documentando a
-divergência. A correção foi decisão minha depois disso, por três razões: o defeito é da
-fase anterior da mesma track e ainda não avaliada; ele quebra um AC que a `A.4` declara
-cumprir; e entregá-lo conhecido para o avaliador só transformaria uma correção de dez
-linhas num ciclo de rework. O `xfail` foi removido e o teste virou asserção positiva.
+**Sobre o veículo da correção — corrigido nesta tentativa.** O escopo travado desta fase
+manda **não** consertar código de produção, e a constitution é dura no ponto: falha de
+Escopo para e reporta. Na tentativa 1 o achado veio certo — um `xfail(strict=True)`
+documentando a divergência —, mas eu decidi consertar aqui, e a avaliação mostrou por que
+isso não era barato: o `range` é o que o avaliador audita, e auditando a `A.4` ele lia um
+AC-12 quebrado, sabendo do conserto só porque o relatório contou. Nesta tentativa a
+correção continua sendo a mesma linha de código, mas passou a ser **contabilizada na
+`A.4`**, reemitida como `tentativa: 2` com o `sha_final` estendido. O achado continua
+sendo desta fase; o conserto, não.
 
 ### Outras decisões
 
@@ -124,11 +133,12 @@ app/core/prompt.py            28      0      6      0   100%
 app/core/retrieval.py         21      0      4      0   100%
 TOTAL                        178      0     44      1    99%
 Required test coverage of 90% reached. Total coverage: 99.55%
-248 passed, 17 deselected in 10.89s
+260 passed, 19 deselected in 11.49s
 
 $ env -u GEMINI_API_KEY -u DATABASE_URL uv run pytest -p no:cacheprovider -q
-247 passed, 17 deselected, 1 xfailed in 10.46s
-   (execução do agente, antes da correção — offline confirmado sem chave e sem banco)
+Required test coverage of 90% reached. Total coverage: 99.55%
+260 passed, 19 deselected in 11.80s
+   (offline de verdade: sem GEMINI_API_KEY e sem DATABASE_URL no ambiente)
 
 $ uv run bandit -q -r app
 (sem saída)                                        exit 0
@@ -164,23 +174,44 @@ $ uv run bandit -q -r app
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+A avaliação deu **RESSALVAS** com um único achado IMPORTANTE, e ele não é sobre os
+testes: é sobre **quem paga pelo conserto que os testes descobriram**.
+
+**I-1 — o conserto de FR-11 saiu do escopo desta fase.** A avaliação concorda que o
+achado foi bom e a correção tecnicamente certa, e discorda do veículo: o caminho previsto
+era devolver o defeito à `A.4` como rework, porque é o `range` que o workflow audita.
+
+**O que mudou:** nada no código desta fase. O commit `8a1c5f0` passou a ser contabilizado
+na `A.4`, que foi reemitida como `tentativa: 2` com `sha_inicial` preservado e `sha_final`
+estendido até contê-lo. O §4 deste relatório foi reescrito para dizer isso, e o §3 deixou
+de listar `app/chat.py` como arquivo desta fase.
+
+**O que continua sendo desta fase:** o achado, o teste que o expõe
+(`test_quota_na_abertura_do_stream_sai_como_http_429`) e o teste que trava o outro lado
+(`test_falha_do_provedor_na_abertura_do_stream_nao_vira_mensagem_vazia`). Os dois foram
+atualizados na primeira tentativa para asserir o comportamento correto, e continuam
+verdes.
+
+**Efeito colateral do rework das outras fases sobre esta:** as correções da `A.3`
+(varredura iterativa) e da `A.4` (prazo do turno, testes do adapter) acrescentaram 12
+testes de unidade e 2 sob o marker `db`, sem tocar em nenhum arquivo desta fase. Os
+números do §5 foram atualizados para a suíte inteira: **260 offline, 19 `db`**.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 
-- **A correção de produção dentro desta fase é o ponto que mais merece olhar externo.**
-  O escopo travado da `A.6` diz "não corrigir"; o achado é da `A.4`, ainda não avaliada.
-  Optei por corrigir e registrar em commit separado (`8a1c5f0`), com o teste virando
-  asserção positiva. Se o avaliador entender que a correção deveria ter virado rework
-  formal da `A.4`, o commit está isolado e é revertível sozinho.
+- **A atribuição do commit `8a1c5f0` mudou de fase, mas o commit não mudou de lugar na
+  história.** Ele continua entre os commits desta fase na ordem cronológica; o que diz
+  que ele pertence à `A.4` é o `range` daquela fase, que agora o contém. Se o avaliador
+  preferir uma separação mais forte, a alternativa seria reverter e recommitar — o que
+  reescreveria história já mergeada na `dev`, e me parece pior que a ambiguidade que
+  sobra.
 - **A cobertura com piso mede só `app.core`.** `app/chat.py`, `app/api/conversations.py`
   e a metade de chat de `adapters/gemini.py` são exercitados por estes testes, mas
   nenhum piso os guarda. Ampliar o alvo do `--cov-fail-under` seria mudar
   `pyproject.toml`, fora do escopo desta fase.
-- **`tests/test_gemini_adapter.py` não tem teste do `GeminiChatClient`** como unidade —
-  lacuna deixada pela `A.4`. Os testes de segurança daqui exercitam o adapter real
-  (retry, desistência, sanitização) pelos caminhos de erro, mas o caminho feliz do
-  `stream_answer` real não tem teste unitário próprio.
+- **A lacuna de teste do `GeminiChatClient` foi fechada** — mas pela `A.4`, que é de
+  quem ela era. Os testes de segurança daqui continuam exercitando o adapter real pelos
+  caminhos de erro; o caminho feliz agora tem teste próprio em `test_gemini_adapter.py`.
 - **Um pedaço em voo ainda é consumido depois da desconexão**, porque a checagem
   acontece depois de o `async for` pedir o próximo item. É inerente à forma do laço e
   está asserido explicitamente no teste; o que AC-13 cobra — parar de consumir — vale a
