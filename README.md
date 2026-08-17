@@ -40,4 +40,4 @@ make security
 
 ## Licença
 
-Proprietário — todos os direitos reservados. Ver [LICENSE](LICENSE).
+MIT. Ver [LICENSE](LICENSE).

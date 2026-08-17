@@ -2,8 +2,9 @@ FROM node:22-alpine AS build
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm install
+# npm ci exige o package-lock.json commitado e instala exatamente o que ele fixa.
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
 RUN npm run build

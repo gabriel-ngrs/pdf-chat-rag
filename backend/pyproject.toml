@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "API do TalkDoc — ingestão de PDFs e chat com RAG"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115",
+    # >=0.135 traz SSE nativo (fastapi.sse.EventSourceResponse), que já cuida
+    # de Content-Type, Cache-Control, X-Accel-Buffering e keep-alive.
+    "fastapi>=0.135",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
