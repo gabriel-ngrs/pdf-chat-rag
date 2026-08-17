@@ -3,7 +3,7 @@ id: FEAT-0001
 slug: 01-ingestao-pdf
 title: "Ingestão de PDF: fundação, extração por página, chunking, embeddings, vector store e design system"
 type: feature
-status: draft
+status: active
 priority: P0
 size: L
 wave: multi
