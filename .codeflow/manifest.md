@@ -1,10 +1,10 @@
 ---
-versão: 1.1
+versão: 1.2
 status: estável
 atualizado: 2026-08-17
 projeto: talkdoc
 last_validated: 2026-08-17
-validation_hash: 9ec803f4c1aac50da65d494296e8fa75dc93ea4e502aafe1350f5d802ae474b3
+validation_hash: 0a5b83ff04e97942f896a34ff623cd89814622f03859a2e18be57ea7d873bdca
 ---
 
 # Manifest do projeto: talkdoc
@@ -19,6 +19,10 @@ validation_hash: 9ec803f4c1aac50da65d494296e8fa75dc93ea4e502aafe1350f5d802ae474b
 - **Validação de dados:** pydantic 2.9+, pydantic-settings 2.6+
 - **Frontend:** TypeScript 5.7, React 19, Vite 6, Tailwind CSS 4, nginx 1.27-alpine, `package-lock.json` commitado
 - **Testes:** pytest 8.3+, pytest-asyncio 0.24+, httpx 0.27+
+- **Logging:** structlog 26.1.0 (renderer JSON)
+- **Arquitetura:** import-linter 2.13 (contratos em `backend/.importlinter`)
+- **Segurança estática:** bandit 1.9.4
+- **Design system:** shadcn/ui sobre Radix, componentes copiados para `frontend/src/components/ui/`
 - **Linter:** ruff 0.8+ (line-length 100), eslint 9 + typescript-eslint 8
 - **Type checker:** mypy 1.13+ (strict), tsc 5.7 (strict)
 - **Auditoria:** pip-audit 2.7+, npm audit
@@ -28,11 +32,12 @@ validation_hash: 9ec803f4c1aac50da65d494296e8fa75dc93ea4e502aafe1350f5d802ae474b
 
 | Gate        | Comando real do projeto                                              | Status |
 |-------------|-----------------------------------------------------------------------|--------|
-| `check`     | `make check` (agrega `lint`, `typecheck`, `test`)                    | ✓      |
+| `check`     | `make check` (agrega `lint`, `typecheck`, `arch`, `test`)            | ✓      |
 | `lint`      | `cd backend && uv run ruff check .` + `cd frontend && npm run lint`   | ✓      |
 | `typecheck` | `cd backend && uv run mypy app` + `cd frontend && npx tsc --noEmit`   | ✓      |
+| `arch`      | `cd backend && uv run lint-imports --config .importlinter`            | ✓      |
 | `test`      | `cd backend && uv run pytest` (offline; exclui o marker `db`)         | ✓      |
-| `security`  | `cd backend && uv run pip-audit` + `cd frontend && npm audit`         | ✓      |
+| `security`  | `bandit -r app` + `pip-audit` + `npm audit --audit-level=high`        | ✓      |
 
 Comandos auxiliares fora dos gates: `make test-db` (testes que exigem o Postgres do compose), `make eval` (mede o retrieval; consome quota real, por isso fora do `check`), `make up`, `make stop` (preserva dados), `make down` (**remove o volume**), `make logs`.
 
@@ -42,6 +47,8 @@ Comandos auxiliares fora dos gates: `make test-db` (testes que exigem o Postgres
 - **Pipeline de RAG próprio (meta):** chunking, embeddings, retrieval e montagem de prompt implementados no projeto, sem framework de RAG.
 - **Chunking por página (meta):** nenhum chunk cruza fronteira de página — é o que torna a citação exata por construção.
 - **Envelope de erro único (meta):** toda resposta de erro da API sai como `{code, message}`, e o frontend mapeia por `code`, nunca por status.
+- **Logging estruturado (meta):** todo evento em JSON com `timestamp`, `level`, `event` e `request_id`; nomes de evento catalogados nas specs; segredo e conteúdo de documento nunca entram no log.
+- **Gates executáveis (meta):** os princípios invioláveis viram comando — `make arch` reprova import proibido em `core/`, `make security` roda análise estática e auditoria de dependências.
 - **Padrão de testes (meta):** um arquivo por módulo público de `core/`, em `backend/tests/`; a suíte do `make test` roda offline, com fakes de repositório e de provedor. Testes que exigem banco ficam sob o marker `db`.
 - **Formato de imports (meta):** imports absolutos a partir de `app`. Sem imports relativos.
 - **Schema de banco (meta):** DDL em `db/*.sql` aplicados pelo `docker-entrypoint-initdb.d`; sem ferramenta de migração. `ON DELETE CASCADE` declarado por quem cria a tabela.

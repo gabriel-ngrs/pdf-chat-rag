@@ -1,6 +1,7 @@
-.PHONY: check lint typecheck test test-db security eval up down stop logs
+.PHONY: check lint typecheck arch test test-db security eval up down stop logs
 
-check: lint typecheck test
+# Gate agregador: é o que precisa estar verde para uma fase fechar.
+check: lint typecheck arch test
 
 lint:
 	cd backend && uv run ruff check .
@@ -9,6 +10,11 @@ lint:
 typecheck:
 	cd backend && uv run mypy app
 	cd frontend && npx tsc --noEmit
+
+# Valida a arquitetura em camadas: core/ não pode importar I/O.
+# As regras vivem em backend/.importlinter.
+arch:
+	cd backend && uv run lint-imports --config .importlinter
 
 # Suíte offline: sem rede, sem banco, sem GEMINI_API_KEY.
 test:
@@ -19,9 +25,11 @@ test:
 test-db:
 	cd backend && uv run pytest -m db
 
+# Análise estática de segurança + auditoria de dependências.
 security:
+	cd backend && uv run bandit -q -r app
 	cd backend && uv run pip-audit
-	cd frontend && npm audit
+	cd frontend && npm audit --audit-level=high
 
 # Mede a qualidade do retrieval. Consome quota real da API, por isso fica
 # fora do `check`. Exige o compose no ar e a GEMINI_API_KEY definida.
