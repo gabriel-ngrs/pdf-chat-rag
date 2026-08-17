@@ -2,245 +2,247 @@
 spec: 02-chat-rag
 fase: A.4
 slug_fase: chat-endpoint
-tentativa: 1
+tentativa: 2
 veredito: RESSALVAS
-score: 8.8
+score: 9.6
 threshold: 8.5
-range_avaliado: 7fe47de9ac92e62523d38eab7366615b7d70d0bb..9f0a2b1a512b25f8294edca99971a265552fc355
+range_avaliado: 7fe47de9ac92e62523d38eab7366615b7d70d0bb..e2b78250d82d3317abefa9359ac2a46d694a6105
 ---
 
-# FASE A.4 — Avaliação independente
+# FASE A.4 — Avaliação independente (tentativa 2)
 
 ## 1. Veredito e score
 
-**Veredito:** RESSALVAS · **Score:** 8.8 / threshold 8.5
+**Veredito:** RESSALVAS · **Score:** 9.6 / threshold 8.5
 
-Zero BLOQUEANTES — o código **na ponta da branch** cumpre todos os ACs da fase, e
-eu verifiquei isso rodando a suíte. Três IMPORTANTES, todos sobre o que a fase
-deixou de fora do próprio perímetro:
+Zero BLOQUEANTES. Os **três** achados IMPORTANTES da tentativa 1 estão fechados,
+e conferi os três:
 
-1. o `range` desta fase **não contém** o commit que conserta o defeito de FR-11
-   que ela própria introduziu (§4 I-1);
-2. `CHAT_TIMEOUT_SECONDS` é configuração morta — nada no código a consome, e o
-   streaming não tem prazo de morte (§4 I-2);
-3. o `GeminiChatClient` — inclusive o `_thinking_config`, que é a peça nova
-   inteira desta fase — não tem teste de unidade em lugar nenhum (§4 I-3).
+- **I-1** — o `range` agora vai até `e2b7825`, que contém `8a1c5f0` **e**
+  `3c89162` (ancestralidade verificada, §6). O artefato voltou a descrever o
+  código que ele aprova.
+- **I-2** — `CHAT_TIMEOUT_SECONDS` tem consumidor. Verifiquei o comportamento
+  eu mesmo: com prazo de 1 s e um provedor que abre o stream e emudece, o turno
+  morre em **1,00 s** com `ChatProviderError` e o iterador é fechado (§6).
+- **I-3** — 12 testes novos no adapter; cobertura de `gemini.py` **90% → 97%**,
+  medida por mim.
 
-O desenho, em contrapartida, é o ponto alto do Track A: `chat.py` orquestra o
-turno inteiro sem conhecer `fastapi`, e o *priming* do primeiro evento na rota é
-a solução correta para FR-11.
+**Um IMPORTANTE novo**, e é estreito: o teste que deveria proteger a correção do
+I-2 **não protege o trecho que a correção acrescentou**. Ele roda com
+`chat_timeout_seconds=0`, e nesse regime o prazo estoura na **abertura** do
+stream — `generate_content_stream` nem chega a ser chamado. O `stall=True` do
+dublê é inerte ali, e a linha que faz o prazo valer **entre pedaços** poderia ser
+apagada sem que a suíte reclamasse. Provei as duas afirmações (§4, §6).
+
+O código está certo — isso eu verifiquei. O que falta é o teste morder, no mesmo
+padrão que a `A.3` aplicou nesta mesma rodada.
 
 ## 2. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 3 | Escopo travado 100% respeitado (sem Gemini fora do adapter, sem buffer, sem `GZipMiddleware` — `main.py:6-8`, sem prompt/pergunta em log — só `question_len` em `chat.py:96`); desconta: a fase declara nove `Testes` e entregou **zero** no seu range, e o AC-12 estava quebrado no commit que ela fecha |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | `chat.py` não importa `fastapi`; a rota é quem serializa (`conversations.py:161-186`); `.importlinter` passou a declarar `chat : ingestion` como irmãs, com `exhaustive = True` mantido — `Contracts: 4 kept, 0 broken` |
-| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | `_fail_chat` sanitiza e usa `raise ... from None` (`gemini.py:545-558`); `MAX_QUESTION_LENGTH` + `strip_whitespace` validam no servidor (`schemas.py:76-86`); a chave não aparece em cinco caminhos de erro (`test_chat_security.py:284-386`) |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `backoff_delay`, `sanitize_message`, `RETRYABLE_STATUS`, `QUOTA_STATUS`, `embed_query`, `get_repository`/`get_embedder`/`get_settings` — todos consumidos, nenhum reescrito |
-| 5 | Padrões de domínio/aplicação | 2 | 4 | `truncated` começando `True` e sendo desligado só pelo `else` do laço (`chat.py:267,283-284`) é o padrão certo; desconta: `CHAT_TIMEOUT_SECONDS` documentado e não consumido (§4 I-2) |
-| 6 | Local e nomes dos arquivos | 2 | 5 | Os dois arquivos novos e os quatro alterados estão onde a fase manda; `errors.py` e `.importlinter` fora da lista, mas são REUSADO em §4.7 e a mudança é forçada pelos gates da própria fase |
-| 7 | Qualidade de código | 2 | 5 | Funções curtas e nomeadas pela decisão que tomam (`_prepare`, `_condense`, `_refuse`, `_answer`); docstrings dizendo por quê; `mypy --strict` limpo em 23 arquivos |
-| 8 | Testes e cobertura | 2 | 3 | Nenhum teste no range da fase; hoje `app/chat.py` está em 96% e `app/api/conversations.py` em 82% graças à `A.6`, mas `app/adapters/gemini.py` deixa descobertos justamente os trechos novos (§6) |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | `range` coerente com o código aprovado (§6); escopo travado intacto — sem Gemini fora do adapter, sem buffer, sem `GZipMiddleware`, `embed_query` reusado, nem prompt nem pergunta em `info` |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | O prazo ficou no adapter, dono dos prazos do provedor, sem mexer no protocolo `ChatClient` de §4.2 — decisão certa: o dublê da `A.6` não precisou mudar; `Contracts: 4 kept, 0 broken` |
+| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | A mensagem do estouro não carrega prompt nem chave (`gemini.py:491-493`); sanitização e `raise ... from None` intactos; `make security` exit 0 |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `_with_deadline` reusa `_fail_chat`, que reusa a classificação de status já existente; nenhum mapa de erro novo |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | Prazo do **turno**, contado da abertura, é a leitura que um operador faz de "60 s" no arquivo de configuração; o estouro vira `ChatProviderError` e quem escolhe entre envelope HTTP e evento `error` continua sendo `app.chat` (FR-11) |
+| 6 | Local e nomes dos arquivos | 2 | 5 | `gemini.py` e `test_gemini_adapter.py`; o transporte falso mora no próprio arquivo de teste, e não em `fakes.py`, com a razão registrada |
+| 7 | Qualidade de código | 2 | 5 | `_with_deadline` tem cinco linhas e uma responsabilidade; docstrings dizem por quê; `mypy --strict` limpo |
+| 8 | Testes e cobertura | 2 | 3 | 12 testes novos, todos com asserção real sobre o que chegou ao transporte; cobertura 90→97%; desconta pesado: o único teste do prazo não exercita o trecho que a correção do I-2 acrescentou (§4) |
 
-Score = (3·3 + 5·3 + 5·3 + 5·3 + 4·2 + 5·2 + 5·2 + 3·2) / 20 × 2 = **8.8**
-
-## 3. Achados BLOQUEANTES
-
-Nenhum. Registro explícito: o defeito de FR-11 que existia no commit `9f0a2b1`
-**está corrigido** no `8a1c5f0`, e eu confirmei o comportamento correto rodando
-`test_quota_na_abertura_do_stream_sai_como_http_429` (passa) e lendo
-`chat.py:297-304`.
+Score = (5·3 + 5·3 + 5·3 + 5·3 + 5·2 + 5·2 + 5·2 + 3·2) / 20 × 2 = **9.6**
 
 ## 4. Achados IMPORTANTES
 
-### I-1 — o `range` da fase descreve código quebrado; a correção mora no range da `A.6`
+### I-1 (novo) — `backend/tests/test_gemini_adapter.py:657` — o teste do prazo não cobre o trecho que a correção do I-2 acrescentou
 
-`FASE-A.4-chat-endpoint-EXECUCAO.md:10` declara `range: 7fe47de..9f0a2b1`. Nesse
-range, `app/chat.py::_answer` tratava **toda** `AppError` como erro mid-stream, e
-a rota devolvia `HTTP 200 text/event-stream` com um frame `error` — quando FR-11
-exige o envelope `{code, message}` com o status. Como o `429` do chat estoura na
-abertura do stream (a própria spec chama isso de "o caso comum"), a metade
-`pre_stream` estava morta.
-
-A correção está no commit `8a1c5f0`, que pertence ao range da `A.6`
-(`77175cd..37f27e7`). O mesmo vale para o `.env.example` desta fase, que foi no
-`3c89162` — commit que **não está no range de fase nenhuma**.
-
-**Por que isto importa e não é burocracia:** o `range` é o que este workflow
-audita. Auditando `7fe47de..9f0a2b1` eu leria um AC-12 quebrado; só sei que ele
-foi consertado porque **o relatório me contou** — que é exatamente a dependência
-que a avaliação independente existe para não ter. O caminho previsto pelo
-pipeline (`ARTIFACTS_SPEC` §2.9/§2.11) era um **rework da `A.4`**: `tentativa: 2`,
-`sha_inicial` preservado, `sha_final` estendido até conter o conserto.
-
-**Correção sugerida:** reemitir `FASE-A.4-chat-endpoint-EXECUCAO.md` como
-`status: rework`, `tentativa: 2`, `reprovacoes: 1`, `sha_inicial: 7fe47de…`
-inalterado e `sha_final` na ponta que contenha `8a1c5f0` e `3c89162`; a seção
-"O que mudou nesta tentativa" recebe o que já está escrito hoje no §4 desvio 5.
-Nenhuma linha de código muda. Fecha também o I-1 da `A.6`.
-
-### I-2 — `backend/app/config.py:47` + `.env.example:45`: `CHAT_TIMEOUT_SECONDS` é configuração morta, e o streaming não tem prazo
-
-```text
-$ grep -rn "chat_timeout_seconds\|CHAT_TIMEOUT" --include=*.py --include=*.toml backend/
-backend/app/config.py:47:    chat_timeout_seconds: int = 60
-$ grep -n "CHAT_TIMEOUT" .env.example
-45:CHAT_TIMEOUT_SECONDS=60
+```python
+async def test_provedor_que_emudece_estoura_o_prazo_do_turno() -> None:
+    """...um provedor que abre o stream e para de emitir..."""
+    models = FakeAsyncModels(stall=True)
+    with pytest.raises(ChatProviderError):
+        await coletar(build_chat_client(models, timeout=0))
 ```
 
-Nenhum consumidor. `generate` tem prazo (`gemini.py:438`, via
-`condense_timeout_seconds`), mas `stream_answer` (`gemini.py:440-464`) não tem nenhum: se o provedor abrir o stream e parar de
-emitir, o turno fica preso até o `proxy_read_timeout 300s` do nginx derrubar a
-conexão — e a mensagem parcial só é gravada quando isso acontece.
+Com `timeout=0`, `deadline` (`gemini.py:458`) é o instante atual, e o **primeiro**
+`_with_deadline` — o da abertura, `gemini.py:459` — já estoura. O `asyncio.wait_for`
+com prazo zero cancela a corrotina antes de ela rodar, então `generate_content_stream`
+não chega a ser chamado e o `stall=True` do dublê nunca é alcançado.
 
-Um arquivo de configuração que promete um teto de 60 s e não entrega nenhum é
-pior que a ausência da variável: quem opera acredita que existe um limite.
-
-**Correção sugerida:** consumir a variável — envolver o laço de
-`app/chat.py::_answer` (ou `_open_stream` + o `async for`) num prazo derivado de
-`settings.chat_timeout_seconds`, tratando o estouro como erro mid-stream se algum
-token já saiu e pré-stream se não — **ou** remover a variável de `config.py` e do
-`.env.example`. Uma das duas; a terceira opção (deixar como está) é a única
-inaceitável.
-
-### I-3 — `backend/app/adapters/gemini.py:396-565`: o `GeminiChatClient` não tem teste de unidade
-
-`tests/test_gemini_adapter.py` tem 32 testes e **nenhum** toca o cliente de chat.
-O adapter só é exercitado de lado, pelos testes de vazamento de
-`test_chat_security.py`, cujo alvo é a sanitização. A cobertura mostra o buraco:
+**Medido por mim, com o próprio dublê da suíte:**
 
 ```text
-app/adapters/gemini.py   189   12   38   8   90%   215, 475, 501-504, 536-539, ...
+(a) timeout=0 -> ChatProviderError | generate_content_stream chamado? False | closed=False
+(b) timeout=1 -> ChatProviderError apos 1.00s | generate_content_stream chamado? True | closed=True
 ```
 
-Ficam sem nenhum teste, todos código **novo desta fase**:
+A linha (b) é o cenário que a docstring descreve, e ele **funciona** — o código
+está correto. A linha (a) é o que a suíte roda: prova o prazo da abertura, não o
+prazo entre pedaços.
 
-- **`215` — `_thinking_config` com orçamento positivo.** É a peça central do
-  desvio 3 do relatório (a tradução de `GEMINI_THINKING_BUDGET` para o que a
-  geração 3.x aceita). O ramo `<= 0` é o default e nem esse tem asserção direta.
-- **`475` — o caminho feliz de `generate`.** A condensação por LLM nunca foi
-  exercitada contra o adapter real; só contra o `FakeChatClient`.
-- **`501-504` — o retry por falha transitória** (`TimeoutError`/`OSError`/
-  `httpx.TransportError`) no chat, e a desistência por status não-retentável.
-- **`536-539` — a criação preguiçosa do cliente e o `MissingApiKeyError`.**
+**Consequência concreta:** apagar `chunk = await self._with_deadline(anext(stream),
+deadline)` (`gemini.py:463`) e voltar ao `async for` deixaria a suíte **inteira
+verde** — conferi que `stall` é usado num único teste, e é este. O defeito que o
+I-2 descreveu (provedor que abre e emudece prende o turno até o nginx derrubar)
+voltaria sem nenhum sinal. É o mesmo padrão do achado original: uma promessa sem
+mecanismo que a sustente — desta vez do lado do teste.
 
-Some-se o que a §4.2 da spec manda explicitamente e não tem teste: *"O `chunk.text`
-do SDK pode vir `None` — filtrar antes de emitir"* (`gemini.py:454-456`). É o
-filtro que impede a UI de escrever `null` no meio da frase, e nada garante que
-ele continue lá.
+**Correção sugerida** — um caractere de código e uma asserção:
 
-A rule `testing` é direta: "todo código novo deve ter teste correspondente".
-`test_gemini_adapter.py` não está na lista de arquivos de nenhuma fase do Track A,
-então esta lacuna não é da `A.6` — é desta fase.
+```python
+    models = FakeAsyncModels(stall=True)
+    with pytest.raises(ChatProviderError):
+        await coletar(build_chat_client(models, timeout=0.05))
+    assert models.models_pedidos, "o prazo precisa estourar depois de o stream abrir"
+    assert models.closed, "o iterador do provedor precisa ser fechado no estouro"
+```
 
-**Correção sugerida:** acrescentar a `tests/test_gemini_adapter.py`, sobre o
-`StubGenaiClient` que já existe: (a) `_thinking_config(0)` produz
-`thinking_level=MINIMAL` e `_thinking_config(128)` produz `thinking_budget=128`;
-(b) `stream_answer` descarta pedaço com `text=None` e emite os demais na ordem;
-(c) `generate` devolve o texto podado; (d) `TimeoutError` na abertura re-tenta uma
-vez e depois vira `ChatProviderError`; (e) status não-retentável não re-tenta.
+`chat_timeout_seconds` é `int` em `Settings`, então ou o teste passa `timeout=1`
+(um segundo de suíte, aceitável para o único teste que precisa dele) ou o campo
+vira `float` — o que também tornaria o prazo ajustável com granularidade fina em
+produção. A escolha é sua; o que não pode continuar é o `timeout=0`.
+
+Vale a pena manter **os dois** testes: o de prazo zero prova a metade da abertura,
+que também é comportamento real.
 
 ## 5. Sugestões
 
-- **NFR-1 e AC-23 ficaram desatualizados pelo provedor.** A spec cobra
-  `thinking_budget=0`; o código manda `thinking_level=MINIMAL` porque a geração
-  3.x recusa o zero com `400`. A **intenção** de NFR-1 está preservada e medida
-  (2,21 s até o primeiro evento), a variável de ambiente não mudou, e o desvio
-  está documentado em três lugares. **Ação para o owner:** atualizar o texto de
-  NFR-1/AC-23 na spec e a linha de `.codeflow/manifest.md:17`, que ainda diz
-  `gemini-2.5-flash para geração`.
-- **`chat.py:274` — o pedaço em voo é descartado na desconexão.** O `async for`
-  já puxou `piece` quando a checagem roda, e ele é jogado fora sem ser emitido
-  nem contado. É inerente à forma do laço, o custo é um token, e o teste
-  documenta o comportamento. Fica registrado.
-- **`conversations.py:56-59,64-67` — as guardas `RuntimeError` do lifespan não
-  têm teste.** São defesa contra erro de fiação, não caminho de usuário. Baixa
-  prioridade.
-- **`chat.py:204` — o ramo "condensação devolveu string vazia → fallback" não tem
-  teste.** É um `if` de uma linha, mas é o único caminho de fallback que não é o
-  timeout. Uma linha no `FakeChatClient` (`condensed=""`) cobre.
+- **`.env.example:45` — `CHAT_TIMEOUT_SECONDS=60` continua sem comentário.**
+  Agora que a variável faz alguma coisa, ela merece a mesma linha de explicação
+  que `SIMILARITY_THRESHOLD` e `CHUNK_SIZE` têm no arquivo: que ela limita o
+  turno inteiro, contado da abertura do stream, e que estourá-la vira erro de
+  provedor. É o arquivo que quem clona lê.
+- **`gemini.py:479-493` — `_with_deadline` engole `TimeoutError` de qualquer
+  origem.** Se o `awaitable` interno levantar `TimeoutError` por conta própria
+  (o `_call_with_retry` já trata o dele, mas nada impede que suba um), a
+  mensagem dirá "o provedor não respondeu dentro de 60s" mesmo tendo passado um
+  segundo. Diagnóstico ruim num caso raro; comparar o relógio antes de decidir
+  resolveria.
+- **`app/chat.py:227` — o ramo "condensação devolveu string vazia → fallback"
+  segue sem teste.** Repetida da tentativa 1; uma linha no `FakeChatClient`
+  (`condensed=""`) cobre.
+- **Sugestões da tentativa 1 acatadas, conferidas por mim:** NFR-1, AC-23, §4.2
+  e §4.8 da spec passaram a cobrar a **intenção** (mínimo de raciocínio) em vez
+  do valor que o provedor recusa, e `.codeflow/manifest.md:17` deixou de
+  anunciar `gemini-2.5-flash`. A nota de revisão 4 no cabeçalho da spec registra
+  as três descobertas com a fonte. Bem feito.
 
 ## 6. Comandos rodados + saídas reais
 
 ```text
-$ git merge-base --is-ancestor 9f0a2b1 HEAD && echo OK
-OK
+$ bash ~/.codeflow/framework/core/scripts/run-structural.sh \
+       .codeflow/specs/02-chat-rag/SPEC_02_CHAT_RAG.md
+✓ §5 estruturalmente válida
+EXIT=0
+```
 
+**I-1 da tentativa 1 — o `range` agora contém os commits que faltavam:**
+
+```text
+$ for s in 8a1c5f0 3c89162 85da080 f1f8be7 c64104f; do
+      git merge-base --is-ancestor $s e2b7825 && echo "$s dentro de e2b7825"; done
+8a1c5f0 dentro de e2b7825
+3c89162 dentro de e2b7825
+85da080 dentro de e2b7825
+f1f8be7 dentro de e2b7825
+c64104f dentro de e2b7825
+$ git merge-base --is-ancestor e2b7825 HEAD && echo "ancestral de HEAD OK"
+ancestral de HEAD OK
+```
+
+**Gates, rodados por mim na ponta da branch:**
+
+```text
 $ make check
 cd backend && uv run ruff check .    → All checks passed!
 cd backend && uv run mypy app        → Success: no issues found in 23 source files
-cd backend && uv run lint-imports --config .importlinter
 Camadas: main -> api -> (chat | ingestion) -> adapters -> core KEPT
 Nucleo puro: core nao conhece I/O nem framework KEPT
-Sem framework de RAG KEPT
-Sem ORM nem query builder KEPT
 Contracts: 4 kept, 0 broken.
-tests/test_chat_api.py ...................                               [  8%]
-Required test coverage of 90% reached. Total coverage: 99.55%
-248 passed, 17 deselected in 11.67s
-Test Files  10 passed (10) | Tests  75 passed (75)
+262 passed, 19 deselected in 11.28s
+Test Files  10 passed (10) | Tests  84 passed (84)
 [exited with code 0]
 
-$ make security
-bandit -q -r app       → (sem saída)
-pip-audit              → No known vulnerabilities found
-npm audit --audit-level=high → found 0 vulnerabilities
-SEC_EXIT=0
+$ make security                      → SEC=0, nenhuma vulnerabilidade
+$ cd backend && uv run pytest -m db -q   → 19 passed, 262 deselected
 ```
 
-Cobertura fora de `core/` (fora do piso de 90%, medida por mim para localizar o
-I-3):
+**I-2 — a variável passou a ter consumidor:**
+
+```text
+$ grep -rn "chat_timeout_seconds" --include=*.py backend/
+backend/app/config.py:47:    chat_timeout_seconds: int = 60
+backend/app/adapters/gemini.py:458:  deadline = ... + self._settings.chat_timeout_seconds
+backend/app/adapters/gemini.py:493:  f"o provedor não respondeu dentro de {...}s"
+backend/tests/test_gemini_adapter.py:545:  chat_timeout_seconds=timeout,
+```
+
+**I-3 — cobertura do adapter, medida por mim:**
 
 ```text
 Name                         Stmts   Miss Branch BrPart  Cover   Missing
-app/adapters/gemini.py         189     12     38      8    90%   215, 366, 384,
-                                                                 453->463, 455->453,
-                                                                 464->exit, 475,
-                                                                 501-504, 536-539
+app/adapters/gemini.py         200      3     36      4    97%   366, 384, 476->exit, 568
+app/chat.py                    139      4     28      2    96%   227, 384-386, 397->exit
 app/api/conversations.py        72     10     16      2    82%   56-59, 64-67, 140, 156
-app/chat.py                    131      4     24      2    96%   204, 361-363, 374->exit
 ```
 
-Configuração morta:
+As três linhas que restam em `gemini.py` são do cliente de **embeddings**
+(366, 384, pré-existentes) e a criação preguiçosa do cliente de chat (568). O
+que a avaliação anterior apontou — `_thinking_config` nos dois ramos, caminho
+feliz de `generate`, retry transitório, desistência em status não-retentável,
+`chunk.text` nulo — está coberto, e conferi que as asserções são sobre o que
+chegou ao transporte, não sobre a função privada:
 
 ```text
-$ grep -rn "chat_timeout_seconds\|CHAT_TIMEOUT" --include=*.py --include=*.toml backend/
-backend/app/config.py:47:    chat_timeout_seconds: int = 60
+tests/test_gemini_adapter.py: assert thinking.thinking_level == types.ThinkingLevel.MINIMAL
+                              assert thinking.thinking_budget is None
+                              assert thinking.thinking_budget == 128
+                              assert thinking.thinking_level is None
 ```
 
-**Não re-executado por mim:** o gate contra o `docker compose` com a API real
-(AC-23, primeiro token ≤ 5 s). Não há `.env` nesta árvore de trabalho — o
-`docker compose config` falha com *"required variable GEMINI_API_KEY is missing a
-value"* —, então não há como levantar o backend nem gastar quota. As evidências
-do relatório (2,21 s / 3,46 s / 0,39 s, com citação de página correta) ficam
-**não verificadas independentemente**; o que verifiquei é que todos os caminhos
-que elas exercitam têm prova automatizada offline na `A.6`.
+**Verificação do prazo (o achado I-1 novo), com o dublê da própria suíte:**
+
+```text
+(a) timeout=0 -> ChatProviderError | generate_content_stream chamado? False | closed=False
+(b) timeout=1 -> ChatProviderError apos 1.00s | generate_content_stream chamado? True | closed=True
+
+$ grep -n "stall" tests/test_gemini_adapter.py
+472,480,508  (definição do dublê)
+663          (único teste que usa: test_provedor_que_emudece_estoura_o_prazo_do_turno)
+```
+
+**Não re-executado por mim:** a revalidação pelo `docker compose` com a API real
+(primeiro evento em 1,39 s, citação da página 2, recusa em 0,625). Continua não
+existindo `.env` nesta árvore, e a medição gasta quota do owner. Corroboração
+indireta: os dois documentos que o gate ingeriu estão no banco
+(`Exemplo-YAITEC.pdf`, `session_id: gate-1787009836`, 10 chunks, `ready`), com
+`created_at` coerente com o horário dos commits do rework.
 
 ## 7. Itens da fase / DoD não atendidos
 
-- **A linha `Testes:` da fase** (nove ACs) não foi entregue no range da fase. A
-  justificativa — a `A.6` declara como seus os arquivos `test_chat_api.py` e
-  `test_chat_security.py` — é legítima e eu a aceito para os testes de
-  integração. Ela **não** cobre `test_gemini_adapter.py`, que não pertence a
-  nenhuma fase e ficou sem os testes do I-3.
-- **`Passo 1` da fase** ("reusando backoff e sanitização já existentes, com
-  `thinking_budget=0`") foi cumprido em substância, com a tradução forçada pelo
-  provedor. Ver §5.
-- **Critério de conclusão** (streaming pelo compose, primeiro token ≤ 5 s):
-  atendido pelo executor, não reproduzível por mim (§6).
-- DoD global: `make check` zero ✓, `make security` sem achado ✓, cobertura de
-  `core/` 99,55% ✓.
+- **Nenhum item da §5 em aberto.** Os nove `Passos`, os nove `Testes` e o
+  critério de conclusão estão cobertos — os testes de integração pela `A.6`, os
+  de unidade do adapter agora aqui.
+- **Pendência de qualidade de teste, não de escopo:** o `Passo 1` da fase manda
+  filtrar `chunk.text` nulo e passar o mínimo de raciocínio; ambos agora têm
+  teste. O prazo do turno tem teste, mas do lado errado da fronteira (§4).
 
 ## 8. Divergências entre o relatório e o código real
 
-- **Nenhuma divergência de conteúdo.** As nove decisões de §4 do relatório batem
-  com o código: `chat.py` sem `fastapi` ✓, priming do primeiro evento
-  (`conversations.py:136-142`) ✓, `format_sse_event` do framework ✓,
-  `Cache-Control`/`X-Accel-Buffering` explícitos (`conversations.py:51`) ✓,
-  cliente assíncrono `client.aio` ✓, `CHAT_MAX_ATTEMPTS = 2` ✓, `truncated`
-  começando `True` ✓, turno vazio não virando mensagem ✓, `message_id` nulo ✓.
-- **Divergência de perímetro, não de fato:** o relatório declara `range:
-  7fe47de..9f0a2b1` e depois explica, em prosa, que duas partes essenciais da
-  fase estão fora dele. O frontmatter é o que as ferramentas leem; a prosa não é.
-  É o I-1.
+- **Nenhuma divergência de fato.** As três correções descritas no §8 do
+  `EXECUCAO` existem, nos commits que ele nomeia, e fazem o que ele diz.
+- **Uma afirmação mais forte do que a evidência sustenta:** a tabela do §8 lista
+  `test_provedor_que_emudece_estoura_o_prazo_do_turno` como o teste da lacuna
+  "prazo do turno (I-2)". O teste existe e passa, mas não exercita o trecho que
+  a correção do I-2 acrescentou (§4). É a mesma forma de otimismo que apontei na
+  tentativa 1 sobre o `EXPLAIN` de 2.000 chunks — e que a `A.3`, nesta mesma
+  rodada, evitou colando o teste vermelho antes da correção.
+
+**Nota de perímetro:** o `HEAD` da branch (`e76fbed`) é posterior a este `range`
+e alterou `backend/app/chat.py` (`_is_retry`, +27 linhas) e
+`backend/tests/test_chat_api.py` dentro de um rework do **Track B**. Auditei a
+mudança: ela preserva FR-9 (a pergunta continua persistida antes da chamada ao
+provedor; no retry ela já está lá) e não contradiz nada desta fase. Fica
+registrado porque repete, do lado do Track B, exatamente o padrão que o I-1 da
+`A.6` fechou do lado do Track A — e porque significa que este `range` já não
+descreve o `app/chat.py` de HEAD.

@@ -2,49 +2,48 @@
 spec: 02-chat-rag
 fase: A.6
 slug_fase: chat-tests
-tentativa: 1
-veredito: RESSALVAS
-score: 9.5
+tentativa: 2
+veredito: APROVADO
+score: 9.8
 threshold: 8.5
-range_avaliado: 77175cdc2cf56544688161fbeb50a28c31591c32..37f27e733d1c1f544858636eed3e6f4fcbd76f5b
+range_avaliado: 77175cdc2cf56544688161fbeb50a28c31591c32..e2b78250d82d3317abefa9359ac2a46d694a6105
 ---
 
-# FASE A.6 — Avaliação independente
+# FASE A.6 — Avaliação independente (tentativa 2)
 
 ## 1. Veredito e score
 
-**Veredito:** RESSALVAS · **Score:** 9.5 / threshold 8.5
+**Veredito:** APROVADO · **Score:** 9.8 / threshold 8.5
 
-Zero BLOQUEANTES. **Um IMPORTANTE**, e não é sobre a qualidade dos testes — é
-sobre o perímetro: a fase alterou `backend/app/chat.py`, código de produção fora
-da sua lista de arquivos declarada, para consertar um defeito da `A.4`. A
-constitution universal manda **parar e reportar** nesse caso; o executor aplicou
-e reportou. O efeito colateral é que o `range` da `A.4` passou a descrever código
-quebrado (§4).
+Zero BLOQUEANTES, zero IMPORTANTES. O I-1 da tentativa 1 está fechado do jeito
+certo: **nenhuma linha de código mudou**, e o que mudou foi a contabilidade. O §3
+do relatório deixou de listar `backend/app/chat.py` como arquivo desta fase; a
+`A.4` foi reemitida como `tentativa: 2` com o `sha_final` estendido até conter
+`8a1c5f0`; e o §4 daqui passou a dizer, com todas as letras, que **o achado é
+desta fase e o conserto é da `A.4`**.
 
-A suíte em si é o melhor trabalho de teste das duas specs até aqui. Merecem
-registro explícito: o controle negativo nos testes de vazamento (exigir
-`[REDACTED]` presente, e não só a chave ausente — sem isso, um log que
-simplesmente não registrasse nada passaria provando nada); o uso do
-`GeminiChatClient` **real** sobre um SDK falso, que é o único jeito de testar a
-sanitização em vez de testar o dublê; e o `journal` compartilhado entre os dois
-dublês, que é o que torna a ordem de FR-9 observável — ela atravessa dois
-colaboradores e não existe dentro de nenhum deles.
+Essa é a separação que faltava, e ela vale mais do que parece: o avaliador do
+`range` da `A.4` agora encontra o defeito **e** a cura no mesmo intervalo, sem
+depender de prosa. Verifiquei a ancestralidade dos dois commits (§6).
+
+A suíte segue sendo o melhor trabalho de teste das duas specs, e as correções da
+`A.3` e da `A.4` — 14 testes novos entre unidade e `db` — não tocaram nenhum
+arquivo desta fase nem quebraram nenhuma de suas asserções.
 
 ## 2. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 4 | Os doze ACs da fase cobertos e reconferidos por mim (§6); escopo travado respeitado — nenhuma rede real, nenhum `skip`, nenhuma asserção sobre texto de LLM real, `--cov-fail-under=90` intocado (`pyproject.toml:70` sem diff); desconta: `app/chat.py` alterado fora da lista de arquivos (§4) |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | A desconexão é testada consumindo `stream_turn` direto, sem servidor — possível **porque** `app.chat` não conhece `fastapi`; `lint-imports` segue `4 kept, 0 broken` com os módulos novos (AC-24) |
-| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | Injeção vinda do PDF **e** vinda da pergunta (`test_chat_security.py:205,241`); chave ausente em cinco caminhos de erro, com controle negativo; SQL como parâmetro (`:415,441`); pergunta vazia/gigante recusada com `422` (`:462`) |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `FakeEmbeddingClient`, `FakeRepository`, `deterministic_vector`, `build_app`, `captured_logs` consumidos; os dublês novos **estendem** `fakes.py`/`conftest.py` sem tocar nos overrides antigos |
-| 5 | Padrões de domínio/aplicação | 2 | 5 | Asserção sobre estrutura e sobre o que chegou ao colaborador, nunca sobre texto gerado; `matches_embedding` faz a ponte "qual query foi buscar" pelo determinismo do dublê (`fakes.py:291-299`) |
-| 6 | Local e nomes dos arquivos | 2 | 5 | `test_chat_api.py` e `test_chat_security.py` onde a fase manda; o import entre módulos de teste (o parser de frame SSE) está justificado no docstring e é a alternativa certa a duplicar a leitura do protocolo |
-| 7 | Qualidade de código | 2 | 4 | Testes nomeados pelo comportamento, docstrings citando o AC; desconta: o comentário de `test_chat_api.py:569-573` afirma que `app.chat` **não** chama `aclose()` — o código chama (`chat.py:292`), e o laço de espera que segue virou morto (§5) |
-| 8 | Testes e cobertura | 2 | 5 | 35 casos coletados, 248 verdes na suíte inteira sem chave e sem banco; `app.core` em 99,55%, piso não afrouxado; `make security` de volta a zero |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | Os doze ACs seguem cobertos e verdes na minha execução; escopo travado agora **inteiro**: os arquivos alterados são só `fakes.py` e `conftest.py`, como a §5 manda (§6) |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | A desconexão continua sendo testada consumindo `stream_turn` direto, sem servidor — possível porque `app.chat` não conhece `fastapi`; `Contracts: 4 kept, 0 broken` (AC-24) |
+| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | Injeção do PDF e da pergunta, chave ausente em cinco caminhos de erro **com controle negativo**, SQL como parâmetro, pergunta vazia/gigante em `422` — todos verdes |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | Dublês novos estendem os antigos; `journal` compartilhado torna observável a ordem de FR-9, que atravessa dois colaboradores |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | Asserção sobre estrutura e sobre o que chegou ao colaborador, nunca sobre texto gerado |
+| 6 | Local e nomes dos arquivos | 2 | 5 | `test_chat_api.py` e `test_chat_security.py`; `app/chat.py` saiu da lista e passou a ser da `A.4` |
+| 7 | Qualidade de código | 2 | 4 | Desconta: o comentário de `test_chat_api.py:626-630` continua afirmando que `app.chat` **não** chama `aclose()` — o código chama (`chat.py:292`). Segunda vez que aponto (§5) |
+| 8 | Testes e cobertura | 2 | 5 | 35 casos da fase intactos; suíte inteira em 262 offline + 19 `db`, `app.core` em 99,55%, `--cov-fail-under=90` não afrouxado (`pyproject.toml` sem diff no range) |
 
-Score = (4·3 + 5·3 + 5·3 + 5·3 + 5·2 + 5·2 + 4·2 + 5·2) / 20 × 2 = **9.5**
+Score = (5·3 + 5·3 + 5·3 + 5·3 + 5·2 + 5·2 + 4·2 + 5·2) / 20 × 2 = **9.8**
 
 ## 3. Achados BLOQUEANTES
 
@@ -52,148 +51,141 @@ Nenhum.
 
 ## 4. Achados IMPORTANTES
 
-### I-1 — `backend/app/chat.py` foi alterado fora do escopo declarado da fase, e a correção deveria ter sido um rework da `A.4`
-
-A fase declara, na §5 da spec: *"Arquivos novos: `backend/tests/test_{chat_api,chat_security}.py`. **Arquivos alterados:** `backend/tests/{fakes,conftest}.py`"*. O commit `8a1c5f0` alterou também
-`backend/app/chat.py` — código de produção, de outra fase.
-
-A constitution universal é explícita nos dois lugares que valem aqui:
-
-> "A IA deve **declarar o escopo antes de modificar qualquer arquivo**. […]
-> Modificar fora do escopo declarado exige **parar e reportar**."
->
-> Política de falhas — "**Escopo:** o fix exige tocar em algo fora do escopo
-> declarado. Ação: **parar imediatamente e reportar**. […] Falhas de Escopo […]
-> param na primeira ocorrência. Não há retry."
-
-O executor reconhece a decisão no §9 do relatório e a submete ao avaliador. A
-minha leitura, com o benefício da independência: **o achado foi excelente e a
-correção é tecnicamente correta**; o que estava errado foi o veículo. O caminho
-previsto era devolver o defeito à `A.4` como rework (`tentativa: 2`), porque é o
-`range` que este workflow audita.
-
-**A consequência é concreta, não cerimonial.** Auditando o range da `A.4`
-(`7fe47de..9f0a2b1`) eu encontro FR-11 quebrado. Só sei que foi consertado
-porque o relatório me contou — e "não confiar no relatório" é a razão de este
-workflow existir num chat zerado. O argumento de que o rework custaria um ciclo é
-verdadeiro; o que ele compra é justamente a propriedade que o pipeline vende.
-
-**Correção sugerida — uma só, e é a mesma do I-1 da `A.4`:** reemitir
-`FASE-A.4-chat-endpoint-EXECUCAO.md` como `tentativa: 2` com `sha_final`
-estendido até conter `8a1c5f0` (e `3c89162`), movendo para lá o registro da
-correção. O `FASE-A.6-...-EXECUCAO.md` passa a citar o achado sem reivindicar a
-alteração de produção. **Nenhuma linha de código muda.** Depois disso, as duas
-fases voltam para reavaliação em chat zerado.
+Nenhum. O I-1 da tentativa 1 está fechado e verificado.
 
 ## 5. Sugestões
 
-- **`backend/tests/test_chat_api.py:569-573` — comentário que contradiz o código
-  que a própria fase escreveu.** O comentário diz:
+- **`backend/tests/test_chat_api.py:626-630` — o comentário desatualizado
+  continua lá.** Segunda vez que aponto, e agora ele contradiz também um teste
+  novo da `A.4` (`test_stream_fecha_o_iterador_do_provedor_ao_terminar`). O texto
+  diz:
 
-  > "O fechamento do iterador do provedor **não** acontece no `break`: `app.chat`
-  > não chama `aclose()`, então quem roda o `finally` do gerador […] é o
-  > finalizador de async generators do event loop, algumas voltas depois."
+  > "`app.chat` não chama `aclose()`, então quem roda o `finally` do gerador […]
+  > é o finalizador de async generators do event loop, algumas voltas depois."
 
-  Mas `app/chat.py:292` chama `await _close_stream(stream)` no `finally` — foi
-  precisamente uma das três mudanças do commit `8a1c5f0`, descrita no §4 do
-  relatório desta fase como "FR-12 determinístico". Ou seja: o comentário
-  descreve o mundo **anterior** ao conserto que a fase fez, e o laço
-  `for _ in range(5): ... await asyncio.sleep(0)` que ele justifica virou código
-  morto — `cliente.closed` já é `True` na primeira volta. Um leitor futuro
-  concluirá que FR-12 depende do event loop, que é o oposto do que o código faz.
-  Trocar o comentário por "o `finally` de `_answer` fecha o iterador
-  explicitamente" e substituir o laço por uma asserção direta.
-- **Nenhum piso de cobertura guarda `app/chat.py`, `app/api/conversations.py` e a
-  metade de chat de `adapters/gemini.py`.** A fase levanta isso no §9 e tem razão
-  ao dizer que ampliar o `--cov-fail-under` mudaria `pyproject.toml`, fora do
-  escopo. Medi hoje: 96%, 82% e 90%. Como não há piso, nada impede que caiam.
-  Item para uma decisão do owner, não para esta fase.
-- **A lacuna do `GeminiChatClient` (`test_gemini_adapter.py`) está corretamente
-  atribuída à `A.4`.** O §9 desta fase a levanta; registrei-a como IMPORTANTE
-  lá, não aqui — `test_gemini_adapter.py` não pertence ao escopo desta fase.
+  `app/chat.py:292` chama `await _close_stream(stream)` no `finally` desde o
+  commit `8a1c5f0` — que é justamente o conserto que esta fase descobriu. O laço
+  `for _ in range(5): … await asyncio.sleep(0)` que o comentário justifica é
+  código morto: `cliente.closed` já é `True` na primeira volta. Não bloqueia
+  nada, mas ensina o oposto do que o código faz, e é barato: trocar o comentário
+  por "o `finally` de `_answer` fecha o iterador explicitamente" e substituir o
+  laço por `assert cliente.closed`.
+- **Nenhum piso de cobertura guarda `app/chat.py` (96%),
+  `app/api/conversations.py` (82%) e a metade de chat de `adapters/gemini.py`
+  (97%).** Repetida da tentativa 1, e a fase segue tendo razão em dizer que
+  ampliar o `--cov-fail-under` mudaria `pyproject.toml`, fora do escopo. Com os
+  três números tão altos, ampliar o alvo do gate hoje custaria pouco — é decisão
+  do owner, não desta fase.
 
 ## 6. Comandos rodados + saídas reais
 
 ```text
-$ git merge-base --is-ancestor 37f27e7 HEAD && echo OK
-OK
+$ bash ~/.codeflow/framework/core/scripts/run-structural.sh \
+       .codeflow/specs/02-chat-rag/SPEC_02_CHAT_RAG.md
+✓ §5 estruturalmente válida
+EXIT=0
 
+$ git merge-base --is-ancestor e2b7825 HEAD && echo OK
+OK
+$ git merge-base --is-ancestor 8a1c5f0 e2b7825 && echo "o conserto está no range da A.4"
+o conserto está no range da A.4
+```
+
+**Escopo da fase, conferido no diff e não no relatório** — os arquivos que o
+`range` desta fase toca fora de `.codeflow/`:
+
+```text
+$ git diff 77175cd..e2b7825 --stat -- backend/ db/ .env.example
+ backend/app/adapters/gemini.py       (A.4: prazo do turno)
+ backend/app/adapters/repository.py   (A.3: varredura iterativa)
+ backend/app/chat.py                  (A.4: conserto de FR-11, commit 8a1c5f0)
+ backend/tests/conftest.py            ← desta fase
+ backend/tests/fakes.py               ← desta fase
+ backend/tests/test_chat_api.py       ← desta fase
+ backend/tests/test_chat_security.py  ← desta fase
+ backend/tests/test_gemini_adapter.py (A.4)
+ backend/tests/test_retrieval.py      (A.3)
+```
+
+O `range` desta fase engloba commits das outras duas porque as três compartilham
+o mesmo `sha_final` — é consequência de terem sido reworkadas juntas, não
+reivindicação de autoria. O §3 do relatório nomeia só os dois arquivos da fase,
+e o §4 atribui `app/chat.py` à `A.4`. É o que resolve o achado.
+
+**Gates, rodados por mim na ponta da branch:**
+
+```text
 $ make check
 cd backend && uv run ruff check .    → All checks passed!
 cd backend && uv run mypy app        → Success: no issues found in 23 source files
-cd backend && uv run lint-imports --config .importlinter
 Camadas: main -> api -> (chat | ingestion) -> adapters -> core KEPT
 Nucleo puro: core nao conhece I/O nem framework KEPT
 Sem framework de RAG KEPT
 Sem ORM nem query builder KEPT
 Contracts: 4 kept, 0 broken.
 
-collected 265 items / 17 deselected / 248 selected
-tests/test_architecture.py ...                                           [  1%]
-tests/test_chat_api.py ...................                               [  8%]
-tests/test_chat_security.py ................                             [ 15%]
+tests/test_gemini_adapter.py ........................................... [ 60%]
+tests/test_retrieval.py .................                                [ 96%]
 ...
 app/core/condensation.py      31      0     10      0   100%
 app/core/models.py            40      0      0      0   100%
 app/core/prompt.py            28      0      6      0   100%
 app/core/retrieval.py         21      0      4      0   100%
-TOTAL                        178      0     44      1    99%
 Required test coverage of 90% reached. Total coverage: 99.55%
-248 passed, 17 deselected in 11.67s
+262 passed, 19 deselected in 11.28s
 
 cd frontend && npm run test
-Test Files  10 passed (10) | Tests  75 passed (75)
+Test Files  10 passed (10) | Tests  84 passed (84)
 [exited with code 0]
 
 $ make security
 bandit -q -r app             → (sem saída)
 pip-audit                    → No known vulnerabilities found
 npm audit --audit-level=high → found 0 vulnerabilities
-SEC_EXIT=0
+SEC=0
+
+$ cd backend && uv run pytest -m db -q   → 19 passed, 262 deselected
+
+$ cd backend && uv run pytest tests/test_chat_api.py -q      → 21 passed
+$ cd backend && uv run pytest tests/test_chat_security.py -q → 16 passed
 ```
 
-Verificação de que o piso de cobertura **não** foi afrouxado (escopo travado):
+**Piso de cobertura não afrouxado:**
 
 ```text
-$ git diff dd621eb..37f27e7 -- backend/pyproject.toml
+$ git diff 77175cd..e2b7825 -- backend/pyproject.toml
 (sem diff)
 $ grep -n "cov-fail-under" backend/pyproject.toml
-70:addopts = "-m 'not db' --cov=app.core --cov-report=term-missing --cov-fail-under=90"
+70: addopts = "-m 'not db' --cov=app.core --cov-report=term-missing --cov-fail-under=90"
 ```
 
-Verificação de que não sobrou `skip`/`xfail` mascarando nada:
-
-```text
-$ collected 265 items / 17 deselected / 248 selected
-  248 passed  — nenhum "skipped", nenhum "xfailed" na saída
-```
-
-O `xfail(strict=True)` citado no §4 do relatório foi mesmo removido; a única
-saída com `1 xfailed` que o relatório mostra é a execução **anterior** à
-correção, e está identificada como tal.
-
-Confirmação do comportamento que o commit `8a1c5f0` conserta (o AC-12 do lado
-`pre_stream`), lida no código e provada pelo teste:
-
-```text
-app/chat.py:297   if failure is not None and not parts:
-app/chat.py:304       raise failure          → sobe como AppError, vira envelope HTTP
-tests/test_chat_api.py:506  test_quota_na_abertura_do_stream_sai_como_http_429 → passa
-```
+**Nenhum `skip`/`xfail` mascarando nada:** a coleta fecha em `262 passed`, sem
+linha de `skipped` ou `xfailed`.
 
 ## 7. Itens da fase / DoD não atendidos
 
-- **Lista de arquivos alterados da fase:** `app/chat.py` a mais (§4 I-1).
-- Todo o resto atendido com evidência: `Passos` 1–4, os doze ACs, `make test`
-  verde sem chave e sem banco, cobertura de `core/` ≥ 90%, `make security` com
-  código zero, `make arch` passando com os módulos novos.
+Nenhum. A lista de arquivos alterados voltou a bater com a §5 da spec, e todos os
+demais itens (`Passos` 1–4, doze ACs, `make test` sem chave e sem banco,
+cobertura de `core/` ≥ 90%, `make security` zero, `make arch` com os módulos
+novos) seguem atendidos com evidência.
 
 ## 8. Divergências entre o relatório e o código real
 
-- **Nenhuma divergência de fato.** Cada AC listado na tabela do §6 do relatório
-  aponta para um teste que existe e passa; conferi os nomes um a um contra a
-  coleta do pytest.
-- **Uma incoerência interna, do lado do código:** o relatório afirma, com razão,
-  que "o iterador é fechado explicitamente no `finally`" — e o comentário do
-  teste que a mesma fase escreveu afirma o contrário (§5). Os dois não podem
-  estar certos; o código está do lado do relatório.
+- **Nenhuma.** O §3 e o §4 do `EXECUCAO` descrevem corretamente a nova
+  atribuição do commit `8a1c5f0`, e o §8 explica o que mudou nesta tentativa sem
+  reivindicar mudança de código que não houve. Os números que ele cola (260
+  offline, 19 `db`) são os da árvore que o executor validou; na ponta atual eu
+  medi **262 offline** — a diferença são os dois testes de backend que o commit
+  `e76fbed`, posterior e do Track B, acrescentou.
+- **A incoerência interna apontada na tentativa 1 permanece**, e é a única: o
+  comentário de `test_chat_api.py:626-630` contra `app/chat.py:292` (§5). Está
+  como sugestão, não como achado — não muda comportamento.
+
+**Nota de perímetro:** o `HEAD` (`e76fbed`) alterou `backend/app/chat.py` e
+`backend/tests/test_chat_api.py` — o segundo é arquivo **desta** fase — dentro de
+um rework do **Track B**, depois do `sha_final` avaliado aqui. Auditei a
+mudança: acrescenta dois testes do turno de retomada (19 → 21 em
+`test_chat_api.py`, conferido por mim) e não altera nenhuma asserção existente
+desta fase. Não é achado contra a
+`A.6`; é a mesma classe de problema que o I-1 fechou, agora vinda do outro track,
+e cabe à avaliação do Track B tratá-la.

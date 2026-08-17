@@ -2,43 +2,44 @@
 spec: 02-chat-rag
 fase: A.3
 slug_fase: retrieval
-tentativa: 1
-veredito: RESSALVAS
-score: 9.3
+tentativa: 2
+veredito: APROVADO
+score: 9.8
 threshold: 8.5
-range_avaliado: 604391b091686eb4ad60533f307b2006f0313b60..7fe47de9ac92e62523d38eab7366615b7d70d0bb
+range_avaliado: 604391b091686eb4ad60533f307b2006f0313b60..e2b78250d82d3317abefa9359ac2a46d694a6105
 ---
 
-# FASE A.3 — Avaliação independente
+# FASE A.3 — Avaliação independente (tentativa 2)
 
 ## 1. Veredito e score
 
-**Veredito:** RESSALVAS · **Score:** 9.3 / threshold 8.5
+**Veredito:** APROVADO · **Score:** 9.8 / threshold 8.5
 
-Zero BLOQUEANTES. **Um IMPORTANTE**, e é o achado mais consequente desta
-avaliação: no regime em que o índice HNSW é de fato usado, a query de
-`search_chunks` pode devolver **menos chunks do que o `LIMIT` pede** — no limite,
-zero —, porque o filtro por `document_id` é aplicado **depois** do índice. Isso
-vira falsa recusa silenciosa. Reproduzi o efeito no banco do projeto (§6).
+Zero BLOQUEANTES, zero IMPORTANTES. O achado I-1 da tentativa 1 está fechado, e
+eu não me contentei em ler a correção: **reproduzi o defeito e a cura contra o
+banco do projeto**, com dados sintéticos criados e apagados por mim (§6). No
+mesmo cenário — documento alvo de 20 chunks, vizinho de 200, `Index Scan`
+forçado, `ef_search = 2` — a query pediu 5 e recebeu **0** sem a linha da
+correção, e **5, todas do documento certo**, com ela.
 
-O resto da fase é sólido: confirmei de forma independente que o operador `<=>`
-casa com o opclass `vector_cosine_ops` do índice, e o isolamento por documento,
-o top-k e o recorte do snippet estão provados por teste.
+O que mais pesa a favor da tentativa: o executor **provou o teste falhando**
+antes de corrigir, colando o `assert 0 == 5`. Um teste de regressão que ninguém
+viu vermelho é uma afirmação, não uma garantia.
 
 ## 2. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 4 | AC-6/AC-7/AC-8/AC-10/AC-26 provados (`tests/test_retrieval.py:52-157,214-269`); o operador `<=>` é o do índice, confirmado por mim com `EXPLAIN` (§6); desconta: o gate "busca real devolve chunks do documento certo" não vale **na quantidade pedida** quando o índice é usado (§4) |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | `core/retrieval.py` importa só `core.models`; a conversão distância→score acontece no adapter chamando `core` (`repository.py:508`), e o resto do pipeline nunca vê distância; `pure-core` KEPT |
-| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | `_SEARCH_CHUNKS_SQL` é 100% placeholder (`repository.py:118-124`); o `document_id` entra no `WHERE` da própria query, não como filtro em Python; `tests/test_chat_security.py:441` assere que não há interpolação |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `RetrievedChunk` e `vector_literal` reusados; `search_chunks` entrou no protocolo existente em vez de criar um terceiro, com a razão documentada (`repository.py:194-197`) |
-| 5 | Padrões de domínio/aplicação | 2 | 4 | Limiar `>=`, grampo em `[0,1]` contra resíduo de float e `take_top_k` reordenando por conta própria são acertos; desconta: o par "HNSW + filtro posterior" é a forma reconhecidamente frágil de busca vetorial filtrada (§4) |
-| 6 | Local e nomes dos arquivos | 2 | 5 | Os três caminhos batem com a lista da fase |
-| 7 | Qualidade de código | 2 | 5 | Cinco funções puras, todas curtas e com docstring de "por quê"; `build_snippet` põe as reticências **dentro** do limite, o que o teste cobra |
-| 8 | Testes e cobertura | 2 | 4 | 17 offline + 4 sob `db`, `core/retrieval.py` em 100%; desconta: nenhum teste exercita a busca com **mais de um documento no índice** em escala em que o plano use o índice — que é exatamente onde o achado de §4 mora |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | AC-6/AC-7/AC-8/AC-10/AC-26 seguem provados; o gate "busca real devolve chunks do documento certo" agora vale **também** no regime de índice, que é onde não valia (§6) |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | A correção ficou no adapter, onde o SQL mora; `core/retrieval.py` não mudou uma linha — as regras puras seguem puras, `pure-core` KEPT |
+| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | `_ITERATIVE_SCAN_SQL` (`repository.py:143`) é literal constante, sem entrada externa (GUC não aceita placeholder, e o comentário diz isso); `SET LOCAL` não vaza para o pool — testado (`test_retrieval.py:344`) e reconferido por mim |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | Nada duplicado; `take_top_k` continua sendo quem ordena, e é por isso que `relaxed_order` basta |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | `relaxed_order` em vez de `strict_order` é a escolha certa e está justificada: conferi que `filter_by_threshold`, `take_top_k` e `_top_score` são todos indiferentes à ordem de chegada |
+| 6 | Local e nomes dos arquivos | 2 | 5 | Só `repository.py` e `test_retrieval.py`, ambos da fase |
+| 7 | Qualidade de código | 2 | 4 | Comentário de 15 linhas explicando o porquê, no ponto certo; desconta: a fixture usa `ALTER ROLE`, que muda estado **global** do banco (§5) |
+| 8 | Testes e cobertura | 2 | 5 | Dois testes novos sob `db` — o de regressão e o de não-vazamento —, com o de regressão **demonstrado falhando** sem a correção; 19 testes `db` verdes na minha execução |
 
-Score = (4·3 + 5·3 + 5·3 + 5·3 + 4·2 + 5·2 + 5·2 + 4·2) / 20 × 2 = **9.3**
+Score = (5·3 + 5·3 + 5·3 + 5·3 + 5·2 + 5·2 + 4·2 + 5·2) / 20 × 2 = **9.8**
 
 ## 3. Achados BLOQUEANTES
 
@@ -46,116 +47,107 @@ Nenhum.
 
 ## 4. Achados IMPORTANTES
 
-### I-1 — `backend/app/adapters/repository.py:118-124`: o filtro por `document_id` é aplicado depois do índice HNSW, e a busca pode devolver menos chunks do que pediu
-
-```sql
-SELECT chunk_index, page_number, content, embedding <=> $2::vector AS distance
-  FROM chunks
- WHERE document_id = $1
- ORDER BY embedding <=> $2::vector
- LIMIT $3
-```
-
-Num `Index Scan` sobre HNSW, o pgvector devolve os vizinhos **globais** mais
-próximos (até `ef_search`, default 40) e só então o `Filter: (document_id = ...)`
-descarta o que veio de outro documento. Com `hnsw.iterative_scan` desligado — que
-é o **default** do pgvector 0.8 e é como o `db/001_init.sql` deixa o índice —, o
-resultado não é reposto: a query simplesmente devolve menos linhas.
-
-**Efeito no produto:** `search_chunks` devolve 2 chunks em vez de 5, ou nenhum. O
-pipeline não distingue "não achei" de "o índice não me deixou ver" — `has_grounding`
-dá `False` e o turno vira **recusa** (`chat.py:107-111`) numa pergunta que o
-documento responde. É falsa recusa silenciosa, que ataca justamente o eixo que a
-`FEAT-0002` existe para provar, e é invisível: nenhum erro, nenhum log anômalo.
-
-**Por que não morde hoje:** com 30 chunks o planejador escolhe varredura
-sequencial, que é exata. O defeito acorda quando a tabela cresce o bastante para
-o índice ser escolhido — e já há três documentos no banco.
-
-**Reproduzido por mim** (§6): forçando `Index Scan` e reduzindo `ef_search`, a
-mesma query pediu 5 e recebeu **1** linha, num documento que tem 10 chunks.
-
-**Correção sugerida** (uma das três, por ordem de custo):
-
-1. `SET LOCAL hnsw.iterative_scan = relaxed_order` na conexão antes da busca
-   (pgvector ≥ 0.8, que é o da imagem) — o índice passa a repor candidatos até
-   completar o `LIMIT`;
-2. subir `hnsw.ef_search` para um múltiplo do top-k;
-3. se nenhuma entrar, **registrar em "limitações conhecidas" do README** (`B.5`)
-   com estas palavras: a busca é exata enquanto o corpus for pequeno.
-
-Qualquer que seja a escolha, acrescentar o teste que falta: com dois documentos
-e o índice forçado, `search_chunks(A, ...)` devolve `min(limit, chunks de A)`.
+Nenhum. O I-1 da tentativa 1 está **fechado e verificado independentemente**.
 
 ## 5. Sugestões
 
-- **`repository.py:508` — `similarity_from_distance` arredonda a 3 casas antes de
-  o score circular.** O próprio relatório levanta a alternativa (score cru no
-  payload, arredondamento só na exibição). Como o limiar medido na `A.5` tem
-  ~0,10 de folga para cada lado, três casas não mudam nenhuma decisão. Fica como
-  está; anotado para não ser redescoberto.
-- **`core/retrieval.py:62` — `take_top_k` reordena o que o `ORDER BY` já ordenou.**
-  Custo desprezível e a razão está documentada (a `A.7` passaria listas fundidas).
-  Concordo com a decisão.
+- **`backend/tests/test_retrieval.py:301-310` — a fixture muda estado global do
+  banco.** `ALTER ROLE talkdoc SET enable_seqscan = off` persiste no papel, não
+  na sessão: se o processo de teste morrer entre o `ALTER` e o `RESET` do
+  `finally` (SIGKILL, falta de energia, timeout do CI), o papel fica com
+  `seqscan` desligado **para sempre**, e toda consulta do projeto passa a rodar
+  num plano que ninguém escolheu. O `try/finally` cobre o caso normal e o
+  cenário é remoto — mas existe uma alternativa sem estado global: criar o pool
+  do teste com `asyncpg.create_pool(..., server_settings={"enable_seqscan":
+  "off", "hnsw.ef_search": "2"})`, que aplica as opções por conexão. O teste
+  usa um pool próprio de qualquer forma, então trocar o `Database` do projeto
+  por um `create_pool` direto ali não custa nada.
+- **Custo novo por busca: uma conexão adquirida e uma transação aberta**
+  (`repository.py:521`). Antes era `pool.fetch` direto. É desprezível em
+  absoluto, e o `SET LOCAL` exige a transação — mas fica registrado que a busca
+  passou a ser a única leitura do projeto que abre transação, o que alguém pode
+  estranhar depois sem o comentário que hoje está lá.
+- **Mantida da tentativa 1, ainda válida:** `similarity_from_distance`
+  arredondando a 3 casas. O executor optou por não mexer, citando a minha
+  própria conclusão de que não muda decisão nenhuma com 0,10 de folga de cada
+  lado. Concordo — registro só para não ser redescoberto.
 
 ## 6. Comandos rodados + saídas reais
 
 ```text
-$ git merge-base --is-ancestor 7fe47de HEAD && echo OK
+$ bash ~/.codeflow/framework/core/scripts/run-structural.sh \
+       .codeflow/specs/02-chat-rag/SPEC_02_CHAT_RAG.md
+✓ §5 estruturalmente válida
+EXIT=0
+
+$ git merge-base --is-ancestor e2b7825 HEAD && echo OK
 OK
 
 $ make check
 Contracts: 4 kept, 0 broken.
 app/core/retrieval.py         21      0      4      0   100%
 Required test coverage of 90% reached. Total coverage: 99.55%
-248 passed, 17 deselected in 11.67s
-Test Files  10 passed (10) | Tests  75 passed (75)
+262 passed, 19 deselected in 11.28s
+Test Files  10 passed (10) | Tests  84 passed (84)
 [exited with code 0]
 
+$ make security
+bandit -q -r app             → (sem saída)
+pip-audit                    → No known vulnerabilities found
+npm audit --audit-level=high → found 0 vulnerabilities
+SEC=0
+
 $ cd backend && uv run pytest -m db -p no:cacheprovider --no-cov -q
-17 passed, 248 deselected in 3.42s
+19 passed, 262 deselected in 1.71s
 ```
 
-**Confirmação independente de que o `<=>` casa com o opclass do índice** — com
-`enable_seqscan = off` para tirar o tamanho da tabela da conta:
+**Reprodução independente do defeito e da cura.** Criei dois documentos
+sintéticos sob um `session_id` próprio (`AVALIADOR-…`), rodei a query exata do
+adapter com e sem a linha da correção, e apaguei tudo no fim:
 
 ```text
-Limit  (cost=4033.42..4047.78 rows=1 width=67)
-  ->  Index Scan using chunks_embedding_idx on chunks  (cost=4033.42..4047.78 rows=1 width=67)
-        Order By: (embedding <=> '[0.01,...]'::vector)
-        Filter: (document_id = '97959135-...'::uuid)
+documento alvo: 20 chunks | vizinho: 200 chunks | LIMIT pedido: 5
+  SEM  SET LOCAL hnsw.iterative_scan -> 0 linhas
+  COM  SET LOCAL hnsw.iterative_scan -> 5 linhas
+  todas do documento alvo? True
+  plano: ->  Index Scan using chunks_embedding_idx on chunks  (cost=492.30..508.80 rows=1 width=471)
+limpeza: chunks restantes no banco = 10
 ```
 
-**Reprodução do achado I-1** — mesma query, mesmo banco, três valores de
-`ef_search`, documento com 10 chunks pedindo 5:
+Zero linhas. O turno recusaria uma pergunta que o documento responde — que é
+exatamente o que o achado descrevia, e agora está medido nos dois estados.
+
+**Confirmação de que a opção não vaza da transação:**
 
 ```text
-chunks por documento: [('d136750b', 10), ('97959135', 10), ('64e6f8bf', 10)]
-
-ef_search= 40 -> 5 linhas (pedidas 5) para o documento d136750b
-ef_search=  4 -> 1 linhas (pedidas 5) para o documento d136750b
-ef_search=  1 -> 1 linhas (pedidas 5) para o documento d136750b
+$ SHOW hnsw.iterative_scan   (depois de uma busca, na mesma conexão)
+off
 ```
 
-O que `ef_search` baixo simula aqui é o que o **volume** produz em produção: o
-vizinhado global deixa de ser dominado pelo documento da conversa.
+**Estado do banco ao fim da avaliação** (nada meu ficou para trás, GUCs de papel
+restaurados):
+
+```text
+documentos: 2 | chunks: 18        (os dois do gate do executor, nenhum meu)
+enable_seqscan: on | hnsw.ef_search: 40 | hnsw.iterative_scan: off
+```
 
 ## 7. Itens da fase / DoD não atendidos
 
-- **Critério de conclusão da fase:** "busca real devolve chunks do documento
-  certo **e** `EXPLAIN` mostra uso do índice". As duas metades foram provadas
-  isoladamente — a primeira em varredura sequencial, a segunda com um documento
-  sintético de 2.000 chunks (todos do mesmo documento, portanto sem filtro
-  efetivo). **A conjunção nunca foi exercitada**, e é nela que o I-1 mora.
-- Demais `Passos` (1–5) e `Testes` da fase: atendidos com evidência.
+Nenhum. O critério de conclusão da fase — "busca real devolve chunks do
+documento certo **e** `EXPLAIN` mostra uso do índice" — agora vale nas duas
+metades **ao mesmo tempo**, que era precisamente a conjunção que a tentativa 1
+não exercitava.
 
 ## 8. Divergências entre o relatório e o código real
 
-- **Nenhuma divergência factual.** O `EXPLAIN` colado no relatório é reprodutível
-  e o operador é mesmo o do índice — reconfirmei acima.
-- **Uma leitura otimista, porém:** o relatório apresenta o plano com 2.000 chunks
-  como prova de que "a busca real devolve chunks do documento certo" **e** usa o
-  índice. Naquele cenário todos os 2.000 chunks eram do mesmo documento, então o
-  `Filter` não descartou nada — o teste não podia expor o I-1. A afirmação do
-  relatório é verdadeira; a garantia que o leitor tira dela é maior do que a
-  evidência sustenta.
+Nenhuma. O §8 do `EXECUCAO` descreve a correção, o teste e a prova de que o
+teste morde; conferi os três contra o código, contra a suíte e contra o banco. A
+saída que o relatório cola (`assert 0 == 5`) é coerente com o que a minha
+reprodução independente mediu (0 linhas sem a correção).
+
+**Nota de perímetro, fora da responsabilidade desta fase:** o `HEAD` da branch
+(`e76fbed`) é posterior ao `range` avaliado e alterou `backend/app/chat.py` e
+`backend/tests/test_chat_api.py` — arquivos do Track A — dentro de um rework do
+Track B. Não toca nada desta fase; está registrado aqui e no fecho conjunto
+porque é a mesma classe de problema que o I-1 da `A.6` fechou.
