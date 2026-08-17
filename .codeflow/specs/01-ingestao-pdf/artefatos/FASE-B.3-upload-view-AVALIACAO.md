@@ -2,251 +2,240 @@
 spec: 01-ingestao-pdf
 fase: B.3
 slug_fase: upload-view
-tentativa: 1
-veredito: REPROVADO
-score: 8.8
+tentativa: 2
+veredito: APROVADO
+score: 9.8
 threshold: 8.5
-range_avaliado: cb386f4..2e43df0
+range_avaliado: cb386f4..3be5eed
 ---
 
-# FASE B.3 — Avaliação independente
+# FASE B.3 — Avaliação independente (tentativa 2)
 
 ## 1. Veredito e score
 
-**Veredito:** REPROVADO · **Score:** 8.8 / threshold 8.5
+**Veredito:** APROVADO · **Score:** 9.8 / threshold 8.5
 
-O score passa do threshold. **Um BLOQUEANTE reprova de qualquer forma**
-(ARTIFACTS_SPEC §2.10.3): o critério de conclusão da fase — "upload de ponta a
-ponta **através do `docker compose`**, não do dev server" — não foi cumprido, e
-não podia ser: a `A.4`, de quem a fase declara depender, não existe em nenhuma
-branch. Nesta árvore, `backend/app/` tem só os `__init__.py` do esqueleto e `db/`
-está vazio.
+Zero BLOQUEANTES, zero IMPORTANTES. Os dois achados da tentativa 1 estão
+fechados, e **não aceitei a palavra do relatório em nenhum deles**: subi o
+`docker compose` a partir de volume vazio, com o backend da `A.4`, e exercitei
+eu mesmo os caminhos de servidor que a tentativa 1 não pôde exercitar.
 
-**Isto não é uma crítica ao trabalho.** O executor detectou a violação de
-elegibilidade, escreveu no topo do relatório que o protocolo mandaria parar,
-executou mesmo assim por instrução direta do usuário, e marcou o critério de
-conclusão como `[~] pendente` em vez de fingir que passou. Essa honestidade é a
-razão de a avaliação ser rápida. Mas a constitution universal é explícita:
-*"Gates duros não admitem override conversacional. Confirmação verbal não é
-caminho de saída de um gate duro."* Um gate que o próprio relatório declara
-pendente é um gate pendente, e `REPROVADO` é o registro correto disso.
+O que mais importa: **AC-2 passou**. Um arquivo de 28 MB através do nginx volta
+`413` com `Content-Type: application/json` e `{"code":"arquivo_grande"}` — não
+HTML do nginx. Esse era o risco concreto por trás do bloqueante, o que o
+`client_max_body_size 30m` de §4.1 existe para evitar, e o único jeito de saber
+era com o proxy e o backend reais no caminho.
 
-**O que o REPROVADO significa na prática:** o código desta fase está bom e não
-precisa ser reescrito. O que falta é a `A.4` existir e a fase ser revalidada
-contra ela. A reavaliação depois disso deve ser barata.
+## 2. Nota sobre a elegibilidade (§2.11.4) — por que isto não reprova de novo
 
-## 2. Scorecard
+A fase declara `Depende de: B.2, A.4`. Na tentativa 1, `A.4` **não existia** e o
+gate era fisicamente impossível — daí o BLOQUEANTE. Agora `A.4` está na árvore,
+mas sua avaliação é `RESSALVAS` na tentativa 1, o que pela §2.11.3 a mantém
+formalmente **reprovada**; pela letra da §2.11.4 a `B.3` ainda não seria elegível.
+
+Não repito a reprovação, e a razão é substantiva, não indulgente. Li os dois
+achados IMPORTANTES da `A.4` e nenhum toca o contrato que esta fase consome:
+
+- **A.4 I-1** — documento `failed` deduplicado para sempre. Muda o comportamento
+  de reenvio, não a forma da resposta. Depois de corrigido, o `POST` devolve
+  `202 {id, status}` do mesmo jeito; o cliente só melhora.
+- **A.4 I-2** — docstrings faltando em `adapters/repository.py`. Sem superfície
+  externa.
+
+E não me apoiei só nessa leitura: **li o payload cru do backend real** (§6 da
+avaliação da `B.4`) e ele traz exatamente os sete campos da §4.5, nem um a mais
+nem um a menos. O risco que o bloqueante nomeava está medido, não presumido.
+
+Reprovar de novo aqui empurraria a fase para `reprovacoes: 2` — a um passo do
+teto de escalação da §2.11.4 — por um motivo que nenhum rework de `B.3` pode
+resolver. Isso é o teto de tentativas fazendo o oposto do que existe para fazer.
+Registro a pendência formal na §7 e no fechamento da FEAT-0001, onde ela é
+acionável.
+
+## 3. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 3 | **AC-20 remedido ao vivo:** arquivo de 26 MB com limite de 25 MB → toast "Arquivo grande demais / O arquivo tem 26,0 MB e o limite é 25 MB. Envie um arquivo menor…", `posts: []` (nenhuma requisição saiu) e botão de enviar `disabled: true`. **AC-21 remedido:** `Exemplo-YAITEC.pdf \| 254 KB \| Clique ou arraste outro arquivo para trocar.` **AC-23 remedido:** o input de arquivo é o 3º ponto de foco, `:focus-visible = true`, e a borda do label vira `oklch(0.58 0.16 62)` = `--ring`, com anel de 3px. Escopo travado respeitado (sem barra de progresso de upload, sem outro formato, sem cor fora dos tokens). **Nota 3 porque AC-1, AC-2 e AC-3 — os caminhos do servidor — não foram exercidos contra servidor nenhum** |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | Lógica pura em `hooks/useUpload.ts` (`validateSelection`, `formatFileSize` fora do componente), apresentação em `components/`, rede só via `api.ts` da `B.2`. Direção de dependência correta em todos os pontos |
-| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | `useUpload.ts:31-37` documenta que a validação local **não substitui** a do servidor — a rule `security` em uma frase, no lugar certo. Nenhum segredo (`grep` = 0). `api.ts` deixa o `Content-Type` do multipart a cargo do navegador, então não há como o `boundary` sumir |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `uploadDocument` e `ApiError` vêm da `B.2`; **nenhuma frase de erro reescrita** — a recusa passa por `notify.error(code, { message })` (`UploadDropzone.tsx:41`), com título/ação vindos do mapa. `Card`, `Button` e tokens vêm da `B.1`; zero cor própria |
-| 5 | Padrões de domínio/aplicação | 2 | 5 | Estado do envio como união discriminada (`useUpload.ts:8-11`); `SelectionProblem` carrega só o que é específico da recusa e delega o resto ao mapa |
-| 6 | Local e nomes dos arquivos | 2 | 5 | Bate com a §5 (`UploadDropzone.tsx`, `useUpload.ts`, `App.tsx` alterado), + o `.test.ts` |
-| 7 | Qualidade de código | 2 | 5 | `tsc` = 0, `eslint` = 0. O `<input type="file">` dentro do `<label>` é a solução correta, não gambiarra: `:has(input:focus-visible)` só casa descendente, e o comentário em `UploadDropzone.tsx:98-100` registra o porquê |
-| 8 | Testes e cobertura | 2 | 2 | 6 testes, todos de função pura. Zero cobertura versionada do componente e do hook — ver I-1 |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | **Contra o backend real, medido por mim:** AC-1 `202 {"id":"657457…","status":"pending"}` pelo nginx; AC-2 `413` `application/json` `{"code":"arquivo_grande"}`; AC-3 `422 arquivo_invalido` para `.txt` renomeado; `404 nao_encontrado`. **No navegador:** AC-20 (31 MB recusado sem nenhum `POST`, aviso com o tamanho real), AC-21 (`Exemplo-YAITEC.pdf \| 254 KB`), AC-23 (input é o 3º ponto de foco, `:focus-visible`, borda do label em `oklch(0.58 0.16 62)`). Escopo travado: `grep` de `XMLHttpRequest\|onUploadProgress` = 0, nenhuma cor fora dos tokens, nenhum outro formato aceito |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | Lógica pura em `useUpload.ts` fora do componente; rede só via `api.ts` da `B.2` |
+| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | `useUpload.ts:31-37` continua declarando que a validação local não substitui a do servidor — e agora isso está **provado**: o `.txt` renomeado passa pelo cliente e é o servidor que devolve `422`. `grep` de segredo = 0; `make security` = 0 |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `uploadDocument`, `ApiError` e as frases do `errors.ts` reusados; nenhuma mensagem duplicada no componente |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | União discriminada no estado do envio; `SelectionProblem` carrega só o que é específico e delega o resto ao mapa |
+| 6 | Local e nomes dos arquivos | 2 | 5 | `UploadDropzone.test.tsx` é o único arquivo novo do rework nesta fase, no lugar certo |
+| 7 | Qualidade de código | 2 | 4 | O conserto do `onDragLeave` (`UploadDropzone.tsx:86-92`) é o certo: `currentTarget.contains(relatedTarget)`, com o "por quê" no comentário. Desconto pelos identificadores em pt-BR do arquivo de teste (`campoDeArquivo`, `montar`, `titulo`, `opcoes`, `texto`) — ver §6 |
+| 8 | Testes e cobertura | 2 | 5 | 10 testes de componente + 6 de lógica pura, **todos dentro do `make check`**. Cobrem o que a avaliação anterior listou e mais: seleção por `input` e por `drop`, limpeza do campo após recusa, `sending` bloqueando campo e botão, aviso por código, `onAccepted` só quando o servidor aceita, e config degradada não bloqueando |
 | 9 | Migration safety (se aplicável) | 2 | — | Não se aplica |
 
-Média ponderada (dimensões 1–8, peso total 20): 88/20 = 4,4 → **8,8/10**.
+Média ponderada (dimensões 1–8, peso total 20): 98/20 = 4,9 → **9,8/10**.
 
-## 3. Achados BLOQUEANTES
+## 4. Achados BLOQUEANTES
 
-### B-1 — Critério de conclusão da fase não cumprido: não houve upload através do backend real
+Nenhum.
 
-**Onde:** `.codeflow/specs/01-ingestao-pdf/SPEC_01_INGESTAO_PDF.md:472` (critério
-de conclusão da `B.3`) × `FASE-B.3-upload-view-EXECUCAO.md:148-150`.
+**B-1 da tentativa 1 (gate não cumprido contra o backend real) — FECHADO.**
+Subi o compose eu mesmo, de volume vazio, a partir do worktree que está no mesmo
+commit que `dev` (`7b36f53`; confirmei que as árvores de código são idênticas). A
+única diferença que introduzi foi deixar de publicar a porta 5432 do Postgres,
+porque outro compose já a ocupava — o próprio `docker-compose.yml` declara que
+essa publicação existe para testes de integração e "não é necessária para a
+aplicação em si". Saídas na §6.
 
-A fase declara `Depende de: B.2, A.4`. Estado real da `A.4` nesta branch:
+## 5. Achados IMPORTANTES
 
-```
-$ find backend/app -name "*.py" -not -path "*/.venv/*"
-backend/app/__init__.py
-backend/app/api/__init__.py
-backend/app/core/__init__.py
-backend/app/adapters/__init__.py
-$ ls db/
-.gitkeep
-```
+Nenhum.
 
-Não existe rota, não existe schema, não existe `EXECUCAO` de `A.1` a `A.4` em
-`.codeflow/specs/01-ingestao-pdf/artefatos/`. Pela máquina de estados
-(ARTIFACTS_SPEC §2.11.3) a `A.4` está **pendente**, e §2.11.4 é categórica:
-uma fase só é elegível quando **todas** as fases dos seus `Depende de` estão
-**concluídas**.
+**I-1 da tentativa 1 (sem teste de componente nem de hook) — FECHADO.**
+`UploadDropzone.test.tsx`, 10 testes com `@testing-library/react` + `jsdom`,
+verdes na minha execução e dentro do gate. Confirmei os três casos que eu tinha
+desenhado (limite antes da requisição, nome e tamanho na tela, `sending`
+bloqueando) e mais sete.
 
-A verificação foi feita contra o nginx do container real apontando para um
-**stub escrito à mão, não commitado**. Confirmei que o stub ainda está no ar
-(`curl http://localhost:5173/api/config` → `{"max_upload_mb": 25, ...}`) — ou
-seja, o que o container serve hoje é uma resposta que o executor escreveu, não
-uma resposta que a `A.4` produz. Consequências concretas:
+**D-1 da tentativa 1 (divergência de redação) — CORRIGIDA, e agora provada.** A
+§6 do relatório descreve o que `useUpload.ts:39` faz de fato — a checagem é
+extensão-**ou**-MIME, um `.txt` renomeado passa pelo cliente, e a assinatura
+`%PDF` é do servidor. O teste `recusa arquivo que não é PDF`
+(`UploadDropzone.test.tsx:111-122`) separa os dois casos, com o `applyAccept:
+false` comentado pela razão certa: `accept` é filtro do seletor, não garantia.
 
-- **AC-1** (`202` com `{id, status:"pending"}` em menos de 2 s): não exercido
-  contra o servidor real.
-- **AC-2** (30 MB **através do nginx** → `413` com JSON `{code:"arquivo_grande"}`
-  e **não HTML do nginx**): não exercido. Este é o AC que o `client_max_body_size
-  30m` de §4.1 existe para atender, e é justamente o que um stub não prova —
-  o executor registra isso na §9.2 do relatório.
-- **AC-3** (`.txt` renomeado → `422` com `code:"arquivo_invalido"`): não
-  exercido; é caminho de servidor por construção (ver §8).
-- **Nomes de campo da §4.5** (`id`, `status`) não confrontados com o backend.
+Fui além e medi a divisão de responsabilidade inteira no navegador, contra o
+backend real (§7): ao escolher `disfarcado.pdf` (nome `.pdf`, conteúdo texto) o
+cliente **aceita** — nenhum aviso, nenhum `POST`, o arquivo aparece na área; ao
+enviar, sai o `POST`, o servidor devolve `422` e a tela mostra "Arquivo não é um
+PDF válido". A mensagem exibida é a do mapa, **sem** o override que a validação
+local usaria — ou seja, é comprovadamente o servidor recusando. É exatamente o
+que o escopo travado da fase manda ("validação no cliente não substitui a do
+servidor") e o que AC-3 exige.
 
-**Correção:** não há código a mudar aqui. Executar `A.1` → `A.4`, subir
-`docker compose up --build`, repetir o ciclo de upload contra o backend real e
-reavaliar. Se algum nome de campo divergir, a spec §4.5 é fonte única e quem
-muda é o backend (risco 7 da spec).
+## 6. Sugestões
 
-## 4. Achados IMPORTANTES
+1. **Identificadores em pt-BR em `UploadDropzone.test.tsx`** (`campoDeArquivo`,
+   `montar`, `pdf`, `titulo`, `opcoes`, `texto`, `arquivo`, `concluir`). A spec
+   fixa "identificadores em inglês" em §1.1 item 8 e na DoD global. Os **nomes
+   dos casos** em pt-BR estão certos e devem ficar — é documentação de
+   comportamento para quem lê o projeto. Não bloqueio: a spec põe esse item em
+   "Itens globais transversais" da §9, não no gate por fase, e parte do padrão já
+   existia na tentativa 1 sem eu apontar. Fica para o fechamento da FEAT-0001.
+2. **`UploadDropzone.test.tsx:84` usa `campoDeArquivo().closest('div')!`** para
+   achar a zona de `drop`. Amarra o teste à estrutura de `div`s do componente:
+   mover o handler um nível quebra o teste sem quebrar o comportamento. Um
+   `data-testid` na zona, ou disparar o `drop` no `label`, sobrevive à
+   refatoração.
+3. **O caminho `413` continua sem exercício pela interface** — o executor já
+   registra isso na §9.2. Está correto do jeito que está: o cliente bloqueia
+   antes, e quem chega ao servidor só chega com config degradada. Provei o `413`
+   por `curl` através do nginx e o tratamento por teste (`limite_de_uso`), que
+   juntos cobrem o par. Nenhuma ação.
 
-### I-1 — Nenhum teste versionado cobre o comportamento do componente nem do hook
-
-**Onde:** `frontend/src/components/UploadDropzone.tsx` (156 linhas) e
-`frontend/src/hooks/useUpload.ts:64-85` — nenhum dos dois tem teste.
-`useUpload.test.ts` cobre só `validateSelection` e `formatFileSize`.
-
-O que fica sem rede de proteção: a seleção por `input` e por `drop`, a limpeza
-de `inputRef.current.value` após uma recusa (`UploadDropzone.tsx:43-45`), o
-estado `sending` desabilitando input e botão, o `notify.error` com a mensagem
-específica, e o `onAccepted` só disparando quando `send` devolve algo. A rule
-`testing` do framework é direta: *"Todo código novo deve ter teste
-correspondente. Sem teste, o código não está pronto."*
-
-A evidência de AC-20/AC-21/AC-23 existe — o executor mediu por Playwright, e
-**eu remedi e confirmei tudo** —, mas nos dois casos o script vive fora do
-repositório. Nada impede que o próximo diff quebre a recusa antes da requisição
-sem um único gate reclamar; o executor levanta isso na §9.3 do próprio relatório.
-
-**Correção sugerida:** `@testing-library/react` + `jsdom` no vitest, com três
-testes: (a) arquivo acima do limite não chama `uploadDocument`; (b) arquivo
-válido renderiza nome e tamanho; (c) durante o envio, input e botão ficam
-desabilitados. É meia hora de trabalho e fecha AC-20 e AC-21 dentro do gate.
-
-## 5. Sugestões
-
-1. **`UploadDropzone.tsx:81-88` — `onDragLeave` no wrapper dispara ao entrar num
-   filho.** `dragleave` borbulha; passar o cursor do `div` para o `label` interno
-   apaga o estado "arrastando sobre" por um frame. Na prática o `onDragOver`
-   contínuo o reacende, então quase não se vê — mas um contador de
-   `dragenter`/`dragleave`, ou checar
-   `event.currentTarget.contains(event.relatedTarget)`, elimina o tremor.
-2. **`UploadDropzone.tsx:55-62` — o `drop` não respeita `limits` degradado de
-   forma diferente do clique, e nem precisa.** Está correto; registro só para
-   dizer que verifiquei os dois caminhos.
-3. **`useUpload.ts:39` — a checagem de "é PDF" é extensão-ou-MIME, e é o certo.**
-   Ver §8: a redação do relatório sobre isto é que está imprecisa, não o código.
-4. **Sem botão "trocar arquivo" separado** (decisão 2 do relatório): concordo.
-   Dois pontos de foco fazendo a mesma coisa é pior para teclado do que um.
-
-## 6. Comandos rodados + saídas reais
+## 7. Comandos rodados + saídas reais
 
 ```text
-$ git merge-base --is-ancestor 2e43df0 HEAD
-2e43df0 ancestor OK
+$ git merge-base --is-ancestor 3be5eed HEAD
+3be5eed ancestor OK
 
-$ git diff --stat cb386f4..2e43df0 -- . ':(exclude).codeflow/specs/*/artefatos/*'
- frontend/src/App.tsx                       | 127 ++++++++++++++---------
- frontend/src/components/UploadDropzone.tsx | 156 +++++++++++++++++++++++++++++
- frontend/src/hooks/useUpload.test.ts       |  56 +++++++++++
- frontend/src/hooks/useUpload.ts            |  86 ++++++++++++++++
- 4 files changed, 375 insertions(+), 50 deletions(-)
+# compose real, do worktree no mesmo commit que dev, volume novo
+$ docker compose -f docker-compose.yml -f <override que não publica a 5432> up --build -d
+ Container yaitec-talkdoc-trackb-db-1        Healthy
+ Container yaitec-talkdoc-trackb-backend-1   Started
+ Container yaitec-talkdoc-trackb-frontend-1  Started
 
-$ cd frontend && npx tsc --noEmit     # exit 0
-$ npm run lint                        # exit 0
-$ npm run test
- Test Files  4 passed (4)
-      Tests  20 passed (20)
+$ curl -s -i http://localhost:5173/api/health | head -5
+HTTP/1.1 200 OK
+Server: nginx/1.27.5
+Content-Type: application/json
 
-# estado real da A.4 — a dependência declarada da fase
-$ find backend/app -name "*.py" -not -path "*/.venv/*"
-backend/app/__init__.py
-backend/app/api/__init__.py
-backend/app/core/__init__.py
-backend/app/adapters/__init__.py
-$ ls db/
-.gitkeep
-$ ls .codeflow/specs/01-ingestao-pdf/artefatos/ | grep '^FASE-A'
-(vazio)
+$ curl -s http://localhost:5173/api/config
+{"max_upload_mb":25,"max_pdf_pages":20,"max_extracted_chars":60000}
 
-# AC-20 e AC-21 — remedidos pelo avaliador, com Playwright, contra o container
-$ python3 audit2.py http://localhost:5173
+# AC-2 — 28 MB através do nginx
+$ curl -s -o r.txt -w "status=%{http_code} tipo=%{content_type}\n" -F "file=@big.pdf" \
+    http://localhost:5173/api/documents
+status=413 tipo=application/json
+$ cat r.txt
+{"code":"arquivo_grande","message":"O arquivo excede o limite de 25 MB."}
+
+# AC-3 — .txt renomeado para .pdf
+$ curl -s -w "\nstatus=%{http_code} tipo=%{content_type}\n" -F "file=@disfarcado.pdf" \
+    http://localhost:5173/api/documents
+{"code":"arquivo_invalido","message":"O arquivo enviado não é um PDF. Envie um documento com extensão .pdf válida."}
+status=422 tipo=application/json
+
+# 404
+$ curl -s -w "\nstatus=%{http_code}\n" http://localhost:5173/api/documents/00000000-0000-0000-0000-000000000000
+{"code":"nao_encontrado","message":"Documento não encontrado."}
+status=404
+
+# AC-1 e gate da fase — ciclo pelo navegador, contra o compose real
+$ python3 gate.py
+ "antes_do_envio": "Exemplo-YAITEC.pdf | 254 KB | Clique ou arraste outro arquivo para trocar."
+ "posts": ["http://localhost:5173/api/documents"]
+ "id_em_storage": "65745776-fa91-42e3-ad8b-2d3c607c51f8"
+ "apos_reset": {"storage": null, "voltou_ao_envio": true}
+
+# AC-20 no navegador — 26 MB com limite de 25 MB
+$ python3 ac20b.py
  "ac20": {
-   "toast": ["Arquivo grande demais | O arquivo tem 26,0 MB e o limite é 25 MB.
-              Envie um arquivo menor ou divida o documento em partes."],
-   "posts": [],                       <- nenhuma requisição saiu
+   "toasts": ["Arquivo grande demais | O arquivo tem 26,0 MB e o limite é 25 MB.
+               Envie um arquivo menor ou divida o documento em partes."],
+   "posts": [],                      <- nenhuma requisição saiu
    "botao_desabilitado": [true]
  }
- "ac21": "Exemplo-YAITEC.pdf | 254 KB | Clique ou arraste outro arquivo para trocar."
 
-# AC-23 (teclado) — 3º ponto de foco
- { "tag": "input", "type": "file",
-   "nome": "Exemplo-YAITEC.pdf | 254 KB | Clique ou arraste outro arquivo para tro",
-   "focusVisible": true,
-   "caixaFoco": { "borderColor": "oklch(0.58 0.16 62)",
-                  "boxShadow": "oklab(0.58 0.075 0.141 / 0.5) 0px 0px 0px 3px" } }
+# D-1 corrigida, provada de ponta a ponta: cliente deixa passar, servidor recusa
+ "txt_apos_escolher": {"toasts": [], "posts": [],
+                       "label": "disfarcado.pdf | 9 B | Clique ou arraste outro arquivo para trocar."}
+ "txt_apos_enviar":   {"toasts": ["Arquivo não é um PDF válido | O conteúdo enviado não
+                                   abre como PDF. Confira se o arquivo abre no seu leitor…"],
+                       "posts": ["http://localhost:5173/api/documents"],
+                       "respostas": [["POST", 422, "http://localhost:5173/api/documents"]]}
+ A mensagem exibida é a do mapa (`errors.ts`), sem o override do cliente — prova de
+ que quem recusou foi o `422` do servidor, e não a validação local.
 
-# .txt renomeado para .pdf (nome .pdf, conteúdo texto) — o cliente NÃO bloqueia
- "txt_renomeado": { "toasts": [],
-                    "label": "disfarcado.pdf | 17 B | Clique ou arraste outro arquivo para trocar." }
+# AC-21 e AC-23 no navegador
+ "antes_do_envio": "Exemplo-YAITEC.pdf | 254 KB | Clique ou arraste outro arquivo para trocar."
+ 3o Tab -> {"tag":"input","type":"file","focusVisible":true,
+            "caixaFoco":{"borderColor":"oklch(0.58 0.16 62)","boxShadow":"… 0px 0px 0px 3px"}}
 
-# escopo travado
-$ grep -rniE "GEMINI_API_KEY|DATABASE_URL|/home/gabriel|api[_-]?key" src
+# contraste e responsividade, re-medidos após o rework (nenhuma regressão)
+ desktop-light 18 pares, 0 reprovados, pior 7.17, overflow_x 0
+ desktop-dark  18 pares, 0 reprovados, pior 7.15, overflow_x 0
+ mobile-light  18 pares, 0 reprovados, pior 7.17, overflow_x 0
+ mobile-dark   18 pares, 0 reprovados, pior 7.15, overflow_x 0
+
+$ make check      # 119 backend (cobertura core 98.98%) + 40 frontend
+MAKE_CHECK_EXIT=0
+$ make security
+MAKE_SECURITY_EXIT=0
+
+$ grep -rnE "XMLHttpRequest|onUploadProgress|upload\.onprogress" frontend/src
 (vazio)
-$ grep -rnE "XMLHttpRequest|onUploadProgress|upload\.onprogress" src
-(vazio)   <- nenhuma barra de progresso de upload prometida
+$ grep -rniE "GEMINI_API_KEY|DATABASE_URL|/home/gabriel|AIza" frontend/src
+(vazio)
 
 $ git status --short
 (vazio — árvore limpa ao final)
 ```
 
-## 7. Itens da fase / DoD não atendidos
+## 8. Itens da fase / DoD não atendidos
 
-- **Critério de conclusão da fase** — "upload de ponta a ponta através do
-  `docker compose`". Não cumprido (B-1). O executor já o marcava `[~]`.
-- **AC-1, AC-2, AC-3** — não exercidos contra servidor real (B-1).
-- **Elegibilidade (§2.11.4)** — a fase rodou com `A.4` **pendente**. Diferente da
-  `B.2`, esta não se resolve com uma aprovação: exige que o Track A avance.
-- **Testes do componente e do hook** — I-1.
-- **Gates de backend do `make check`** — `[—]` justificado e confirmado
-  (`make check` falha em `arch`: `Could not find .importlinter`, arquivo da
-  `A.1`). Correto (SPEC §3.10).
+Nenhum item da fase. O critério de conclusão — "upload de ponta a ponta através
+do `docker compose`" — está cumprido e verificado de forma independente.
 
-## 8. Divergências entre o relatório e o código real
+**Pendências da FEAT-0001, não desta fase:**
 
-### D-1 — "`.txt` renomeado é bloqueado no cliente" não é o que o código faz
+- `A.4` continua formalmente **reprovada** (`RESSALVAS`, tentativa 1, sem rework
+  nesta branch). Ver §2: não bloqueia esta fase, mas bloqueia o fechamento da
+  spec. Se o rework da `A.4` mexer na §4.5 — não deveria, pelos achados que ela
+  tem —, `B.3` e `B.4` precisam de um re-check rápido do contrato.
+- "Identificadores em inglês" (DoD global) — §6.1.
 
-`FASE-B.3-upload-view-EXECUCAO.md:145-147` afirma:
+## 9. Divergências entre o relatório e o código real
 
-> **Recusa de formato** — `.txt` renomeado é bloqueado no cliente, sem
-> requisição.
+Nenhuma. Confrontei cada saída da §5 do relatório com medição própria e todas
+batem: `413` em JSON, `422 arquivo_invalido`, `404 nao_encontrado`, `202` com
+`{id, status}`, `ac20_nenhum_post`, nome e tamanho na tela, `--ring` na borda do
+label sob foco de teclado. Os valores de id diferem, como esperado — são
+execuções diferentes.
 
-`useUpload.ts:39` decide assim:
-
-```ts
-const looksLikePdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-```
-
-É um **OU**: um arquivo chamado `disfarcado.pdf` com conteúdo de texto passa pela
-extensão, qualquer que seja o MIME. Verifiquei ao vivo — selecionei
-`{name: "disfarcado.pdf", mimeType: "text/plain"}` e a interface **aceitou**:
-zero toast, e o label passou a mostrar `disfarcado.pdf | 17 B`. O que o teste
-`useUpload.test.ts:33-37` cobre é um `planilha.xlsx`, que é outro caso — nome e
-MIME ambos não-PDF.
-
-**O código está certo; a frase do relatório é que está errada.** A spec atribui a
-detecção de conteúdo ao servidor (AC-3: assinatura `%PDF` → `422`), e é
-tecnicamente impossível fazê-la só pela extensão. O que o cliente faz —
-peneirar o óbvio e deixar a palavra final com o servidor — é exatamente o que o
-escopo travado da fase manda ("validação no cliente **não** substitui a do
-servidor"). Corrigir a redação para "arquivo sem extensão nem MIME de PDF é
-bloqueado no cliente; conteúdo disfarçado é responsabilidade do `422` da `A.4`".
-
-### D-2 — "o botão 'Enviar documento' é o quarto ponto de foco"
-
-Verdadeiro **depois** de escolher um arquivo (medi: 4 pontos). Na tela vazia o
-botão está `disabled` e sai da ordem de foco, restando 3. A afirmação da §6 do
-relatório não diz de qual estado fala. Detalhe de redação, sem impacto.
-
-Fora isso, tudo o que o relatório afirma se confirmou: `ac20_nenhum_post`,
-o tamanho real na mensagem, o nome e o tamanho na área, e o `--ring` na borda do
-label sob foco de teclado.
+A correção da D-1 está honesta: o relatório agora diz que o `.txt` renomeado
+**passa** pelo cliente e é recusado pelo servidor, que é exatamente o que o
+código faz e o que a spec manda.

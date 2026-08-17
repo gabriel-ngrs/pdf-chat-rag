@@ -2,47 +2,47 @@
 spec: 01-ingestao-pdf
 fase: B.2
 slug_fase: app-shell
-tentativa: 1
-veredito: RESSALVAS
-score: 9.3
+tentativa: 2
+veredito: APROVADO
+score: 9.6
 threshold: 8.5
-range_avaliado: f01ed27..fcc36eb
+range_avaliado: f01ed27..3be5eed
 ---
 
-# FASE B.2 — Avaliação independente
+# FASE B.2 — Avaliação independente (tentativa 2)
 
 ## 1. Veredito e score
 
-**Veredito:** RESSALVAS · **Score:** 9.3 / threshold 8.5
+**Veredito:** APROVADO · **Score:** 9.6 / threshold 8.5
 
-Zero BLOQUEANTES. Um IMPORTANTE: a fase introduziu 10 testes e um runner novo, e
-**nenhum gate do projeto os executa** — `make check` continua rodando só o
-`pytest` do backend. O código em si é o melhor pedaço do track: o envelope da
-§4.3 é respeitado à risca, o fallback de resposta não-JSON existe nos dois
-caminhos, e não há um único número de limite duplicado no cliente.
+Zero BLOQUEANTES, zero IMPORTANTES. O único achado da tentativa 1 — os testes do
+frontend fora de todo gate — está fechado, e **eu provei que o gate agora morde**,
+não só que ele existe. As três sugestões acatadas foram bem executadas: a
+`severity` do mapa deixou de ser decoração e passou a escolher o canal, e o
+timeout do `api.ts` passou a cobrir a leitura do corpo com a reclassificação
+correta (corte de timeout é falta de resposta, não resposta estranha).
 
-Ressalva de processo, sem efeito no veredito: a fase foi executada quando a `B.1`
-estava em **aguardando avaliação**, não **concluída** — ARTIFACTS_SPEC §2.11.4
-diz que dependência apenas aguardando avaliação não libera quem depende dela.
-Como a `B.1` recebeu `APROVADO` nesta mesma rodada, a pré-condição está
-satisfeita agora e não há retrabalho de código a fazer por causa disso. Registro
-para o histórico, não como achado.
+**Nota sobre o range.** O `range` declarado (`f01ed27..3be5eed`) engloba, além
+do rework, todo o Track A mergeado no meio do caminho. Auditei o que de fato
+mudou nesta tentativa pelo intervalo real do rework, `34cb479..3be5eed`, que é o
+conjunto dos cinco commits de código. Registro para quem reler não achar que o
+backend inteiro entrou nesta fase.
 
 ## 2. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | **Mapeia por `code`, nunca por status:** `grep -rnE "\.status ===? *[0-9]{3}"` em `src/` = 0; `describeError(code: string)` (`errors.ts:83`) não recebe status, e `ApiError.status` está documentado como diagnóstico (`api.ts:11-13`). **Sem limite duplicado:** `config.ts:20-21` declara a ausência de fallback e `maxUploadBytes` deriva de `limits`. **Sem `alert()`, sem stack trace:** `grep` de `alert(`/`console.` = 0; `describeError` devolve frase própria, nunca `error.message` do servidor bruto. Os 5 códigos de §4.3 + `rede_indisponivel` estão em `ERROR_CODES` (`errors.ts:23-30`) |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | `lib/` (dados), `hooks/`, `components/` como a constitution do projeto exige. `api.ts` é o **único** ponto de `fetch` do app (`grep -rn "fetch(" src` só casa `api.ts:60`); `config.ts` depende de `api.ts`, nunca o contrário |
-| 3 | Segurança / LGPD / multi-tenant | 3 | 4 | Nenhum segredo (`grep` = 0). `session.ts:20-22` documenta explicitamente que o `X-Session-Id` **não é fronteira de segurança**, alinhado à §4.5 — é a coisa certa a escrever num arquivo que gera um id. Todo request tem `AbortController` com timeout (`api.ts:55-56`). Desconto pequeno: o `clearTimeout` no `finally` (`api.ts:71-73`) desarma o timeout **antes** da leitura do corpo, então um corpo que nunca termina de chegar não é cortado por ninguém |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `Notices.tsx` é uma casca de 28 linhas sobre o `sonner` da `B.1`; nenhum componente de aviso escrito do zero; nenhuma cor própria — só `text-muted-foreground` e os tokens `--popover`/`--border` que o primitivo já lê |
-| 5 | Padrões de domínio/aplicação | 2 | 5 | `types.ts` espelha a §4.5 campo a campo em snake_case, com o porquê registrado (`types.ts:6-7`): renomear criaria camada de tradução que esconde divergência. É exatamente o que o risco 7 da spec pede |
-| 6 | Local e nomes dos arquivos | 2 | 5 | Bate com "Arquivos novos" da §5 (+ os dois `.test.ts`, adição coerente com a subseção "Testes" da fase) |
-| 7 | Qualidade de código | 2 | 5 | `tsc --noEmit` = 0, `eslint src` = 0. Funções curtas, sem duplicação; `readErrorEnvelope` (`api.ts:33-48`) valida o shape antes de confiar, em vez de fazer cast cego |
-| 8 | Testes e cobertura | 2 | 3 | 10 testes, e são bons: cobrem sucesso, envelope de erro, HTML no caminho de erro **e** no de sucesso, falha de rede e o fallback de código desconhecido. Desconto pelo IMPORTANTE abaixo — teste que nenhum gate roda não protege ninguém de regressão |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | Escopo travado intacto após o rework: `grep -rnE "\.status ===? *[0-9]{3}"` = 0; `grep` de `alert(`/`console.` = 0; `config.ts` continua sem número de fallback. **`make check` = 0 rodado por mim**, agora com as duas suítes (119 backend + 40 frontend) |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | `api.ts` segue o único ponto de `fetch` (`grep -rn "fetch(" src` → uma ocorrência, `api.ts:60`); `CHANNEL_BY_SEVERITY` (`useNotices.ts:16-20`) mantém o despacho num lugar só, em vez de espalhar `toast.*` pelos componentes |
+| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | O `clearTimeout` migrou para um `finally` que envolve o `request` inteiro (`api.ts:56-93`): resposta que trava no corpo agora é cortada. A reclassificação `controller.signal.aborted → rede_indisponivel` é a leitura certa. `grep` de segredo em `frontend/src` = 0; `make security` = 0 (bandit, pip-audit, npm audit) |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | Nada reescrito; `Notices.tsx` intocado, continua casca sobre o `sonner` da `B.1` |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | `types.ts` espelha a §4.5 — e o payload real do backend **confirmou** o espelhamento (ver a avaliação da `B.4`, §6: sete campos, nem um a mais nem um a menos) |
+| 6 | Local e nomes dos arquivos | 2 | 5 | O rework tocou `Makefile`, `api.ts`, `useNotices.ts`, `package.json` — todos coerentes com os achados; nenhum arquivo alheio |
+| 7 | Qualidade de código | 2 | 4 | Cada mudança carrega o "por quê" no comentário, e nenhum é redundante. Desconto por `semResposta` (`api.ts:57`), identificador em pt-BR num código cuja spec fixa "identificadores em inglês" — ver §5 |
+| 8 | Testes e cobertura | 2 | 4 | 10 testes, agora dentro do gate. Desconto: a mudança de comportamento do timeout (corte do corpo virando `rede_indisponivel`) entrou sem teste próprio |
 | 9 | Migration safety (se aplicável) | 2 | — | Não se aplica |
 
-Média ponderada (dimensões 1–8, peso total 20): 93/20 = 4,65 → **9,3/10**.
+Média ponderada (dimensões 1–8, peso total 20): 96/20 = 4,8 → **9,6/10**.
 
 ## 3. Achados BLOQUEANTES
 
@@ -50,123 +50,117 @@ Nenhum.
 
 ## 4. Achados IMPORTANTES
 
-### I-1 — `Makefile:29-30` — os testes do frontend ficaram fora de todo gate
+Nenhum.
 
-```make
-test:
-	cd backend && uv run pytest
-```
+**I-1 da tentativa 1 (testes do frontend fora de todo gate) — FECHADO.** Não
+aceitei "está no Makefile" como prova; verifiquei os três elos da corrente:
 
-A fase acrescentou `vitest` e o script `npm run test` (`frontend/package.json:10`)
-e escreveu 10 testes. O alvo `test:` do `Makefile` não os chama, e `check:` é
-`lint typecheck arch test`. Resultado: **`make check` pode ficar verde com os 10
-testes vermelhos**. A DoD global da spec (§9) diz "`make check` (lint +
-typecheck + arch + test) retorna zero" — hoje esse "test" cobre metade do
-projeto.
+1. A linha existe (`Makefile:24`) e `make check` executou de fato as duas suítes
+   — 119 testes de backend com cobertura de `core/` em 98,98%, e 40 de frontend.
+2. `vitest` devolve exit não-zero quando um teste falha: rodei
+   `npx vitest run --root=<temp>` com um caso falhando de propósito → `exit=1`.
+3. `make` aborta o alvo na primeira linha de receita que falha: alvo de teste com
+   `@true` / `@false` / `@echo NUNCA_CHEGA` → `Error 1`, e `NUNCA_CHEGA` não é
+   impresso.
 
-O executor reportou o item honestamente (§9.1 do relatório) e **se recusou a
-editar o `Makefile` por ser arquivo fora da lista da fase e compartilhado com o
-Track A**. A recusa é o comportamento correto pela constitution universal
-(falha de Escopo → parar e reportar). O que não é aceitável é a fase fechar com
-o buraco aberto.
-
-**Correção sugerida** (uma linha; o risco de conflito que motivou a recusa não
-existe mais — `dev` já tem os dois tracks na mesma árvore):
-
-```make
-test:
-	cd backend && uv run pytest
-	cd frontend && npm run test
-```
-
-Verifiquei que funciona: `cd frontend && npm run test` → `Test Files 4 passed
-(4) / Tests 20 passed (20)`, sem rede e sem banco, compatível com o NFR-4.
+Ou seja: uma quebra no frontend agora reprova `make check`. Era exatamente isso
+que faltava.
 
 ## 5. Sugestões
 
-1. **`errors.ts:19` — o campo `severity` nasceu morto.** `ErrorDescription`
-   carrega `severity`, todas as seis entradas valem `'error'`, e
-   `notify.error()` (`useNotices.ts:34-40`) nunca o lê — chama `toast.error`
-   direto. O teste até afirma `expect(description.severity).toBe('error')`
-   (`errors.test.ts:27`), o que cristaliza o campo sem lhe dar uso. Ou o
-   `notify` passa a despachar por `severity`, ou o campo sai.
-2. **`useNotices.ts:47-49` — `useNotices()` não é um hook.** Devolve um objeto de
-   módulo constante, sem estado nem efeito. Funciona e é estável nas listas de
-   dependência (`App.tsx:59`), mas o nome promete uma indireção que não existe;
-   importar `notify` direto diria a mesma coisa com menos cerimônia. Se a
-   intenção era abrir espaço para um provider depois, vale uma linha de
-   comentário dizendo isso.
-3. **`api.ts:71-73` — o timeout não cobre a leitura do corpo.** `clearTimeout`
-   no `finally` do `fetch` desarma o `AbortController` antes do
-   `await response.json()`. Um servidor que responde os headers e trava no corpo
-   pendura a promessa para sempre. Mover o `clearTimeout` para depois da leitura
-   (ou usar `finally` no `request` inteiro) fecha o caso.
-4. **Timeout de upload de 120 s (`api.ts:7`)** — o executor pergunta na §9.3 do
-   relatório se deveria virar variável. Minha leitura: não. É constante de
-   cliente, não limite de negócio, e o comentário já diz o porquê do número. Os
-   limites que precisam de fonte única (`max_upload_mb` e companhia) já vêm da
-   API, que é o que importava.
-5. **`api.ts` com os três endpoints numa fase só** (§9.2 do relatório) —
-   concordo com a decisão do executor. A alternativa era tocar, em `B.3` e `B.4`,
-   um arquivo que aquelas fases não declaram. O que ele fez produz **menos**
-   violação de escopo, não mais. Nenhuma ação.
+1. **`api.ts:57` — `semResposta` é identificador em pt-BR.** A spec fixa em §1.1,
+   item 8 ("Identificadores em inglês; textos ao usuário em pt-BR") e repete na
+   DoD global. É a **única** ocorrência em código de produção do frontend
+   inteiro (varredura completa) — `noResponse` fecha o assunto. Há mais 11 em
+   arquivos de teste (`documento`, `campoDeArquivo`, `montar`, `titulo`,
+   `opcoes`, `avancar`, `CODIGOS_DA_SPEC`…). **Não bloqueio**, por dois motivos
+   que quero deixar explícitos: a spec põe esse item em "Itens globais
+   transversais" da §9, não no gate por fase; e parte dessas ocorrências já
+   existia na tentativa 1 e passou por mim sem ser apontada — a falha de leitura
+   foi minha, e não é justo cobrá-la agora como se fosse regressão. Fica como
+   item de fechamento da FEAT-0001, não desta fase.
+2. **O novo caminho do timeout não tem teste.** `api.test.ts` cobre falha de
+   rede no `fetch`, mas não o corte durante a leitura do corpo — que é
+   justamente o que mudou. Um teste com um `ReadableStream` que nunca fecha,
+   `vi.useFakeTimers()` e a asserção `code === 'rede_indisponivel'` fecha a
+   regressão em ~15 linhas.
+3. **`CHANNEL_BY_SEVERITY` (`useNotices.ts:16-20`) tipa `show` como
+   `typeof toast.error`.** Funciona porque as três assinaturas coincidem hoje;
+   se o `sonner` divergir uma delas, o erro aparece longe da causa. Um alias
+   `type ToastFn = (title: string, opts?: ExternalToast) => unknown` diria a
+   intenção sem depender dessa coincidência.
+4. **Hoje `describeError` devolve `severity: 'error'` em todos os seis códigos**,
+   então o despacho novo ainda não muda nada na prática. Está certo assim — o
+   valor da mudança é o código futuro marcado como aviso não sair vermelho. Só
+   registro que a tabela ainda não é exercitada por nenhum caso real.
 
 ## 6. Comandos rodados + saídas reais
 
 ```text
-$ git merge-base --is-ancestor fcc36eb HEAD
-fcc36eb ancestor OK
+$ git merge-base --is-ancestor 3be5eed HEAD
+3be5eed ancestor OK
 
-$ git diff --stat f01ed27..fcc36eb -- . ':(exclude).codeflow/specs/*/artefatos/*'
- frontend/package-lock.json          | 364 +++++++++++++++++++++++++++++++++++-
- frontend/package.json               |   6 +-
- frontend/src/App.tsx                |  64 ++++++-
- frontend/src/components/Notices.tsx |  28 +++
- frontend/src/hooks/useNotices.ts    |  49 +++++
- frontend/src/lib/api.test.ts        | 102 ++++++++++
- frontend/src/lib/api.ts             | 108 +++++++++++
- frontend/src/lib/config.ts          |  34 ++++
- frontend/src/lib/errors.test.ts     |  39 ++++
- frontend/src/lib/errors.ts          |  85 +++++++++
- frontend/src/lib/session.ts         |  32 ++++
- frontend/src/lib/types.ts           |  43 +++++
- 12 files changed, 945 insertions(+), 9 deletions(-)
+# intervalo real do rework (o range declarado engloba o Track A inteiro)
+$ git diff --stat 34cb479..3be5eed -- frontend Makefile
+ Makefile                                        |   3 +
+ frontend/package.json                           |   3 +
+ frontend/src/components/ProcessingStatus.tsx    | 194 ++++---
+ frontend/src/components/UploadDropzone.test.tsx | 179 +++++++
+ frontend/src/components/UploadDropzone.tsx      |   8 +-
+ frontend/src/components/ui/progress.test.tsx    |  44 ++
+ frontend/src/components/ui/progress.tsx         |   5 +
+ frontend/src/hooks/useDocumentStatus.test.ts    | 133 ++++-
+ frontend/src/hooks/useDocumentStatus.ts         |   6 +-
+ frontend/src/hooks/useNotices.ts                |  29 +-
+ frontend/src/index.css                          |   7 +-
+ frontend/src/lib/api.ts                         |  56 +-
+ (+ package-lock.json)
 
-$ cd frontend && npm run test
- RUN  v4.1.10
- Test Files  4 passed (4)
-      Tests  20 passed (20)
-   Duration  298ms
+$ make check
+cd backend && uv run ruff check .        All checks passed!
+cd frontend && npm run lint              exit 0
+cd backend && uv run mypy app            Success: no issues found
+cd frontend && npx tsc --noEmit          exit 0
+cd backend && uv run lint-imports        (4 contratos)
+cd backend && uv run pytest
+  119 passed, 6 deselected in 7.13s
+  Required test coverage of 90% reached. Total coverage: 98.98%
+cd frontend && npm run test
+  Test Files  6 passed (6)
+       Tests  40 passed (40)
+MAKE_CHECK_EXIT=0
 
-$ npx tsc --noEmit          # exit 0
-$ npm run lint              # eslint src, exit 0
-$ npm audit --audit-level=high
-found 0 vulnerabilities
+$ make security
+bandit -q -r app          (sem saída = sem achados)
+pip-audit                 No known vulnerabilities found
+npm audit --audit-level=high   found 0 vulnerabilities
+MAKE_SECURITY_EXIT=0
 
-# escopo travado — mapeamento por status HTTP
-$ grep -rnE "\.status ===? *[0-9]{3}|status *[=!]== *[0-9]{3}" src --include=*.ts --include=*.tsx
+# o gate morde? (três elos verificados separadamente)
+$ npx vitest run --root=<temp com um teste falhando>
+vitest com teste falhando -> exit=1
+$ make -f <temp>  # receita: @true / @false / @echo NUNCA_CHEGA
+make: *** [alvo] Error 1        (NUNCA_CHEGA não foi impresso)
+$ grep -n -A4 "^test:" Makefile
+22:test:
+23-	cd backend && uv run pytest
+24-	cd frontend && npm run test
+
+# escopo travado, após o rework
+$ grep -rnE "\.status ===? *[0-9]{3}|status *[=!]== *[0-9]{3}" frontend/src
+(vazio)
+$ grep -rnE "\balert\(|console\.(log|error|warn)" frontend/src | grep -v /ui/
+(vazio)
+$ grep -rn "fetch(" frontend/src --include=*.ts --include=*.tsx
+frontend/src/lib/api.ts:60:    response = await fetch(`${BASE_URL}${path}`, {
+$ grep -rniE "GEMINI_API_KEY|DATABASE_URL|/home/gabriel|AIza" frontend/src
 (vazio)
 
-# escopo travado — alert() / stack trace / console
-$ grep -rnE "\balert\(|console\.(log|error|warn)" src --include=*.ts --include=*.tsx | grep -v /ui/
-(vazio)
-
-# escopo travado — único ponto de fetch
-$ grep -rn "fetch(" src --include=*.ts --include=*.tsx
-src/lib/api.ts:60:    response = await fetch(`${BASE_URL}${path}`, {
-
-$ grep -riE "GEMINI_API_KEY|DATABASE_URL|/home/gabriel|api[_-]?key" src
-(vazio)
-
-# gate da fase, contra o container real (nginx do Dockerfile) em pé
-$ curl -s -o /dev/null -w "app HTTP %{http_code}\n" http://localhost:5173/
-app HTTP 200
-$ curl -s http://localhost:5173/api/config
-{"max_upload_mb": 25, "max_pdf_pages": 20, "max_extracted_chars": 60000}
-
-# aviso de erro com título + mensagem + ação, remedido pelo avaliador na B.3
-[{"title": "Arquivo grande demais",
-  "description": "O arquivo tem 26,0 MB e o limite é 25 MB. Envie um arquivo menor ou divida o documento em partes."}]
+# identificadores em pt-BR em código de produção
+$ grep -rnE "\b(const|let|function|type)\s+(sem[A-Z]|documento|arquivo|campo|montar|...)" \
+    frontend/src --include=*.ts --include=*.tsx | grep -v "\.test\."
+frontend/src/lib/api.ts:57:  const semResposta = () =>
+(uma única ocorrência)
 
 $ git status --short
 (vazio — árvore limpa ao final)
@@ -174,28 +168,28 @@ $ git status --short
 
 ## 7. Itens da fase / DoD não atendidos
 
-- **I-1** — os testes do frontend fora do `make check`. Único item de retrabalho.
-- **Gates de backend do `make check`** — `[—]` justificado e confirmado por mim
-  (`make check` falha em `arch`: `Could not find .importlinter`, arquivo da
-  `A.1`). Correto marcar `[—]` (SPEC §3.10).
-- **Elegibilidade (§2.11.4)** — a fase rodou com a `B.1` em "aguardando
-  avaliação". Sanado pelo `APROVADO` da `B.1` nesta rodada; sem retrabalho.
-- **`package.json`/`package-lock.json` fora da lista de arquivos da fase** — o
-  executor declarou o desvio na §4 do relatório e a razão é sólida (a subseção
-  "Testes" da fase exige testes e não havia runner). Aceito.
+Nenhum item da fase. A DoD da `B.2` está inteira, inclusive os gates de backend
+que na tentativa 1 eram `[—]`.
+
+**Pendências que são da FEAT-0001, não desta fase** (registro para o fechamento):
+
+- `A.1`, `A.2`, `A.3` e `A.4` estão com `RESSALVAS` na tentativa 1 e sem rework
+  nesta branch — pela §2.11.3 continuam **reprovadas**. A spec não vai a
+  `status: done` enquanto elas não fecharem.
+- "Identificadores em inglês" (DoD global) — ver §5.1.
+- O commit `34cb479` removeu um fragmento de 9 caracteres da `GEMINI_API_KEY` de
+  um relatório da `A.1`. O fragmento **continua no histórico do git**, no commit
+  pai. É matéria do Track A, mas vale a decisão do owner sobre rotacionar a chave
+  antes de publicar o repositório.
 
 ## 8. Divergências entre o relatório e o código real
 
-Nenhuma. Os quatro critérios de aceite declarados na §6 do relatório se
-sustentam contra o código e contra os testes que rodei:
+Nenhuma. As três afirmações centrais do §8 do relatório conferem:
 
-- "os cinco códigos da spec estão em `ERROR_CODES`, cada um com
-  título/mensagem/ação não vazios, nenhum título repetido, desconhecido cai em
-  `erro_interno`" → `errors.test.ts:14-38` faz exatamente essas quatro
-  asserções, e passam. **Confirma.**
-- "fallback de não-JSON em dois pontos, não um" → `api.ts:33-48` (erro) e
-  `api.ts:80-84` (sucesso), com um teste para cada. **Confirma.**
-- "`ApiError` guarda o `status`, mas nenhuma decisão de mensagem o consulta" →
-  `grep` de comparação por status = 0. **Confirma.**
-- "sem constante de limite no cliente" → `config.ts` não tem nenhum número.
-  **Confirma.**
+- "`Makefile`, alvo `test:`, ganhou `cd frontend && npm run test`" → `Makefile:24`.
+  **Confirma**, e provei que a linha reprova de verdade.
+- "`notify.error` passou a despachar por `severity`" → `useNotices.ts:48-52` lê
+  `severity` de `describeError` e escolhe canal e duração. **Confirma.**
+- "o `clearTimeout` saiu do `finally` do `fetch` e passou a envolver o `request`
+  inteiro" → `api.ts:56-93`. **Confirma**, e a reclassificação para
+  `rede_indisponivel` no corpo abortado está lá (`api.ts:87-89`).

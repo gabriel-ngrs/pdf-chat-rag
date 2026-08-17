@@ -2,270 +2,230 @@
 spec: 01-ingestao-pdf
 fase: B.4
 slug_fase: processing-status
-tentativa: 1
-veredito: REPROVADO
-score: 8.6
+tentativa: 2
+veredito: APROVADO
+score: 9.6
 threshold: 8.5
-range_avaliado: f00210e..e93a748
+range_avaliado: f00210e..3be5eed
 ---
 
-# FASE B.4 — Avaliação independente
+# FASE B.4 — Avaliação independente (tentativa 2)
 
 ## 1. Veredito e score
 
-**Veredito:** REPROVADO · **Score:** 8.6 / threshold 8.5
+**Veredito:** APROVADO · **Score:** 9.6 / threshold 8.5
 
-Um BLOQUEANTE, que reprova qualquer que seja o score (ARTIFACTS_SPEC §2.10.3):
-o critério de conclusão da fase — "ciclo `upload → processando → pronto`
-observável **no compose**" — foi cumprido contra um stub não commitado, e a
-`B.3`, de quem esta fase depende, está **reprovada** pelo mesmo motivo. A
-cadeia inteira aguarda a `A.4`.
+Zero BLOQUEANTES, zero IMPORTANTES. Os três achados da tentativa 1 estão
+fechados, e o mais importante deles foi fechado **na fonte**, não no chamador —
+que era exatamente a crítica.
 
-O que precisa ser dito com clareza: **rodei o ciclo completo eu mesmo, no
-navegador, contra o container**, e tudo o que o relatório afirma se confirmou —
-inclusive as duas coisas mais fáceis de fingir num relatório, a janela de
-progresso legitimamente indeterminado e a parada do polling em estado terminal.
-A qualidade do que foi entregue não é o problema. O problema é contra o que foi
-verificado.
+O que mais vale registrar: o `contrato_4_5` que eu tinha nomeado como o risco
+concreto por trás do bloqueante foi medido contra o backend real e voltou
+**exato** — os sete campos da §4.5, nenhum faltando, nenhum sobrando, e
+`chunks_total` chegando `null` antes do chunking, como a fase assumia desde o
+começo. A §4.5 funcionou como fonte única, que era a aposta do risco 7 da spec.
+
+Sobre a elegibilidade formal (`A.4` ainda em `RESSALVAS`): a análise está na
+avaliação da `B.3`, §2, e vale igual aqui. Em resumo — nenhum dos dois achados
+IMPORTANTES da `A.4` toca o contrato que esta fase consome, e eu li o payload
+cru em vez de presumir.
 
 ## 2. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 3 | **Ciclo remedido ao vivo:** `Na fila → Lendo o documento → Pronto` numa única sessão de página, sem reload (AC-22). `aria-valuenow` `"33"` → `"67"`, monotônico (AC-12), com `aria-valuetext: "4 de 12 trechos"`. Houve janela indeterminada real (skeleton, `valuenow: null`) enquanto `chunks_total` era nulo. Polling: menor intervalo medido **1,5 s** (piso da spec é 1 s), 5 requisições até `Pronto` e **5 depois de 5 s adicionais** — parou. `localStorage` guardou o id e o F5 voltou em `Pronto`. `role="status"` presente. **Nota 3 porque tudo isso foi contra o stub, não contra a `A.4`** |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | Efeito e timer isolados em `hooks/useDocumentStatus.ts`; `progressPercent` é função pura exportada e testável; `ProcessingStatus.tsx` só apresenta. Rede só via `api.ts` da `B.2` |
-| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | A mensagem de falha exibida é a `error_message` do backend (`ProcessingStatus.tsx:103-106`), com fallback próprio quando nula; nenhuma stack trace, nenhum corpo bruto, nenhum `code` cru na tela. `grep` de segredo = 0 |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `fetchDocument`/`ApiError` da `B.2`; `describeError('nao_encontrado')` reusado em vez de reescrever a frase de 404 (`ProcessingStatus.tsx:60`); `Card`, `Progress`, `Skeleton`, `Badge`, `Button` da `B.1`; zero cor nova |
-| 5 | Padrões de domínio/aplicação | 2 | 5 | Os quatro estados de FR-9 num `Record` tipado (`ProcessingStatus.tsx:20-37`); separação explícita entre falha terminal (`nao_encontrado`) e transitória (`useDocumentStatus.ts:79-85`), com o porquê no comentário |
-| 6 | Local e nomes dos arquivos | 2 | 5 | Bate com a §5; `UploadDropzone.tsx` **não** foi alterado e a razão está declarada no relatório ("o `App` é quem alterna") — menos diff é o que a constitution universal pede |
-| 7 | Qualidade de código | 2 | 4 | `tsc` = 0, `eslint` = 0. Cadeia de `setTimeout` em vez de `setInterval`, com o porquê registrado; cleanup correto e verificado. Desconto por I-1: o defeito do primitivo foi contornado no chamador em vez de corrigido na fonte |
-| 8 | Testes e cobertura | 2 | 2 | 4 testes, todos de `progressPercent` — e são bons (cobrem `null`, zero, arredondamento e clamp). Zero cobertura versionada do polling, que é o miolo da fase — ver I-2 |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | **Contra o backend real:** ciclo `Lendo o documento → Pronto` sem reload; payload `processing 0/null` → `ready 10/10 page_count 3`; contrato §4.5 exato; polling parou em terminal (2 chamadas, ainda 2 após 6 s); menor intervalo 1,51 s; F5 retomou em "Pronto"; reset limpou o `localStorage` e voltou ao envio. **Com sequência controlada:** barra determinada com `aria-valuenow` 0 → 33 → 67 e legenda "8 de 12 trechos". Escopo travado intacto |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | `resolveView` (`ProcessingStatus.tsx:46-92`) é função pura que concentra a decisão de estado; o hook segue isolado; nenhuma chamada de rede fora do `api.ts` |
+| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | `failed` exibe a `error_message` do backend palavra por palavra e nada mais — medido nos dois temas: "O limite de uso da IA foi atingido. Tente de novo em alguns minutos." Nenhuma stack trace, nenhum corpo bruto, nenhum `code` cru. `grep` de segredo = 0 |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `describeError('nao_encontrado')` reusado; `Progress`, `Skeleton`, `Badge`, `Button` do design system; a duplicação dos dois botões de reenvio virou um, com a `variant` decidida em `resolveView` |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | Os quatro estados de FR-9 num `Record` tipado; terminal e transitório continuam separados com o porquê registrado |
+| 6 | Local e nomes dos arquivos | 2 | 5 | `progress.test.tsx` ao lado do primitivo que ele protege; `useDocumentStatus.test.ts` cresceu no lugar certo. `document` deixou de sombrear o global (`doc` no componente, `detail` no hook) |
+| 7 | Qualidade de código | 2 | 4 | O card estável (uma única `Card` do primeiro render ao estado terminal) é a solução certa para a live region, e o comentário explica por quê. Desconto pela inconsistência do clamp monotônico, que reproduzi — ver §5.1 |
+| 8 | Testes e cobertura | 2 | 4 | 7 testes de polling com `vi.useFakeTimers()` + 3 de regressão do primitivo, todos dentro do `make check`. Desconto: os quatro estados renderizados seguem sem teste de componente, agora que a testing-library está no projeto e custaria pouco |
 | 9 | Migration safety (se aplicável) | 2 | — | Não se aplica |
 
-Média ponderada (dimensões 1–8, peso total 20): 86/20 = 4,3 → **8,6/10**.
+Média ponderada (dimensões 1–8, peso total 20): 96/20 = 4,8 → **9,6/10**.
 
 ## 3. Achados BLOQUEANTES
 
-### B-1 — Critério de conclusão não cumprido: o ciclo não foi observado no compose
+Nenhum.
 
-**Onde:** `SPEC_01_INGESTAO_PDF.md:492` (critério de conclusão da `B.4`) ×
-`FASE-B.4-processing-status-EXECUCAO.md:151-152`.
-
-Herdado da `B.3` e da ausência da `A.4`, exatamente como o relatório declara.
-Confirmei que o container em `localhost:5173` continua servindo contra o stub do
-executor, não contra um backend do projeto:
-
-```
-$ curl -s http://localhost:5173/api/config
-{"max_upload_mb": 25, "max_pdf_pages": 20, "max_extracted_chars": 60000}
-$ find backend/app -name "*.py" -not -path "*/.venv/*"
-backend/app/__init__.py … (só os __init__ do esqueleto)
-```
-
-Pela máquina de estados (§2.11.3) a `B.3` fica **reprovada** após esta rodada, e
-§2.11.4 diz que dependência não-concluída não libera quem depende dela.
-
-O risco concreto que sobra é o que o executor nomeia na §9.1 do relatório: os
-nomes de campo (`chunks_processed`, `chunks_total`, `page_count`,
-`error_message`) e o fato de `chunks_total` chegar `null` antes do chunking foram
-validados contra um stub que o próprio executor escreveu a partir da §4.5 — o
-que confirma a leitura dele da spec, não o comportamento do backend. A §4.5 é
-fonte única e, se divergirem, quem muda é o backend; mas ninguém conferiu ainda.
-
-**Correção:** executar `A.1`–`A.4`, subir `docker compose up --build`, enviar o
-`Exemplo-YAITEC.pdf` e reavaliar `B.3` e `B.4` juntas.
+**B-1 da tentativa 1 (ciclo não observado no compose) — FECHADO.** Rodei o ciclo
+inteiro eu mesmo, no navegador, contra o compose real subido de volume vazio.
+Saídas na §6.
 
 ## 4. Achados IMPORTANTES
 
-### I-1 — `src/components/ui/progress.tsx:6-19` descarta o `value` e nunca o repassa ao primitivo
+Nenhum.
 
-```tsx
-function Progress({ className, value, ...props }) {
-  return (
-    <ProgressPrimitive.Root data-slot="progress" className={...} {...props}>
-      <ProgressPrimitive.Indicator style={{ transform: `translateX(-${100 - (value || 0)}%)` }} />
-```
-
-`value` é desestruturado, usado só no `transform` do indicador, e **nunca chega
-ao `ProgressPrimitive.Root`**. O Radix calcula os atributos ARIA a partir dele:
-
-```js
-// node_modules/@radix-ui/react-progress/dist/index.mjs:36-43
-"aria-valuemax": max, "aria-valuemin": 0,
-"aria-valuenow": isNumber(value) ? value : void 0,
-"aria-valuetext": valueLabel,
-"data-state": getProgressState(value, max),
-"data-value": value ?? void 0,
-```
-
-Sem o `value`, todos caem para indeterminado. Foi isso que o executor mediu e
-descreveu na decisão 5 do relatório — e o diagnóstico dele está certo. O que
-não está certo é a correção escolhida: em vez da fonte (uma linha), foi um
-remendo no chamador, `aria-valuenow` e `aria-valuetext` passados à mão em
-`ProcessingStatus.tsx:132-133`.
-
-Confirmei ao vivo que o remendo funciona (o `{...progressProps}` do Radix vem
-por último, então o chamador vence) **e** que a causa raiz continua lá:
+**I-1 (o `progress.tsx` descartava o `value`) — FECHADO NA FONTE.**
+`progress.tsx:14` agora passa `value={value}` à `ProgressPrimitive.Root`, e os
+`aria-valuenow` manuais saíram do chamador. Verifiquei que o efeito é o
+esperado, com uma sequência controlada contra o bundle de produção:
 
 ```
-{"estado": "Lendo o documento", "valuenow": "67", "valuetext": "8 de 12 trechos",
- "ariaLabel": "Progresso da leitura do documento", "dataState": "indeterminate"}
+{"valuenow": "0",  "valuetext": "0 de 12 trechos", "dataState": "loading", "dataValue": "0"}
+{"valuenow": "33", "valuetext": "4 de 12 trechos", "dataState": "loading", "dataValue": "33"}
+{"valuenow": "67", "valuetext": "8 de 12 trechos", "dataState": "loading", "dataValue": "67"}
 ```
 
-`data-state: "indeterminate"` a 67%. Consequências que sobram: `data-value` e
-`data-max` ausentes, qualquer estilo futuro em `data-[state=complete]:` morto em
-silêncio, e todo consumidor seguinte — a começar pelo progresso de citação da
-`FEAT-0002` — obrigado a repetir o remendo ou a herdar a barra muda. §4.7 da spec
-é explícita: os componentes do shadcn "passam a ser **código do projeto**,
-versionado e editável".
+`data-state` deixou de ficar travado em `indeterminate` e `data-value` passou a
+existir — os dois sintomas que eu tinha listado como dívida do remendo. A decisão
+de manter o `aria-valuetext` está certa: "8 de 12 trechos" diz mais a quem ouve
+do que "67%".
 
-**Correção sugerida** (`frontend/src/components/ui/progress.tsx:12`):
+E o teste de regressão (`progress.test.tsx`) é bem desenhado: afirma
+`aria-valuenow`, `aria-valuemax`, `data-value` e os três `data-state`
+(`loading`/`complete`/`indeterminate`), além do `transform` do indicador. Como o
+defeito veio do gerador do shadcn, esse teste é a única coisa que impede o
+próximo `npx shadcn add progress` de reintroduzi-lo em silêncio.
 
-```tsx
-<ProgressPrimitive.Root data-slot="progress" value={value} className={...} {...props}>
-```
-
-Feito isso, os `aria-valuenow`/`aria-valuetext` de `ProcessingStatus.tsx` viram
-redundância — o `aria-valuetext` pode ficar, porque "8 de 12 trechos" diz mais
-que os "67%" que o Radix geraria sozinho.
-
-### I-2 — Nenhum teste versionado cobre o polling, que é o miolo da fase
-
-**Onde:** `frontend/src/hooks/useDocumentStatus.ts:49-99` e
-`frontend/src/components/ProcessingStatus.tsx` (193 linhas). O único teste é
-`useDocumentStatus.test.ts`, e cobre apenas `progressPercent`.
-
-Sem teste ficam: a parada em `ready`/`failed`, a limpeza do timeout no cleanup, o
-tratamento de `nao_encontrado` como terminal, a tolerância a falha de rede
-mantendo o último estado, o intervalo mínimo, e a retomada por `localStorage`.
-São exatamente os itens do escopo travado da fase ("não deixar timer órfão",
-"não fazer polling mais agressivo que 1 s"). A rule `testing` é direta: *"Todo
-código novo deve ter teste correspondente."*
-
-Verifiquei todos eles ao vivo e passam hoje. O problema é que nada os protege
-amanhã, e o executor levanta o ponto na §9.4 do próprio relatório.
-
-**Correção sugerida:** com `vi.useFakeTimers()` e um `fetchDocument` falso, três
-testes fecham o essencial sem precisar de DOM: (a) para de chamar depois de
-`ready`; (b) `nao_encontrado` marca `missing` e não reagenda; (c) erro de rede
-mantém `document` e reagenda. Uma quarta com `@testing-library/react` cobre a
-retomada por `localStorage`.
+**I-2 (polling sem cobertura) — FECHADO.** Sete testes em
+`useDocumentStatus.test.ts:51-166`, com `vi.useFakeTimers()` e `fetchDocument`
+falso, cobrindo os três casos que eu tinha desenhado e mais quatro: parada em
+`ready`, parada em `failed`, `nao_encontrado` terminal sem reagendar, falha de
+rede mantendo o último estado e tentando de novo, ausência de timer órfão após
+desmontar, piso de 1 s, e nenhuma consulta sem documento. Rodei: verdes.
 
 ## 5. Sugestões
 
-1. **`ProcessingStatus.tsx:56` e `useDocumentStatus.ts:67` — a variável `document`
-   sombreia o `document` global do DOM.** Funciona e o `tsc` não reclama, mas num
-   arquivo que também mexe com foco e `aria` é um nome infeliz. `doc` ou
-   `documentDetail` custam nada.
-2. **`ProcessingStatus.tsx:142-156` — dois blocos quase idênticos** para o botão
-   "Enviar outro documento" em `failed` e em `ready`, diferindo só na `variant`.
-   Um `{(failed || ready) && <Button variant={failed ? 'default' : 'outline'}>}`
-   diz o mesmo em um terço das linhas.
-3. **`ProcessingStatus.tsx:93` — o `role="status"` é remontado na transição do
-   esqueleto para o card.** Live region recém-inserida no DOM costuma não ser
-   anunciada; a primeira mudança de estado pode passar em silêncio. Manter um
-   `<p role="status">` presente desde o esqueleto resolve. Da segunda transição
-   em diante funciona — confirmei que o texto muda no mesmo elemento.
-4. **`useDocumentStatus.ts:87` — o retry de rede não tem teto.** Com o backend
-   fora, o polling continua para sempre a 1,5 s. É coerente com "falha de rede
-   não derruba o estado", e para uma entrega local não incomoda; se quiser
-   endurecer, um backoff depois de N falhas seguidas.
-5. **1,5 s de intervalo** (§9.2 do relatório): concordo com o número e com o
-   raciocínio. O NFR-1 diz que o backend atualiza no máximo a cada 15 s;
-   perguntar mais rápido não revelaria nada. Nenhuma ação.
+1. **`ProcessingStatus.tsx:44-53` — o clamp monotônico deixa a barra e a legenda
+   discordando.** `useMonotonicPercent` guarda o maior percentual já mostrado,
+   mas `aria-valuetext` e a legenda continuam lendo `chunks_processed` cru.
+   Reproduzi com uma sequência que regride 8 → 3 de 12:
+
+   ```
+   {"valuenow": "67", "valuetext": "3 de 12 trechos", "dataState": "loading"}
+   ```
+
+   A barra diz 67%, o texto diz 3 de 12 (25%), e a legenda na tela lê "3 de 12
+   trechos · 67%". Quem ouve ou lê recebe duas respostas diferentes.
+
+   Vale notar que o cenário provavelmente é **inalcançável**: o hook usa cadeia
+   de `setTimeout`, então nunca há mais de uma requisição em voo e resposta fora
+   de ordem não acontece — a justificativa original do clamp não se sustenta com
+   o desenho atual. A saída limpa é uma das duas: guardar o *snapshot* inteiro
+   mais avançado (contagens e percentual juntos, sempre coerentes), ou remover o
+   clamp e confiar no AC-12, que já obriga o backend a ser monotônico. Não
+   bloqueio porque o caminho não é atingível hoje.
+
+2. **Os quatro estados renderizados seguem sem teste de componente** (o executor
+   pergunta na §9.3 se eu insisto). **Não insisto** — o que entrou cobre o hook,
+   a função pura e o primitivo, que é onde os defeitos reais apareceram, e eu
+   verifiquei os três estados na tela, nos dois temas. Mas agora que a
+   testing-library está no projeto, quatro asserções sobre `resolveView` (que é
+   pura e testável sem DOM) custariam dez minutos e blindariam a mensagem de
+   `failed`, que é a que mais importa.
+
+3. **`resolveView` devolve JSX dentro do objeto de estado.** Funciona, e a função
+   é pura. Se um dia virar teste unitário, comparar `ReactNode` é chato —
+   devolver um discriminante (`tone: 'neutral' | 'success' | 'danger'`) e deixar
+   o ícone no componente tornaria a função trivialmente testável.
+
+4. **Retry de polling sem teto** — mantido como dívida consciente, e concordo
+   com a decisão. Registrado nos dois relatórios.
+
+5. **`AppShell.tsx:63` ainda usa `py-0.5`**, que a nova redação da escala de
+   espaçamento (`index.css:35-39`) excusa só para `pt-0.5` "nos números em mono".
+   É o padding do marca-texto sobre "Doc" — mesma natureza de alinhamento óptico.
+   Uma palavra no comentário fecha.
 
 ## 6. Comandos rodados + saídas reais
 
 ```text
-$ git merge-base --is-ancestor e93a748 HEAD
-e93a748 ancestor OK
+$ git merge-base --is-ancestor 3be5eed HEAD
+3be5eed ancestor OK
 
-$ git diff --stat f00210e..e93a748 -- . ':(exclude).codeflow/specs/*/artefatos/*'
- frontend/src/App.tsx                         |  13 +-
- frontend/src/components/ProcessingStatus.tsx | 193 +++++++++++++++++++++++++++
- frontend/src/hooks/useDocumentStatus.test.ts |  38 ++++++
- frontend/src/hooks/useDocumentStatus.ts      | 102 ++++++++++++++
- 4 files changed, 340 insertions(+), 6 deletions(-)
-
-$ cd frontend && npx tsc --noEmit     # exit 0
-$ npm run lint                        # exit 0
-$ npm run test
- Test Files  4 passed (4)
-      Tests  20 passed (20)
-
-# ciclo completo remedido pelo avaliador, com Playwright, contra o container
-$ python3 b4.py
+# ciclo completo pelo navegador, contra o compose real (volume novo, A.4 na árvore)
+$ python3 gate.py
 {
+ "antes_do_envio": "Exemplo-YAITEC.pdf | 254 KB | Clique ou arraste outro arquivo para trocar.",
  "amostras": [
-  {"estado": "Na fila",           "valuenow": null, "skeleton": true,  "dataState": null},
-  {"estado": "Lendo o documento", "valuenow": null, "skeleton": true,  "dataState": null},
-  {"estado": "Lendo o documento", "valuenow": "33", "skeleton": false, "dataState": "indeterminate",
-   "valuetext": "4 de 12 trechos", "ariaLabel": "Progresso da leitura do documento"},
-  {"estado": "Lendo o documento", "valuenow": "67", "skeleton": false, "dataState": "indeterminate",
-   "valuetext": "8 de 12 trechos"},
-  {"estado": "Pronto",            "valuenow": null, "skeleton": false, "dataState": null}
+  {"estado": "Lendo o documento", "valuenow": null, "skeleton": true,
+   "descricao": "Lendo o documento | Cada página vira trechos consultáveis. Isso leva alguns segundos."},
+  {"estado": "Pronto", "valuenow": null, "skeleton": false,
+   "descricao": "Pronto | O documento está indexado e pode ser consultado."}
  ],
- "n_polls": 5,
- "polls_depois_5s": 5,            <- polling parou em estado terminal
- "menor_intervalo_s": 1.5,        <- piso da spec é 1 s
- "id_persistido": "3b091fda-c859-4945-8b60-e31f99fca1ee",
- "apos_f5": "Pronto"              <- retomada por localStorage
+ "polling": {"n_ate_terminal": 2, "n_apos_6s": 2, "menor_intervalo_s": 1.51},
+ "posts": ["http://localhost:5173/api/documents"],
+ "id_em_storage": "65745776-fa91-42e3-ad8b-2d3c607c51f8",
+ "contrato_4_5": {
+   "campos": ["chunks_processed","chunks_total","error_message","filename","id",
+              "page_count","status"],
+   "faltando": [],        <- o risco que o B-1 nomeava
+   "sobrando": []
+ },
+ "sequencia_payload": [
+   {"status":"processing","page_count":null,"chunks_processed":0,"chunks_total":null,"error_message":null},
+   {"status":"ready","page_count":3,"chunks_processed":10,"chunks_total":10,"error_message":null}
+ ],
+ "apos_f5": "Pronto",
+ "apos_reset": {"storage": null, "voltou_ao_envio": true}
 }
 
-# causa raiz do aria-valuenow ausente (I-1)
-$ sed -n '36,43p' node_modules/@radix-ui/react-progress/dist/index.mjs
-        "aria-valuemax": max,
-        "aria-valuemin": 0,
-        "aria-valuenow": isNumber(value) ? value : void 0,
-        "aria-valuetext": valueLabel,
-        role: "progressbar",
-        "data-state": getProgressState(value, max),
-        "data-value": value ?? void 0,
-        "data-max": max,
-        ...progressProps,
+# barra determinada e clamp, com sequência controlada por interceptação
+# (não consome quota; exercita o bundle de produção servido pelo nginx)
+$ python3 barra.py     # sequência: (null,0) (12,0) (12,4) (12,8) (12,3) ready
+ {"estado":"Lendo o documento","valuenow":null,"dataState":null,"skeleton":true}
+ {"estado":"Lendo o documento","valuenow":"0", "valuetext":"0 de 12 trechos","dataState":"loading","dataValue":"0"}
+ {"estado":"Lendo o documento","valuenow":"33","valuetext":"4 de 12 trechos","dataState":"loading","dataValue":"33"}
+ {"estado":"Lendo o documento","valuenow":"67","valuetext":"8 de 12 trechos","dataState":"loading","dataValue":"67"}
+ {"estado":"Lendo o documento","valuenow":"67","valuetext":"3 de 12 trechos","dataState":"loading","dataValue":"67"}
+ {"estado":"Pronto","valuenow":null,"dataState":null,"skeleton":false}
+   ^ regressão 8->3 do servidor: a barra segura os 67% (clamp funciona) mas o
+     texto acompanha o valor cru — a inconsistência da sugestão 5.1
 
-# estado real da A.4
-$ curl -s http://localhost:5173/api/config
-{"max_upload_mb": 25, "max_pdf_pages": 20, "max_extracted_chars": 60000}   <- stub, não A.4
-$ ls .codeflow/specs/01-ingestao-pdf/artefatos/ | grep '^FASE-A'
-(vazio)
+# os três estados renderizados, nos dois temas, a 375 px
+$ python3 estados.py
+ processing-light 20 pares, 0 reprovados, pior 7.17, overflow_x 0
+ processing-dark  20 pares, 0 reprovados, pior 7.15, overflow_x 0
+ ready-light      21 pares, 0 reprovados, pior 7.17, overflow_x 0
+   texto: "Pronto | O documento está indexado e pode ser consultado. | Pronto para conversar"
+ ready-dark       21 pares, 0 reprovados, pior 7.15, overflow_x 0
+ failed-light     20 pares, 0 reprovados, pior 7.17, overflow_x 0
+   texto: "Não deu para processar | O limite de uso da IA foi atingido. Tente de novo em alguns minutos."
+ failed-dark      20 pares, 0 reprovados, pior 7.15, overflow_x 0
 
-$ grep -riE "GEMINI_API_KEY|DATABASE_URL|/home/gabriel|api[_-]?key" src
+$ make check     # 119 backend (cobertura core 98.98%) + 40 frontend
+MAKE_CHECK_EXIT=0
+$ make security
+MAKE_SECURITY_EXIT=0
+
+$ grep -rniE "GEMINI_API_KEY|DATABASE_URL|/home/gabriel|AIza" frontend/src
 (vazio)
 
 $ git status --short
-(vazio — árvore limpa ao final)
+(vazio — árvore limpa ao final; derrubei o compose e o volume que subi)
 ```
 
 ## 7. Itens da fase / DoD não atendidos
 
-- **Critério de conclusão da fase** — ciclo observável no compose. Não cumprido
-  (B-1); o executor já o marcava `[~]`.
-- **Elegibilidade (§2.11.4)** — a fase rodou com a `B.3` em "aguardando
-  avaliação" e a `A.4` **pendente**. Só se resolve com o Track A.
-- **Teste do polling e do componente** — I-2.
-- **`aria-valuenow` na origem** — I-1: o atributo aparece na tela, mas o
-  primitivo do projeto continua quebrado.
-- **Gates de backend do `make check`** — `[—]` justificado e confirmado
-  (`make check` falha em `arch`: `Could not find .importlinter`, arquivo da
-  `A.1`). Correto (SPEC §3.10).
-- **`make check` sem os testes do frontend** — herdado do I-1 da `B.2`.
+Nenhum item da fase. O critério de conclusão — ciclo `upload → processando →
+pronto` observável no compose e sobrevivendo a um `F5` — está cumprido e
+verificado de forma independente.
+
+**Pendências da FEAT-0001, não desta fase:**
+
+- `A.1` a `A.4` seguem com `RESSALVAS` na tentativa 1 e sem rework nesta branch;
+  pela §2.11.3 continuam reprovadas, e a spec não fecha enquanto isso.
+- "Identificadores em inglês" (DoD global) — detalhe na avaliação da `B.2`, §5.1.
+- Fragmento da `GEMINI_API_KEY` no histórico do git (commit pai de `34cb479`) —
+  matéria do Track A, mas é decisão do owner rotacionar a chave antes de publicar.
 
 ## 8. Divergências entre o relatório e o código real
 
-Nenhuma divergência de fato. Confrontei cada afirmação da §6 do relatório com
-medição própria e todas se sustentam: transição sem reload, `[33, 67]`
-monotônico, janela indeterminada real, `role="status"`, F5 retomando,
-`polling_parou_em_pronto`, intervalo de 1,5 s. Os números que medi batem com os
-do relatório.
+Nenhuma. Confrontei cada afirmação da §5 e da §6 do relatório com medição
+própria e todas se sustentam, inclusive as duas mais delicadas:
 
-Duas notas de leitura, não de divergência:
-
-1. **A decisão 5 do relatório** ("o primitivo desenhava a barra sem expor
-   `aria-valuenow`") descreve corretamente o sintoma, mas não diz que a causa
-   está num arquivo do próprio projeto e continua lá — o que o leitor do
-   relatório tende a concluir é que o assunto foi resolvido. Ver I-1.
-2. **`reset_limpou_storage: null`** na saída do relatório é o valor lido de
-   `localStorage` depois do reset (isto é: limpou), não uma verificação que
-   falhou. A chave de saída é ambígua; renomear para
-   `documento_em_storage_apos_reset` diria o que quer dizer.
+- **"`valores_da_barra: []` com o `Exemplo-YAITEC.pdf`"** — o relatório explica
+  que a janela determinada dura menos que um ciclo de polling com um PDF de 3
+  páginas, e mostra a barra com um PDF de 18. **Confirmo o fenômeno:** no meu
+  ciclo contra o backend real, a interface também foi de indeterminado direto
+  para "Pronto", e a barra determinada só apareceu quando controlei a sequência.
+  A nota do relatório é honesta e necessária — sem ela, a saída sozinha pareceria
+  dizer que a barra determinada nunca aparece.
+- **"a falha foi real e não simulada; o backend gravou `limite_de_uso`"** — não
+  reproduzi a quota estourada (seria queimar quota de propósito), mas verifiquei
+  o que a fase controla: o estado `failed` exibe a `error_message` do backend
+  palavra por palavra, nos dois temas, e o texto medido é a frase do backend, não
+  uma genérica.
