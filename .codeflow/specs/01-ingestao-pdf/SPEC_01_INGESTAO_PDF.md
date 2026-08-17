@@ -3,7 +3,7 @@ id: FEAT-0001
 slug: 01-ingestao-pdf
 title: "Ingestão de PDF: fundação, extração por página, chunking, embeddings, vector store e design system"
 type: feature
-status: active
+status: done
 priority: P0
 size: L
 wave: multi
@@ -528,32 +528,44 @@ Rollback é `git revert` da fase. Mudança de schema exige `make down` antes do 
 
 ## 9. Definition of Done (gate por etapa)
 
-**Gate por fase:**
+**Gate por fase** — todas concluídas; o veredito de cada uma está em
+`artefatos/FASE-<id>-<slug>-AVALIACAO.md`, com o par (`fase`, `tentativa`)
+fechado:
 
-- [ ] `A.1 foundation` — compose sobe a frio duas vezes; `/api/health` `200` através do nginx com `X-Request-Id`; envelope de erro aplicado; `make arch` passa.
-- [ ] `A.2 pdf-chunking` — chunking por página, determinístico, offline, cobertura ≥ 90%.
-- [ ] `A.3 gemini-embeddings` — verificação contra a API real registrada; lote, backoff, `task_type` e L2 testados com fake.
-- [ ] `A.4 ingestion-pipeline` — `Exemplo-YAITEC.pdf` chega a `ready`; ingestão rastreável por `request_id` no log.
-- [ ] `A.5 ingestion-tests` — `make test` verde sem chave e sem banco, cobertura de `core/` ≥ 90%; `make test-db` verde.
-- [ ] `A.6 quality-gates` — `make arch` reprova violação injetada; `make security` sem achado alto.
-- [ ] `B.1 design-system` — casca nos dois temas, responsiva a 375 px, navegável por teclado.
-- [ ] `B.2 app-shell` — erro do backend vira aviso com título, mensagem e ação em pt-BR.
-- [ ] `B.3 upload-view` — upload de ponta a ponta pelo compose.
-- [ ] `B.4 processing-status` — transição visível, sobrevivendo a `F5`, com `aria-live`.
+- [✓] `A.1 foundation` — compose sobe a frio duas vezes; `/api/health` `200` através do nginx com `X-Request-Id`; envelope de erro aplicado; `make arch` passa. *(APROVADO 9,5 · tentativa 2)*
+- [✓] `A.2 pdf-chunking` — chunking por página, determinístico, offline, cobertura ≥ 90%. *(APROVADO 9,8 · tentativa 2)*
+- [✓] `A.3 gemini-embeddings` — verificação contra a API real registrada; lote, backoff, `task_type` e L2 testados com fake. *(APROVADO 9,8 · tentativa 2)*
+- [✓] `A.4 ingestion-pipeline` — `Exemplo-YAITEC.pdf` chega a `ready`; ingestão rastreável por `request_id` no log. *(APROVADO 9,8 · tentativa 2)*
+- [✓] `A.5 ingestion-tests` — `make test` verde sem chave e sem banco, cobertura de `core/` ≥ 90%; `make test-db` verde. *(APROVADO 9,8 · tentativa 1)*
+- [✓] `A.6 quality-gates` — `make arch` reprova violação injetada; `make security` sem achado alto. *(APROVADO 9,7 · tentativa 1)*
+- [✓] `B.1 design-system` — casca nos dois temas, responsiva a 375 px, navegável por teclado. *(APROVADO · tentativa 1)*
+- [✓] `B.2 app-shell` — erro do backend vira aviso com título, mensagem e ação em pt-BR. *(APROVADO · tentativa 2)*
+- [✓] `B.3 upload-view` — upload de ponta a ponta pelo compose. *(APROVADO · tentativa 2)*
+- [✓] `B.4 processing-status` — transição visível, sobrevivendo a `F5`, com `aria-live`. *(APROVADO · tentativa 2)*
 
 **Itens globais transversais:**
 
-- [ ] Cada FR e cada NFR tem ao menos um AC verificado.
-- [ ] `make check` (lint + typecheck + arch + test) retorna zero, rodando offline.
-- [ ] `make security` retorna zero achados de severidade alta.
-- [ ] Cobertura de `backend/app/core/` ≥ 90%.
-- [ ] Toda função pública de `core/` e `adapters/` tem docstring dizendo o que faz e por quê.
-- [ ] Nenhum módulo de `backend/app/core/` importa `fastapi`, `asyncpg`, `google.genai` ou `structlog`.
-- [ ] Nenhuma dependência de framework de RAG.
-- [ ] Nenhuma chave, `DATABASE_URL` ou conteúdo de PDF em log, resposta ou arquivo versionado — verificado por teste.
-- [ ] Todo SQL é parametrizado — verificado por teste.
-- [ ] Identificadores em inglês; textos de UI e mensagens de erro em pt-BR.
-- [ ] Toda cor, tamanho de texto e espaçamento vem dos tokens do design system.
-- [ ] `docker compose up --build` de clone limpo sobe tudo e a tela responde em `localhost:5173`.
-- [ ] `.env.example` documenta toda variável que `config.py` lê — sem sobra e sem falta.
-- [ ] Nenhum dos seis defeitos de infraestrutura de §4.1 voltou.
+- [✓] Cada FR e cada NFR tem ao menos um AC verificado.
+- [✓] `make check` (lint + typecheck + arch + test) retorna zero, rodando offline — 135 testes de backend e 40 de frontend.
+- [✓] `make security` retorna zero achados de severidade alta.
+- [✓] Cobertura de `backend/app/core/` ≥ 90% — 98,98%, travada por `--cov-fail-under=90`.
+- [✓] Toda função pública de `core/` e `adapters/` tem docstring dizendo o que faz e por quê — verificado por varredura de AST na reavaliação da `A.4`.
+- [✓] Nenhum módulo de `backend/app/core/` importa `fastapi`, `asyncpg`, `google.genai` ou `structlog` — contrato `pure-core`, provado por violação injetada.
+- [✓] Nenhuma dependência de framework de RAG — contrato `no-rag-framework`, com as distribuições `langchain_*` e `llama_index_*` nomeadas uma a uma.
+- [✓] Nenhuma chave, `DATABASE_URL` ou conteúdo de PDF em log, resposta ou arquivo versionado — verificado por teste. *Ressalva do owner, fora do código: um fragmento de 9 caracteres da chave real permanece no histórico, no commit `d6f42d3`; a remediação é rotacionar a chave.*
+- [✓] Todo SQL é parametrizado — verificado por teste contra o Postgres real, com payload destrutivo.
+- [✓] Identificadores em inglês; textos de UI e mensagens de erro em pt-BR.
+- [✓] Toda cor, tamanho de texto e espaçamento vem dos tokens do design system.
+- [✓] `docker compose up --build` de clone limpo sobe tudo e a tela responde em `localhost:5173` — evidência do executor (dois boots a frio com os três serviços reais, §9 do relatório da `A.1`) e do avaliador do Track B; o avaliador do Track A não a reproduziu, porque exige a `GEMINI_API_KEY`.
+- [✓] `.env.example` documenta toda variável que `config.py` lê — sem sobra e sem falta.
+- [✓] Nenhum dos seis defeitos de infraestrutura de §4.1 voltou.
+
+**Pendências que sobrevivem ao fechamento da spec** (não bloqueiam as fases;
+estão registradas nas avaliações):
+
+- Rotacionar a `GEMINI_API_KEY` — ação do owner, ver a avaliação da `A.1`.
+- Dois reenvios simultâneos de um documento `failed` duplicam chunks no
+  Postgres, e o dublê da suíte não enxerga porque `insert_chunks` atribui onde o
+  banco acumula — sugestão S-1 da avaliação da `A.4`.
+- Falta o teste de nível de pipeline provando que um transitório de transporte
+  não vira `erro_interno` para o usuário — sugestão da avaliação da `A.3`.
