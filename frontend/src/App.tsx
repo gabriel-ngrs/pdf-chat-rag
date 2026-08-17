@@ -1,12 +1,17 @@
+import { useEffect, useState } from 'react'
 import { ThemeProvider } from 'next-themes'
 
 import { AppShell } from '@/components/AppShell'
+import { Notices } from '@/components/Notices'
 import { Card, CardContent } from '@/components/ui/card'
+import { useNotices } from '@/hooks/useNotices'
+import { loadConfig } from '@/lib/config'
+import type { ConfigState } from '@/lib/config'
 
 const STEPS = [
   {
     title: 'Envie o PDF',
-    description: 'Até 25 MB e 20 páginas. Nada sai da sua sessão neste navegador.',
+    description: 'Nada sai da sua sessão neste navegador.',
   },
   {
     title: 'Acompanhe a leitura',
@@ -19,7 +24,43 @@ const STEPS = [
   },
 ]
 
-function Home() {
+/**
+ * Carrega os limites do servidor uma vez, no boot.
+ *
+ * Falha aqui não trava o app: vira estado degradado e um aviso. Quem recusa o
+ * arquivo passa a ser o servidor, que é quem sempre teve a palavra final.
+ */
+function useAppConfig(): ConfigState {
+  const notify = useNotices()
+  const [state, setState] = useState<ConfigState>({ status: 'loading' })
+
+  useEffect(() => {
+    let active = true
+    void loadConfig().then((loaded) => {
+      if (!active) {
+        return
+      }
+      setState(loaded)
+      if (loaded.status === 'degraded') {
+        notify.error(loaded.code, {
+          message: 'Não consegui ler do servidor os limites de envio.',
+        })
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [notify])
+
+  return state
+}
+
+function Home({ config }: { config: ConfigState }) {
+  const limits =
+    config.status === 'ready'
+      ? `Até ${config.limits.max_upload_mb} MB e ${config.limits.max_pdf_pages} páginas. `
+      : ''
+
   return (
     <div className="flex flex-col gap-12">
       <section className="flex flex-col gap-4">
@@ -53,7 +94,9 @@ function Home() {
                   </span>
                   <div className="flex flex-col gap-1">
                     <h3 className="text-body font-medium">{step.title}</h3>
-                    <p className="text-muted-foreground text-caption">{step.description}</p>
+                    <p className="text-muted-foreground text-caption">
+                      {index === 0 ? `${limits}${step.description}` : step.description}
+                    </p>
                   </div>
                 </li>
               ))}
@@ -62,6 +105,16 @@ function Home() {
         </Card>
       </section>
     </div>
+  )
+}
+
+function TalkDoc() {
+  const config = useAppConfig()
+
+  return (
+    <AppShell>
+      <Home config={config} />
+    </AppShell>
   )
 }
 
@@ -74,9 +127,8 @@ export default function App() {
       storageKey="talkdoc:theme"
       disableTransitionOnChange
     >
-      <AppShell>
-        <Home />
-      </AppShell>
+      <TalkDoc />
+      <Notices />
     </ThemeProvider>
   )
 }
