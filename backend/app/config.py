@@ -44,8 +44,11 @@ class Settings(BaseSettings):
     # similaridade que separa positivas de negativas e justifica este corte.
     similarity_threshold: float = 0.625
     history_window: int = 6
-    chat_timeout_seconds: int = 60
-    condense_timeout_seconds: int = 5
+    # Segundos, e em ponto flutuante porque é assim que `asyncio.wait_for` os
+    # recebe: declará-los inteiros obrigaria o teste do prazo a esperar um
+    # segundo inteiro para provar que ele existe.
+    chat_timeout_seconds: float = 60.0
+    condense_timeout_seconds: float = 5.0
 
     postgres_user: str = "talkdoc"
     postgres_password: str = "talkdoc"

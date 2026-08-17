@@ -47,6 +47,10 @@ from app.logging_setup import MIN_SECRET_FRAGMENT
 
 FAKE_KEY = "AIzaSyD-fake-key-para-teste-0123456789"
 
+# Teto de segurança dos testes que exercitam prazo: bem acima do prazo que o
+# cliente deveria aplicar, e bem abaixo da paciência de quem roda a suíte.
+GUARDA_SEGUNDOS = 5.0
+
 
 class FakeModels:
     """Transporte falso: registra cada chamada e devolve vetores previsíveis.
@@ -529,7 +533,7 @@ class FakeAsyncClient:
 
 
 def build_chat_client(
-    models: FakeAsyncModels, *, max_attempts: int = 2, timeout: int = 60, thinking: int = 0
+    models: FakeAsyncModels, *, max_attempts: int = 2, timeout: float = 60.0, thinking: int = 0
 ) -> GeminiChatClient:
     """Cliente de chat com o transporte falso e sem espera real de backoff."""
 
@@ -654,16 +658,42 @@ async def test_status_nao_retentavel_desiste_na_primeira_tentativa() -> None:
     assert models.models_pedidos == ["modelo-de-teste"]
 
 
-async def test_provedor_que_emudece_estoura_o_prazo_do_turno() -> None:
+async def test_provedor_que_emudece_no_meio_do_stream_estoura_o_prazo_do_turno() -> None:
     """`CHAT_TIMEOUT_SECONDS` é prazo de verdade, não configuração decorativa.
 
-    Sem ele, um provedor que abre o stream e para de emitir prenderia o turno
-    até o `proxy_read_timeout` do nginx derrubar a conexão.
+    Sem ele, um provedor que **abre** o stream e para de emitir prenderia o
+    turno até o `proxy_read_timeout` do nginx derrubar a conexão, quatro
+    minutos depois — e só então a resposta parcial seria gravada.
+
+    O prazo é curto e o stream **precisa ter sido aberto**: é essa asserção que
+    faz o teste morder o laço de leitura. Com um prazo que estoura antes da
+    abertura, o `stall` ficaria inerte e apagar o prazo de dentro do laço
+    deixaria a suíte verde — o defeito voltaria sem sinal nenhum.
+    """
+    models = FakeAsyncModels(stall=True)
+
+    with pytest.raises(ChatProviderError):
+        # A rede de segurança de fora existe para o modo de falha: sem o prazo
+        # dentro do laço, este teste **travaria para sempre** em vez de falhar,
+        # e uma suíte pendurada é pior que uma suíte vermelha.
+        await asyncio.wait_for(coletar(build_chat_client(models, timeout=0.05)), GUARDA_SEGUNDOS)
+
+    assert models.models_pedidos == ["modelo-de-teste"], "o stream nem chegou a ser aberto"
+    assert models.closed is True, "o iterador do provedor ficou aberto após o estouro"
+
+
+async def test_prazo_ja_estourado_falha_antes_mesmo_de_abrir_o_stream() -> None:
+    """O prazo vale do início do turno, e não a partir do primeiro pedaço.
+
+    É a outra metade do mesmo contrato: quem chega sem tempo nenhum não gasta
+    uma chamada ao provedor para descobrir isso.
     """
     models = FakeAsyncModels(stall=True)
 
     with pytest.raises(ChatProviderError):
         await coletar(build_chat_client(models, timeout=0))
+
+    assert models.models_pedidos == []
 
 
 async def test_chave_ausente_falha_antes_de_qualquer_chamada_de_chat() -> None:

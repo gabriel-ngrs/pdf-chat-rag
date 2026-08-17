@@ -21,7 +21,6 @@ justamente o que a separação entre `app.chat` e `app.api.conversations` existe
 para permitir.
 """
 
-import asyncio
 import json
 from collections.abc import Callable
 from typing import Any
@@ -623,16 +622,12 @@ async def test_desconexao_encerra_o_gerador_e_grava_a_resposta_parcial(
     # os dois últimos pedaços nunca são pedidos ao provedor.
     assert cliente.emitted == ["um ", "dois "], "o consumo do provedor não parou"
 
-    # O fechamento do iterador do provedor **não** acontece no `break`:
-    # `app.chat` não chama `aclose()`, então quem roda o `finally` do gerador —
-    # onde o adapter real fecha o stream do SDK — é o finalizador de async
-    # generators do event loop, algumas voltas depois. O que AC-13 cobra de
-    # imediato (parar de consumir quota) já valeu acima; o fechamento vem atrás.
-    for _ in range(5):
-        if cliente.closed:
-            break
-        await asyncio.sleep(0)
-    assert cliente.closed, "o iterador do provedor nunca foi fechado"
+    # O fechamento é síncrono com a saída do laço: `app.chat` chama `aclose()`
+    # no `finally`, e não deixa para o finalizador de async generators do event
+    # loop. Sem isso a conexão com o provedor ficaria aberta por mais algumas
+    # voltas depois de o usuário já ter ido embora — que é o custo que FR-12
+    # existe para cortar.
+    assert cliente.closed, "o iterador do provedor não foi fechado ao sair do laço"
 
     gravada = conversations.messages[conversation_id][-1]
     assert gravada.role is MessageRole.ASSISTANT
