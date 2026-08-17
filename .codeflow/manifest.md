@@ -14,7 +14,7 @@ validation_hash: 9277700a57e1d32df43b7d7320f3825bde8623322c2597bf613f4d0f08eed01
 - **Backend:** Python 3.12, FastAPI 0.141.1 (floor `>=0.135`, por causa do SSE nativo), uvicorn 0.32+
 - **Gerenciador de pacotes:** uv 0.9.5, com `[tool.uv] package = false` e `uv.lock` commitado
 - **Banco / vector store:** PostgreSQL 16 via `pgvector/pgvector:pg16` (pgvector 0.8.x), driver asyncpg 0.30+
-- **IA:** SDK `google-genai` — `gemini-embedding-001` a 768 dimensões e `gemini-2.5-flash` para geração
+- **IA:** SDK `google-genai` — `gemini-embedding-001` a 768 dimensões e `gemini-3.6-flash` para geração (o `gemini-2.5-flash` do desenho original saiu do ar para chaves novas durante a `FEAT-0002`; medido no gate da fase A.4)
 - **Extração de PDF:** pypdf 5.1+
 - **Validação de dados:** pydantic 2.9+, pydantic-settings 2.6+
 - **Frontend:** TypeScript 5.7, React 19, Vite 6, Tailwind CSS 4, nginx 1.27-alpine, `package-lock.json` commitado
