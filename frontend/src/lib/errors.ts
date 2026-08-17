@@ -1,0 +1,85 @@
+/**
+ * Tradução de código de erro para uma frase pensada.
+ *
+ * O mapeamento é **por `code`, nunca por status HTTP**: a FEAT-0002 emitirá os
+ * mesmos códigos por SSE, onde não existe status. Centralizar aqui é o que
+ * garante que toda falha do sistema tenha título, explicação e uma ação — em
+ * vez de cada componente inventar a sua mensagem.
+ */
+
+export type NoticeSeverity = 'info' | 'success' | 'error'
+
+export type ErrorDescription = {
+  /** Título curto, o que aconteceu. */
+  title: string
+  /** Uma frase explicando, sem jargão e sem detalhe interno. */
+  message: string
+  /** O que a pessoa pode fazer agora. Todo erro tem uma. */
+  action: string
+  severity: NoticeSeverity
+}
+
+/** Os cinco códigos da §4.3, mais o de falha de rede, que nasce no cliente. */
+export const ERROR_CODES = [
+  'arquivo_grande',
+  'arquivo_invalido',
+  'nao_encontrado',
+  'limite_de_uso',
+  'erro_interno',
+  'rede_indisponivel',
+] as const
+
+export type ErrorCode = (typeof ERROR_CODES)[number]
+
+const DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
+  arquivo_grande: {
+    title: 'Arquivo grande demais',
+    message: 'O PDF ultrapassa o tamanho que o servidor aceita.',
+    action: 'Envie um arquivo menor ou divida o documento em partes.',
+    severity: 'error',
+  },
+  arquivo_invalido: {
+    title: 'Arquivo não é um PDF válido',
+    message: 'O conteúdo enviado não abre como PDF.',
+    action: 'Confira se o arquivo abre no seu leitor e envie de novo.',
+    severity: 'error',
+  },
+  nao_encontrado: {
+    title: 'Documento não encontrado',
+    message: 'Este documento não existe mais no servidor.',
+    action: 'Envie o PDF novamente para recomeçar.',
+    severity: 'error',
+  },
+  limite_de_uso: {
+    title: 'Limite de uso atingido',
+    message: 'O provedor de IA recusou mais requisições por enquanto.',
+    action: 'Espere cerca de um minuto e tente de novo.',
+    severity: 'error',
+  },
+  erro_interno: {
+    title: 'Algo deu errado no servidor',
+    message: 'A requisição não pôde ser concluída.',
+    action: 'Tente de novo em alguns instantes.',
+    severity: 'error',
+  },
+  rede_indisponivel: {
+    title: 'Sem resposta do servidor',
+    message: 'Não foi possível falar com a aplicação.',
+    action: 'Verifique sua conexão e tente de novo.',
+    severity: 'error',
+  },
+}
+
+function isKnownCode(code: string): code is ErrorCode {
+  return code in DESCRIPTIONS
+}
+
+/**
+ * Descreve um código de erro para o usuário.
+ *
+ * Código desconhecido cai em `erro_interno` de propósito: um código novo do
+ * servidor não pode virar uma tela sem mensagem.
+ */
+export function describeError(code: string): ErrorDescription {
+  return isKnownCode(code) ? DESCRIPTIONS[code] : DESCRIPTIONS.erro_interno
+}

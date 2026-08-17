@@ -1,0 +1,247 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+/* Tipografia — três famílias, cada uma com um trabalho declarado.
+   IBM Plex Sans: toda a interface (herança de engenharia, humanista, não é a
+   grotesca default de todo produto de IA).
+   IBM Plex Mono: números que o usuário compara — tamanho de arquivo, contagem
+   de páginas, id de documento. Compartilha o esqueleto do Plex, então não
+   parece parafusada.
+   Instrument Serif: só a marca e o título de primeiro nível. É o que dá o tom
+   documental — o produto é sobre ler papel, não sobre conversar com um robô. */
+@import '@fontsource-variable/ibm-plex-sans/wght.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/instrument-serif/400.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DESIGN SYSTEM DO TALKDOC
+
+   Contexto que rege as escolhas abaixo (não mexa numa sem reler isto):
+   público    → quem envia um PDF de trabalho e precisa confiar na resposta;
+   tom        → sóbrio, técnico, documental. Ferramenta de leitura, não brinquedo;
+   metáfora   → papel e tinta. O claro é papel quente; o escuro é tinta fria.
+                O âmbar é o marca-texto — e é literalmente o que vai marcar a
+                citação no chat da FEAT-0002.
+
+   Como usar:
+   - Cor SEMPRE por token semântico (bg-background, text-muted-foreground…).
+     Nenhum hex e nenhuma cor Tailwind crua (`text-gray-500`) em componente.
+   - Tamanho de texto só nos quatro degraus: text-display, text-title,
+     text-body, text-caption. Se precisar de um quinto, o problema é hierarquia.
+   - Espaçamento na escala do Tailwind, e só nos degraus 1/2/3/4/6/8/12/16
+     (4px…64px). Valor fora disso vira remendo.
+   - Profundidade por hierarquia (peso, tamanho, espaço, 1px de borda), não por
+     sombra. Há exatamente uma sombra no sistema, e ela é para elemento flutuante
+     (dialog, toast).
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@theme inline {
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --font-display: 'Instrument Serif', ui-serif, Georgia, serif;
+  /* Título de card e afins seguem a sans: o serif é reservado à marca e ao H1,
+     senão o efeito documental vira maneirismo. */
+  --font-heading: var(--font-sans);
+
+  /* Quatro degraus tipográficos para conteúdo, e só.
+     `--text-wordmark` é a exceção declarada: lockup de marca não é conteúdo, e
+     amarrá-lo à escala de texto faria a marca encolher junto com o corpo. */
+  --text-wordmark: 1.375rem;
+  --text-display: clamp(1.75rem, 1.35rem + 1.8vw, 2.25rem);
+  --text-display--line-height: 1.12;
+  --text-display--letter-spacing: -0.015em;
+  --text-title: 1.125rem;
+  --text-title--line-height: 1.35;
+  --text-title--letter-spacing: -0.01em;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.45;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Largura de leitura confortável: ~72 caracteres na tipografia acima. */
+  --container-reading: 42rem;
+}
+
+/* ── Tema claro: papel ────────────────────────────────────────────────────────
+   O fundo é levemente quente (hue 85) e os cards são brancos puros: é o que
+   levanta o conteúdo da página sem precisar de sombra. */
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(0.985 0.006 85);
+  --foreground: oklch(0.22 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 260);
+
+  /* A ação primária é tinta, não uma cor de marca saturada: num app onde o
+     conteúdo é texto, o botão colorido competiria com o que se está lendo. */
+  --primary: oklch(0.28 0.035 258);
+  --primary-foreground: oklch(0.985 0.006 85);
+  --secondary: oklch(0.955 0.008 85);
+  --secondary-foreground: oklch(0.28 0.035 258);
+  --muted: oklch(0.955 0.008 85);
+  --muted-foreground: oklch(0.45 0.015 265);
+  --accent: oklch(0.94 0.028 82);
+  --accent-foreground: oklch(0.28 0.035 258);
+
+  --destructive: oklch(0.47 0.19 27);
+  --destructive-foreground: oklch(0.985 0.006 85);
+  --success: oklch(0.45 0.12 155);
+  --success-foreground: oklch(0.985 0.006 85);
+  --warning: oklch(0.52 0.13 72);
+  --warning-foreground: oklch(0.985 0.006 85);
+
+  /* Marca-texto. Superfície, nunca texto — âmbar claro não atinge 4,5:1. */
+  --highlight: oklch(0.86 0.13 84);
+  --highlight-foreground: oklch(0.24 0.03 260);
+
+  --border: oklch(0.9 0.008 85);
+  --input: oklch(0.89 0.008 85);
+  /* Anel de foco em âmbar queimado: 3:1 sobre o papel, e a única coisa da
+     interface que usa a cor de marca em traço fino. */
+  --ring: oklch(0.58 0.16 62);
+
+  --chart-1: oklch(0.28 0.035 258);
+  --chart-2: oklch(0.58 0.16 62);
+  --chart-3: oklch(0.45 0.12 155);
+  --chart-4: oklch(0.52 0.13 72);
+  --chart-5: oklch(0.45 0.015 265);
+
+  --sidebar: oklch(0.97 0.007 85);
+  --sidebar-foreground: oklch(0.22 0.02 260);
+  --sidebar-primary: oklch(0.28 0.035 258);
+  --sidebar-primary-foreground: oklch(0.985 0.006 85);
+  --sidebar-accent: oklch(0.94 0.028 82);
+  --sidebar-accent-foreground: oklch(0.28 0.035 258);
+  --sidebar-border: oklch(0.9 0.008 85);
+  --sidebar-ring: oklch(0.58 0.16 62);
+}
+
+/* ── Tema escuro: tinta ───────────────────────────────────────────────────────
+   Não é o claro invertido mecanicamente: o fundo puxa para o azul frio e o
+   texto para o creme do papel, para a leitura longa não cansar. A ação primária
+   inverte para papel — em ambos os temas ela é o contraste máximo da tela. */
+.dark {
+  --background: oklch(0.17 0.012 265);
+  --foreground: oklch(0.94 0.008 85);
+  --card: oklch(0.21 0.014 265);
+  --card-foreground: oklch(0.94 0.008 85);
+  --popover: oklch(0.21 0.014 265);
+  --popover-foreground: oklch(0.94 0.008 85);
+
+  --primary: oklch(0.93 0.01 85);
+  --primary-foreground: oklch(0.2 0.02 265);
+  --secondary: oklch(0.26 0.015 265);
+  --secondary-foreground: oklch(0.94 0.008 85);
+  --muted: oklch(0.26 0.015 265);
+  --muted-foreground: oklch(0.72 0.012 85);
+  --accent: oklch(0.29 0.02 265);
+  --accent-foreground: oklch(0.94 0.008 85);
+
+  --destructive: oklch(0.7 0.17 25);
+  --destructive-foreground: oklch(0.17 0.012 265);
+  --success: oklch(0.74 0.13 155);
+  --success-foreground: oklch(0.17 0.012 265);
+  --warning: oklch(0.8 0.13 80);
+  --warning-foreground: oklch(0.17 0.012 265);
+
+  --highlight: oklch(0.78 0.14 80);
+  --highlight-foreground: oklch(0.2 0.02 265);
+
+  --border: oklch(0.31 0.012 265);
+  --input: oklch(0.34 0.012 265);
+  --ring: oklch(0.74 0.14 75);
+
+  --chart-1: oklch(0.93 0.01 85);
+  --chart-2: oklch(0.74 0.14 75);
+  --chart-3: oklch(0.74 0.13 155);
+  --chart-4: oklch(0.8 0.13 80);
+  --chart-5: oklch(0.72 0.012 85);
+
+  --sidebar: oklch(0.2 0.013 265);
+  --sidebar-foreground: oklch(0.94 0.008 85);
+  --sidebar-primary: oklch(0.93 0.01 85);
+  --sidebar-primary-foreground: oklch(0.2 0.02 265);
+  --sidebar-accent: oklch(0.29 0.02 265);
+  --sidebar-accent-foreground: oklch(0.94 0.008 85);
+  --sidebar-border: oklch(0.31 0.012 265);
+  --sidebar-ring: oklch(0.74 0.14 75);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground text-body antialiased;
+  }
+
+  /* O marca-texto aplicado à seleção de texto: a mesma cor que vai marcar a
+     citação marca o que o usuário seleciona. */
+  ::selection {
+    background-color: var(--highlight);
+    color: var(--highlight-foreground);
+  }
+
+  /* Número que o usuário compara não pode dançar de largura entre estados. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
