@@ -49,6 +49,11 @@ async def run_ingestion(
     O `request_id` chega por parâmetro porque a task roda fora do contexto da
     requisição que a agendou: reamarrá-lo aqui é o que faz a ingestão inteira
     aparecer num único `grep` no log.
+
+    O `total_duration_ms` de `document.ready` conta **desde o início da task,
+    incluindo a espera pelo semáforo** — e não só o processamento. É a leitura
+    que responde "quanto o usuário esperou", que é a pergunta que a métrica
+    serve para responder; as durações por etapa ficam nos eventos de etapa.
     """
     bind_request_id(request_id)
     bind_document_id(str(document_id))

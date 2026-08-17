@@ -2,12 +2,12 @@
 spec: 01-ingestao-pdf
 fase: A.2
 slug_fase: pdf-chunking
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: d6f42d3
-sha_final: a6438f85a9d35d29830a3eda0d5338e7ba09416e
-range: d6f42d3..a6438f85a9d35d29830a3eda0d5338e7ba09416e
+sha_final: 8cc9eb14ab19faed861817a6e74ef2871b901c52
+range: d6f42d3..8cc9eb14ab19faed861817a6e74ef2871b901c52
 ---
 
 # FASE A.2 — Relatório de execução
@@ -196,7 +196,45 @@ Nota operacional: `--cov=app/core/chunking` (com barra) emite
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+Tentativa 2, motivada pelo veredito **RESSALVAS** (score 9,7). Um achado
+IMPORTANTE, zero BLOQUEANTES.
+
+### I-1 · "Sem texto extraível" media bytes, não conteúdo — CORRIGIDO
+
+O guarda somava `len(page.text)`. Um PDF cuja camada de texto contém apenas
+espaço, tabulação ou quebra de linha — o que acontece com documento vindo de
+imagem e com geradores que emitem operadores de texto vazios — tinha
+`total > 0`, passava, e depois `normalize_whitespace` reduzia tudo a `""`,
+produzindo **zero chunks**. O documento terminava `ready` sem conteúdo, e na
+`FEAT-0002` toda pergunta receberia "não encontrei isso no documento": o
+diagnóstico errado, porque o problema é o documento, não a pergunta. O usuário
+do AC-5, que deveria ler o aviso de OCR, não o lia.
+
+Correção em `app/adapters/pdf.py`, decidindo por conteúdo:
+
+```python
+if not any(page.text.strip() for page in pages):
+    raise PdfWithoutTextError(NO_TEXT_MESSAGE)
+```
+
+Confirmei que a factory reproduz exatamente o caso: `build_text_pdf(["   "])`
+extrai `'   '` — `len_total=3` (passava no guarda antigo) e `strip()` vazio.
+
+Quatro testes novos em `tests/test_pdf_extraction.py`: três parametrizados para
+o caso vazio, **e um que garante a contrapartida** — uma página em branco ao
+lado de uma com texto não derruba o documento. Sem essa contrapartida, a
+correção passaria a rejeitar PDFs legítimos com folha de rosto ou separador em
+branco. **Verificado por mutação:** voltando a `if total == 0`, os testes falham.
+Medido também ponta a ponta no compose: o documento agora termina `failed` com a
+mensagem de OCR.
+
+### Guarda simétrico na A.4 (sugestão S-1, cruzada entre as duas avaliações)
+
+A avaliação desta fase pedia também o guarda do outro lado. Implementado em
+`app/ingestion.py`: se o chunking devolver lista vazia, o documento termina
+`failed` em vez de `ready`. Registrado no relatório da A.4, com a ressalva
+honesta de que hoje ele é **inalcançável** — as duas noções de "vazio"
+concordam — e de como isso foi testado sem fingir um PDF que o dispare.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 
