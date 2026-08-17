@@ -552,9 +552,9 @@ fechado:
 - [✓] Toda função pública de `core/` e `adapters/` tem docstring dizendo o que faz e por quê — verificado por varredura de AST na reavaliação da `A.4`.
 - [✓] Nenhum módulo de `backend/app/core/` importa `fastapi`, `asyncpg`, `google.genai` ou `structlog` — contrato `pure-core`, provado por violação injetada.
 - [✓] Nenhuma dependência de framework de RAG — contrato `no-rag-framework`, com as distribuições `langchain_*` e `llama_index_*` nomeadas uma a uma.
-- [✓] Nenhuma chave, `DATABASE_URL` ou conteúdo de PDF em log, resposta ou arquivo versionado — verificado por teste. *Ressalva do owner, fora do código: um fragmento de 9 caracteres da chave real permanece no histórico, no commit `d6f42d3`; a remediação é rotacionar a chave.*
+- [✓] Nenhuma chave, `DATABASE_URL` ou conteúdo de PDF em log, resposta ou arquivo versionado — verificado por teste, e confirmado na árvore do HEAD (`git grep` do fragmento = zero). *Ressalva do owner, fora do código: um fragmento de 9 caracteres da chave real permanece no histórico. Ele entrou em `d6f42d3`, saiu em `34cb479`, **voltou** em `3430e91` e saiu de novo em `bff6e9f` — são dois intervalos a limpar, não um, se a opção for reescrever a história. A remediação barata e suficiente é rotacionar a chave.*
 - [✓] Todo SQL é parametrizado — verificado por teste contra o Postgres real, com payload destrutivo.
-- [✓] Identificadores em inglês; textos de UI e mensagens de erro em pt-BR.
+- [ ] Identificadores em inglês; textos de UI e mensagens de erro em pt-BR. *Metade cumprida: os textos estão todos em pt-BR e o backend não tem um identificador em português. No frontend sobra `semResposta` (`src/lib/api.ts:57`, usado em `:76` e `:89`) mais 11 identificadores em arquivos de teste (`documento`, `campoDeArquivo`, `montar`, `titulo`, `opcoes`, `avancar`, `CODIGOS_DA_SPEC`…). Os **nomes dos casos de teste** em pt-BR não contam e devem ficar — são documentação de comportamento. Registrado como sugestão nas avaliações da `B.2` (§5.1) e da `B.3` (§6.1).*
 - [✓] Toda cor, tamanho de texto e espaçamento vem dos tokens do design system.
 - [✓] `docker compose up --build` de clone limpo sobe tudo e a tela responde em `localhost:5173` — evidência do executor (dois boots a frio com os três serviços reais, §9 do relatório da `A.1`) e do avaliador do Track B; o avaliador do Track A não a reproduziu, porque exige a `GEMINI_API_KEY`.
 - [✓] `.env.example` documenta toda variável que `config.py` lê — sem sobra e sem falta.
@@ -563,7 +563,12 @@ fechado:
 **Pendências que sobrevivem ao fechamento da spec** (não bloqueiam as fases;
 estão registradas nas avaliações):
 
-- Rotacionar a `GEMINI_API_KEY` — ação do owner, ver a avaliação da `A.1`.
+- Rotacionar a `GEMINI_API_KEY` — ação do owner, ver a avaliação da `A.1`. O
+  fragmento está em dois intervalos do histórico (`d6f42d3..34cb479` e
+  `3430e91..bff6e9f`); a árvore do HEAD está limpa.
+- Renomear `semResposta` para `noResponse` em `frontend/src/lib/api.ts` e passar
+  os helpers dos testes do frontend para inglês — é o único item global desta
+  seção que ficou aberto, e é o trabalho de um `sed` revisado à mão.
 - Dois reenvios simultâneos de um documento `failed` duplicam chunks no
   Postgres, e o dublê da suíte não enxerga porque `insert_chunks` atribui onde o
   banco acumula — sugestão S-1 da avaliação da `A.4`.
