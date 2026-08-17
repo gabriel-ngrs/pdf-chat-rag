@@ -64,12 +64,12 @@ export function useDocumentStatus(documentId: string | null): DocumentStatusStat
         return
       }
       try {
-        const document = await fetchDocument(documentId)
+        const detail = await fetchDocument(documentId)
         if (cancelled) {
           return
         }
-        setState({ document, missing: false, loading: false })
-        if (document.status === 'ready' || document.status === 'failed') {
+        setState({ document: detail, missing: false, loading: false })
+        if (detail.status === 'ready' || detail.status === 'failed') {
           return
         }
       } catch (error) {
