@@ -6,20 +6,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ChatView } from '@/components/ChatView'
 import { ApiError } from '@/lib/api'
+import type { ChatStreamEvent } from '@/lib/sse'
 import type { DocumentDetail } from '@/lib/types'
 
 vi.mock('@/lib/api', async () => {
   const real = await vi.importActual<typeof import('@/lib/api')>('@/lib/api')
-  return { ...real, createConversation: vi.fn(), listMessages: vi.fn() }
+  return { ...real, createConversation: vi.fn(), listMessages: vi.fn(), openChatStream: vi.fn() }
 })
+
+// O parser de SSE tem testes próprios em `lib/sse.test.ts`; aqui ele é
+// substituído por um canal que o teste alimenta evento a evento, que é o que
+// permite observar a resposta aparecendo aos poucos.
+vi.mock('@/lib/sse', () => ({ parseChatStream: vi.fn() }))
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
 }))
 
-const { createConversation } = await import('@/lib/api')
+const { createConversation, openChatStream } = await import('@/lib/api')
+const { parseChatStream } = await import('@/lib/sse')
 const { toast } = await import('sonner')
 const createConversationMock = vi.mocked(createConversation)
+const openChatStreamMock = vi.mocked(openChatStream)
+const parseChatStreamMock = vi.mocked(parseChatStream)
 const toastErrorMock = vi.mocked(toast.error)
 
 const DOCUMENT: DocumentDetail = {
@@ -36,11 +45,73 @@ function campo(): HTMLTextAreaElement {
   return screen.getByLabelText('Sua pergunta sobre o documento') as HTMLTextAreaElement
 }
 
+/**
+ * Canal de eventos que o teste controla, no lugar do stream real.
+ *
+ * O `abort` rejeita a espera do jeito que o cancelamento de um `fetch` faz —
+ * sem isso o cancelamento pareceria funcionar num teste em que nada acontece.
+ */
+function eventChannel() {
+  const queue: ChatStreamEvent[] = []
+  let wake: (() => void) | null = null
+  let closed = false
+
+  return {
+    push(event: ChatStreamEvent) {
+      queue.push(event)
+      wake?.()
+      wake = null
+    },
+    close() {
+      closed = true
+      wake?.()
+      wake = null
+    },
+    async *iterate(signal: AbortSignal): AsyncGenerator<ChatStreamEvent> {
+      for (;;) {
+        while (queue.length > 0) {
+          yield queue.shift() as ChatStreamEvent
+        }
+        if (closed) {
+          return
+        }
+        await new Promise<void>((resolve, reject) => {
+          wake = resolve
+          signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true })
+        })
+      }
+    },
+  }
+}
+
+/** Liga o canal ao `useChat`, devolvendo o canal para o teste alimentar. */
+function ligarStream() {
+  const channel = eventChannel()
+  let signal: AbortSignal | null = null
+  openChatStreamMock.mockImplementation((_conversationId, _question, aborted) => {
+    signal = aborted
+    return Promise.resolve({} as Response)
+  })
+  parseChatStreamMock.mockImplementation(() => channel.iterate(signal as AbortSignal))
+  return channel
+}
+
+async function perguntar(texto: string) {
+  await userEvent.click(campo())
+  await userEvent.keyboard(`${texto}{Enter}`)
+}
+
 describe('ChatView', () => {
   beforeEach(() => {
     localStorage.clear()
     createConversationMock.mockReset()
     createConversationMock.mockResolvedValue({ id: 'conv-1' })
+    openChatStreamMock.mockReset()
+    openChatStreamMock.mockResolvedValue({} as Response)
+    parseChatStreamMock.mockReset()
+    // Stream que fecha sem dizer nada: o padrão para os testes que não são
+    // sobre a resposta.
+    parseChatStreamMock.mockImplementation(async function* () {})
     toastErrorMock.mockReset()
   })
 
@@ -120,6 +191,88 @@ describe('ChatView', () => {
     await userEvent.keyboard('   {Enter}')
 
     expect(screen.queryByRole('listitem')).toBeNull()
+  })
+
+  it('mostra "pensando" e depois a resposta chegando aos poucos', async () => {
+    const canal = ligarStream()
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+
+    await perguntar('quais serviços a YAITEC oferece?')
+
+    expect(await screen.findByText('Pensando na resposta.')).toBeTruthy()
+    expect(openChatStreamMock).toHaveBeenCalledWith(
+      'conv-1',
+      'quais serviços a YAITEC oferece?',
+      expect.any(AbortSignal),
+    )
+
+    canal.push({ type: 'token', text: 'A YAITEC ' })
+    expect(await screen.findByText('A YAITEC')).toBeTruthy()
+    // O "pensando" some no primeiro token, não no fim da resposta.
+    expect(screen.queryByText('Pensando na resposta.')).toBeNull()
+
+    canal.push({ type: 'token', text: 'oferece consultoria.' })
+    expect(await screen.findByText('A YAITEC oferece consultoria.')).toBeTruthy()
+
+    canal.push({ type: 'done', messageId: 12, truncated: false })
+    canal.close()
+
+    await waitFor(() => expect(campo().disabled).toBe(false))
+    expect(screen.getByText('A YAITEC oferece consultoria.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Parar resposta/ })).toBeNull()
+  })
+
+  it('cancela a resposta em andamento, preservando o que já chegou', async () => {
+    const canal = ligarStream()
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+
+    await perguntar('resuma o documento')
+    canal.push({ type: 'token', text: 'Começo da resposta' })
+    await screen.findByText('Começo da resposta')
+
+    await userEvent.click(screen.getByRole('button', { name: /Parar resposta/ }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Parar resposta/ })).toBeNull(),
+    )
+    expect(screen.getByText('Começo da resposta')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Enviar pergunta' })).toBeTruthy()
+    expect(toastErrorMock).not.toHaveBeenCalled()
+  })
+
+  it('trata erro antes do primeiro evento como aviso, sem resposta pela metade', async () => {
+    openChatStreamMock.mockRejectedValue(
+      new ApiError('limite_de_uso', 'O provedor recusou por enquanto.', 429),
+    )
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+
+    await perguntar('qual o endereço?')
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
+    expect(toastErrorMock.mock.calls[0]?.[0]).toBe('Limite de uso atingido')
+    expect(parseChatStreamMock).not.toHaveBeenCalled()
+    // Só a pergunta ficou na lista: não há resposta vazia fingindo existir.
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+  })
+
+  it('trata erro no meio do stream preservando o texto recebido', async () => {
+    const canal = ligarStream()
+    render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
+    await waitFor(() => expect(campo().disabled).toBe(false))
+
+    await perguntar('e quanto a isso?')
+    canal.push({ type: 'token', text: 'Metade da resposta' })
+    await screen.findByText('Metade da resposta')
+
+    canal.push({ type: 'error', code: 'provedor', message: 'O provedor falhou.' })
+    canal.close()
+
+    await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
+    expect(screen.getByText('Metade da resposta')).toBeTruthy()
   })
 
   it('mostra o nome do documento e o caminho de volta para o envio', async () => {

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { SquareIcon } from 'lucide-react'
 
 import { MessageInput } from '@/components/MessageInput'
 import { MessageList } from '@/components/MessageList'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useChat } from '@/hooks/useChat'
 import { useNotices } from '@/hooks/useNotices'
 import { ApiError, createConversation } from '@/lib/api'
-import type { ChatMessage, DocumentDetail } from '@/lib/types'
+import type { DocumentDetail } from '@/lib/types'
 
 /**
  * Uma conversa por documento.
@@ -130,28 +132,14 @@ function DocumentHeader({ document, onReset }: ChatViewProps) {
  */
 export function ChatView({ document, onReset }: ChatViewProps) {
   const conversation = useConversation(document.id)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const conversationId = conversation.status === 'open' ? conversation.conversationId : null
+  const { messages, streaming, send, cancel } = useChat(conversationId)
   const [question, setQuestion] = useState('')
-  const nextLocalId = useRef(-1)
 
   const handleSubmit = useCallback(() => {
-    const asked = question.trim()
-    if (!asked) {
-      return
-    }
-    // Ids negativos são locais: a numeração real vem do servidor, e misturar as
-    // duas origens sem separá-las produziria chaves duplicadas na lista.
-    const localMessage: ChatMessage = {
-      id: nextLocalId.current--,
-      role: 'user',
-      content: asked,
-      citations: [],
-      truncated: false,
-      created_at: new Date().toISOString(),
-    }
-    setMessages((previous) => [...previous, localMessage])
+    send(question)
     setQuestion('')
-  }, [question])
+  }, [question, send])
 
   return (
     // 14rem é o que a casca ocupa fora do conteúdo (cabeçalho, respiro vertical
@@ -167,15 +155,24 @@ export function ChatView({ document, onReset }: ChatViewProps) {
             <Skeleton className="h-4 w-72" />
           </div>
         ) : (
-          <MessageList messages={messages} />
+          <MessageList messages={messages} streaming={streaming} />
         )}
       </div>
+
+      {streaming ? (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" onClick={cancel}>
+            <SquareIcon aria-hidden="true" />
+            Parar resposta
+          </Button>
+        </div>
+      ) : null}
 
       <MessageInput
         value={question}
         onChange={setQuestion}
         onSubmit={handleSubmit}
-        pending={false}
+        pending={streaming !== null}
         disabled={conversation.status !== 'open'}
       />
     </div>

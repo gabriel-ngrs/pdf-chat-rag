@@ -142,3 +142,54 @@ export function createConversation(documentId: string): Promise<ConversationCrea
 export function listMessages(conversationId: string): Promise<ChatMessage[]> {
   return request<ChatMessage[]>(`/conversations/${encodeURIComponent(conversationId)}/messages`)
 }
+
+/**
+ * Abre o fluxo de resposta de uma pergunta e devolve a resposta já conferida.
+ *
+ * Não passa pelo `request()`: aquele lê o corpo inteiro como JSON, que é
+ * exatamente o que não se pode fazer com um stream. Duas conferências acontecem
+ * aqui, **antes** de qualquer parser de SSE ver o corpo (FR-11): status de erro
+ * — o `429` do provedor chega quase sempre antes do primeiro byte, como JSON — e
+ * `Content-Type`, porque um proxy mal configurado devolve HTML com `200`.
+ *
+ * Sem timeout de propósito: uma resposta longa demora, e quem corta é o
+ * `AbortSignal` de quem cancelou ou saiu da tela.
+ */
+export async function openChatStream(
+  conversationId: string,
+  question: string,
+  signal: AbortSignal,
+): Promise<Response> {
+  const path = `/conversations/${encodeURIComponent(conversationId)}/messages`
+
+  let response: Response
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        'X-Session-Id': getSessionId(),
+      },
+      body: JSON.stringify({ question }),
+    })
+  } catch (error) {
+    // Cancelamento não é falha de rede: quem abortou sabe o que fez.
+    if (signal.aborted) {
+      throw error
+    }
+    throw new ApiError('rede_indisponivel', 'Não foi possível falar com o servidor.', null)
+  }
+
+  if (!response.ok) {
+    const envelope = await readErrorEnvelope(response)
+    throw new ApiError(envelope.code, envelope.message, response.status)
+  }
+
+  if (!(response.headers.get('Content-Type') ?? '').includes('text/event-stream')) {
+    throw new ApiError('erro_interno', 'O servidor não abriu o fluxo de resposta.', response.status)
+  }
+
+  return response
+}

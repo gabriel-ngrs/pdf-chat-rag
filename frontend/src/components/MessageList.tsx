@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
+import type { StreamingAnswer } from '@/hooks/useChat'
 import type { ChatMessage } from '@/lib/types'
 
 /**
@@ -78,8 +80,33 @@ function AssistantMessage({ content }: { content: string }) {
   )
 }
 
+/**
+ * O "pensando", entre o envio e o primeiro token.
+ *
+ * O `role="status"` anuncia a espera uma vez, mesmo dentro do item que silencia
+ * os tokens: quem não vê a tela precisa saber que o sistema está trabalhando.
+ */
+function ThinkingIndicator() {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-muted-foreground font-mono text-caption tracking-widest uppercase">
+        Resposta
+      </p>
+      <span role="status" className="sr-only">
+        Pensando na resposta.
+      </span>
+      <div className="flex flex-col gap-2" aria-hidden="true">
+        <Skeleton className="h-4 w-full max-w-prose" />
+        <Skeleton className="h-4 w-3/5" />
+      </div>
+    </div>
+  )
+}
+
 type MessageListProps = {
   messages: ChatMessage[]
+  /** Resposta em construção, ainda fora do histórico. */
+  streaming?: StreamingAnswer | null
 }
 
 /**
@@ -89,8 +116,10 @@ type MessageListProps = {
  * documento, e a resposta é a leitura — quem tem balão é a pergunta, que é o
  * comentário na margem.
  */
-export function MessageList({ messages }: MessageListProps) {
-  const containerRef = useStickToBottom(messages)
+export function MessageList({ messages, streaming = null }: MessageListProps) {
+  // O que faz a lista crescer é uma mensagem nova ou mais um token: acompanhar
+  // esses dois tamanhos evita reagir a render que não mudou nada na conversa.
+  const containerRef = useStickToBottom(`${messages.length}:${streaming?.content.length ?? -1}`)
 
   return (
     <ScrollArea ref={containerRef} className="h-full">
@@ -110,6 +139,19 @@ export function MessageList({ messages }: MessageListProps) {
             )}
           </li>
         ))}
+
+        {streaming ? (
+          // A resposta em construção fica muda para o leitor de tela: anunciar
+          // token a token viraria ruído. O anúncio acontece uma vez, quando a
+          // mensagem pronta entra na lista acima.
+          <li aria-live="off" aria-busy="true">
+            {streaming.content ? (
+              <AssistantMessage content={streaming.content} />
+            ) : (
+              <ThinkingIndicator />
+            )}
+          </li>
+        ) : null}
       </ol>
     </ScrollArea>
   )
