@@ -15,7 +15,12 @@ range: dd621eb..28159b6
 > Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-chatB`, branch
 > `feat/chat-rag-trackB`, criada a partir de `dev` (`dd621eb`).
 
-## ⚠️ Dependência `A.4` ainda NÃO satisfeita — leia antes de avaliar
+## ✅ Gate executado na tentativa 2 (o aviso abaixo é da tentativa 1)
+
+Com a `A.4` na `dev` e o `docker compose` no ar, o gate foi cumprido contra o
+backend real em 2026-08-17. Evidências em §10.
+
+## ⚠️ (Tentativa 1) Dependência `A.4` ainda NÃO satisfeita
 
 A `B.1` declara `Depende de: A.4` (endpoint de chat). No momento desta execução
 a `A.4` **não existe**: a branch `feat/chat-rag-trackA` está em `dd621eb`, sem
@@ -163,11 +168,12 @@ quando o Track B estiver fechado.
   `scrollHeight`/`clientHeight` são zero e qualquer asserção sobre isso provaria
   o mock, não o comportamento. Verificação visual pendente junto com o gate do
   backend real.
-- [ ] **Critério de conclusão — "conversa criada contra o backend real"**:
-  **PENDENTE**, `A.4` não implementada. Ver o aviso no topo.
+- [x] **Critério de conclusão — "conversa criada contra o backend real"**:
+  cumprido na tentativa 2 (§10): **um** `POST /api/conversations` → `201`, campo
+  habilitado, e o par documento↔conversa guardado no `localStorage`.
 - [x] **"layout consistente com o design system nos dois temas"** — por
-  construção: toda cor usada é token semântico, que é o que troca com o tema.
-  Conferência visual nos dois temas fica junto do gate acima.
+  construção (toda cor é token semântico) **e por conferência visual** nos dois
+  temas contra o app do compose (§10).
 
 ## 7. Definition of Done da fase
 
@@ -178,7 +184,7 @@ quando o Track B estiver fechado.
       pt-BR e identificadores em inglês
 - [x] Nenhum segredo/PII no diff (grep zero)
 - [x] Commits em pt-BR, Conventional Commits (`28159b6`)
-- [ ] Gate de backend real — **pendente da `A.4`**
+- [x] Gate de backend real — cumprido na tentativa 2 (§10)
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
@@ -215,3 +221,32 @@ Não se aplica — primeira execução.
    ("acompanhar ou não") para uma função pura recebendo os três números e testar
    essa função. Não fiz para não inflar a fase com abstração que só existe para o
    teste.
+
+## 10. Gate contra o backend real (tentativa 2, 2026-08-17)
+
+Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `Exemplo-YAITEC.pdf`
+ingerido pela API do compose (3 páginas, 10 chunks, `status: ready`), navegador
+dirigido por Playwright contra `http://localhost:5173` (o nginx do frontend, não
+o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.
+
+```text
+B.1 | POST /api/conversations: 1  | campo habilitado: True
+B.1 | conversa guardada: {"documentId":"b3d6b31d-…","conversationId":"4cf44b97-…"}
+B.1 | <html> class = 'dark'   (depois de acionar "Mudar para o tema escuro")
+```
+
+- **Conversa criada uma única vez contra o backend real:** o contador de
+  requisições da página registrou exatamente **um** `POST /api/conversations`,
+  respondido `201`, e o par documento↔conversa foi para o `localStorage`. Num
+  `F5` seguinte o contador ficou em **zero** — a conversa guardada foi reusada
+  (evidência na §10 da `B.4`).
+- **Campo utilizável:** habilitado assim que a conversa abriu; a pergunta foi
+  enviada por `Enter` e a resposta apareceu.
+- **Layout nos dois temas:** conferido visualmente nas duas capturas
+  (`01/04-chat-claro.png`, `05-chat-escuro.png`): mesma composição, balão da
+  pergunta, rótulo "RESPOSTA", chips de citação e campo — todos legíveis nos
+  dois temas, sem cor fora do token.
+- **Observação de rota:** a chamada passou pelo proxy do nginx (`:5173/api/...`),
+  que é o caminho que o avaliador vai usar, não pelo backend direto.
+
+**Capturas:** `gate-b/04-chat-claro.png`, `gate-b/05-chat-escuro.png`.

@@ -15,7 +15,13 @@ range: 8a1e191..74afd80
 > Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-chatB`, branch
 > `feat/chat-rag-trackB`.
 
-## ⚠️ Gate com o backend real ainda PENDENTE
+## ✅ Gate executado na tentativa 2 (o aviso abaixo é da tentativa 1)
+
+Os seis códigos de erro do mapa foram reproduzidos contra o servidor real —
+inclusive `provedor`, que a avaliação supunha inexistente — e o `F5` no meio da
+conversa **e no meio do stream** restaurou tudo. Evidências em §10.
+
+## ⚠️ (Tentativa 1) Gate com o backend real ainda PENDENTE
 
 "Cada código de erro reproduzido exibe o aviso certo; um `F5` no meio da conversa
 restaura tudo" só pode ser conferido de ponta a ponta com a `A.4` no ar. O que
@@ -150,7 +156,9 @@ found 0 vulnerabilities
   `frontend/src/components/` são todos de estado de documento, envio ou
   conversa, conferidos um a um).
 - [x] **Não usar `alert()`** — `grep -rn "alert(" frontend/src` → 0.
-- [ ] **Critério de conclusão contra o backend real**: **PENDENTE**, `A.4`.
+- [x] **Critério de conclusão contra o backend real**: cumprido na tentativa 2
+  (§10) — cada código reproduzido com o aviso certo no canal certo, e o `F5`
+  restaurando a conversa sem criar outra, com a resposta interrompida marcada.
 
 ## 7. Definition of Done da fase
 
@@ -160,7 +168,7 @@ found 0 vulnerabilities
       se perde; conversa não é recriada ao restaurar; sem `alert()`
 - [x] Nenhum segredo/PII no diff
 - [x] Commits em pt-BR, Conventional Commits (`74afd80`)
-- [ ] Gate contra o backend real — **pendente da `A.4`**
+- [x] Gate contra o backend real — cumprido na tentativa 2 (§10)
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
@@ -247,3 +255,68 @@ passada contra o `docker compose`, com a `A.4` já na `dev`.
    nunca só por cor; foco visível em todo controle (o campo mostra o anel no
    contêiner, já que o `textarea` tem `outline-none`). Não há teste automatizado
    de contraste — os pares usados são os tokens auditados na `FEAT-0001 B.1`.
+
+## 10. Gate contra o backend real (tentativa 2, 2026-08-17)
+
+Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `Exemplo-YAITEC.pdf`
+ingerido pela API do compose (3 páginas, 10 chunks, `status: ready`), navegador
+dirigido por Playwright contra `http://localhost:5173` (o nginx do frontend, não
+o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.
+
+### Cada código de erro, reproduzido de verdade
+
+| Código | Como foi provocado | Resposta do servidor | O que a tela mostrou |
+|---|---|---|---|
+| `nao_encontrado` | pergunta em conversa inexistente | `404 {"code":"nao_encontrado"}` | — (verificado na API) |
+| `arquivo_invalido` | upload de arquivo que não é PDF | `422 {"code":"arquivo_invalido"}` | — (verificado na API) |
+| `documento_nao_pronto` | conversa aberta antes de o PDF ficar `ready` | `409 {"code":"documento_nao_pronto"}` | aviso **info**, não vermelho |
+| `limite_de_uso` | rajada até a quota real do free tier | `429 {"code":"limite_de_uso"}` (7 de 18) | aviso com "Tentar de novo" |
+| `erro_interno` | banco derrubado no meio da requisição | `500 {"code":"erro_interno"}` | "Algo deu errado no servidor" |
+| `provedor` | `GEMINI_CHAT_MODEL` apontado para modelo inexistente | `502 {"code":"provedor"}` | "O provedor de IA falhou" |
+| `rede_indisponivel` | backend **e** frontend fora do ar com a página aberta | falha de rede no `fetch` | "Sem resposta do servidor" |
+
+O `provedor` era o item que a avaliação dava como irreproduzível. Ele existe,
+sai com `502` e o log registra `chat.provider_failed` + `chat.error phase=pre_stream`:
+
+```text
+{"reason": "404 NOT_FOUND … models/gemini-modelo-inexistente is not found …",
+ "status": 404, "code": "provedor", "event": "chat.provider_failed"}
+```
+
+Nota de rota: com o nginx no ar e só o backend fora, o cliente recebe o `502` do
+proxy e o aviso certo é `erro_interno`. `rede_indisponivel` é o caso em que o
+`fetch` não chega a lugar nenhum — reproduzido derrubando os dois contêineres.
+
+### `F5` restaura tudo
+
+```text
+F5 sobre a conversa guardada: 2 mensagens restauradas | POST /api/conversations: 0 | chips: 5
+F5 no meio do stream:         4 mensagens             | conversas novas: 0 | 'Resposta interrompida': 1
+```
+
+### I-1 fechado ponta a ponta
+
+```text
+envio falhou → 0 balões na conversa, pergunta de volta no campo: True
+após 'Tentar de novo': 2 balões (1 pergunta + 1 resposta) | 5 chips
+no banco: #59 user 'quais são os valores da YAITEC?' | #60 assistant (5 citações)
+→ cópias da pergunta no histórico: 1
+```
+
+A falha some da conversa e volta para o campo; a repetição produz **uma**
+pergunta e **uma** resposta, na tela e no banco — que é o que o defeito I-1
+quebrava dos dois lados.
+
+### Achado novo para a `A.4` (fora do escopo desta fase)
+
+Na rajada de 18 perguntas simultâneas, 8 responderam `500 erro_interno` com
+`RuntimeError: Cannot send a request, as the client has been closed` vindo do
+SDK do Gemini. A criação preguiçosa do `Client` em `GeminiEmbeddingClient._models()`
+não é protegida contra concorrência: no primeiro uso simultâneo depois de subir
+o processo, várias threads criam clientes, o descartado é finalizado e fecha o
+transporte que as outras estavam usando. É transitório (o cliente vencedor
+sobrevive) e não afeta um usuário sozinho, mas duas abas na primeira pergunta
+bastam. Correção sugerida: criar o cliente no `lifespan`, ou proteger a criação
+preguiçosa com um `threading.Lock`.
+
+**Capturas:** `gate-b/06-f5-no-meio-do-stream.png`, `gate-b/10-rede-indisponivel.png`, `gate-b/12-provedor-na-ui.png`, `gate-b/13-tentar-de-novo-ok.png`.

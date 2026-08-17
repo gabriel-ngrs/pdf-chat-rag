@@ -15,7 +15,13 @@ range: d1536f0..e0d40d9
 > Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-chatB`, branch
 > `feat/chat-rag-trackB`.
 
-## ⚠️ O gate "pelo `docker compose`" continua PENDENTE
+## ✅ Gate executado na tentativa 2 (o aviso abaixo é da tentativa 1)
+
+A resposta real chegou token a token **pelo `docker compose`**, com o primeiro
+token em 3,24 s (AC-23: ≤ 5 s) e o cancelamento interrompendo de fato.
+Evidências em §10.
+
+## ⚠️ (Tentativa 1) O gate "pelo `docker compose`" continua PENDENTE
 
 Mesma situação da `B.1`: a `A.4` não existe ainda, então "resposta real renderiza
 token a token através do `docker compose`" **não foi cumprido** — não foi
@@ -138,8 +144,10 @@ cd frontend && npm run test
   desmonte (`useEffect` de limpeza em `useChat`); o `finally` do gerador cancela
   o `reader`, provado pelo teste "fecha a leitura quando quem consome desiste no
   meio" (o `cancel` do `ReadableStream` é chamado uma vez).
-- [ ] **Critério de conclusão — "resposta real renderiza token a token através do
-  `docker compose`"**: **PENDENTE**, `A.4` não implementada.
+- [x] **Critério de conclusão — "resposta real renderiza token a token através do
+  `docker compose`"**: cumprido na tentativa 2 (§10) — quadros SSE chegando em
+  instantes distintos pelo nginx, primeiro token em 3,24 s, e "Parar resposta"
+  encerrando o turno com a resposta parcial gravada como `truncated`.
 
 ## 7. Definition of Done da fase
 
@@ -149,7 +157,7 @@ cd frontend && npm run test
       sem `AbortController` órfão; não assume chunk = quadro
 - [x] Nenhum segredo no diff
 - [x] Commits em pt-BR, Conventional Commits (`e0d40d9`)
-- [ ] Gate pelo compose — **pendente da `A.4`**
+- [x] Gate pelo compose — cumprido na tentativa 2 (§10)
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
@@ -183,3 +191,45 @@ Não se aplica — primeira execução.
    que depende da `A.4`.
 3. **Recusa e `truncated` ainda não têm tratamento visual.** É escopo declarado
    da `B.4`; aqui `truncated` já é gravado na mensagem, só não é exibido.
+
+## 10. Gate pelo `docker compose` (tentativa 2, 2026-08-17)
+
+Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `Exemplo-YAITEC.pdf`
+ingerido pela API do compose (3 páginas, 10 chunks, `status: ready`), navegador
+dirigido por Playwright contra `http://localhost:5173` (o nginx do frontend, não
+o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.
+
+```text
+HTTP 200 | Content-Type: text/event-stream; charset=utf-8
+[ 3.244s] cabeçalhos recebidos
+[ 3.244s] token     'A YA'
+[ 3.304s] token     'ITEC foi fundada por **Ygor Alves** (páginas 2 e 3), que é'
+[ 3.348s] token     ' **engenheiro eletricista pela UFPB** (página 2).'
+[ 3.360s] citations {5 citações}
+[ 3.361s] done      {"message_id": 2, "truncated": false}
+primeiro token: 3.244s  (AC-23: <= 5s -> OK)
+
+# na tela, o texto do último balão crescendo (s, chars):
+[(0.024, 31), (1.748, 40), (1.834, 77), (2.005, 184), (2.177, 352)]
+```
+
+- **Token a token, não de uma vez:** os quadros chegaram em instantes distintos
+  (3,244 / 3,304 / 3,348 s) **através do nginx**. Na tela, o mesmo: o balão da
+  resposta cresceu de 40 → 77 → 184 → 352 caracteres em amostras separadas.
+- **Buffering do proxy descartado (Risco 3):** o backend emite
+  `x-accel-buffering: no` (conferido direto na porta 8000); pelo `:5173` o
+  cabeçalho não aparece porque o nginx o **consome** — e o efeito dele é o que a
+  medição acima mostra.
+- **AC-23 (NFR-1):** primeiro token em **3,244 s**, dentro dos 5 s.
+- **Cancelar interrompe de fato:** com 209 caracteres na tela, "Parar resposta"
+  encerrou o turno; 4 s depois o texto não cresceu mais, o botão sumiu e a
+  mensagem ficou marcada como interrompida. No servidor, a resposta parcial foi
+  gravada com `truncated=true` (178 chars) e **nenhum** `chat.generated` foi
+  emitido para aquele turno — o consumo do provedor parou.
+- **Achado para a `A.4` (não bloqueia esta fase):** o evento `chat.client_disconnected`
+  de §4.6 **não é emitido** no caminho real de cancelamento nem no `F5`. Sob
+  uvicorn a desconexão chega como cancelamento da task, e o `finally` grava a
+  parcial sem passar pelo `is_disconnected()`. O comportamento exigido por FR-12
+  acontece; o que não acontece é o registro no log.
+
+**Capturas:** `gate-b/02-resposta-com-chips.png` (resposta completa na tela).

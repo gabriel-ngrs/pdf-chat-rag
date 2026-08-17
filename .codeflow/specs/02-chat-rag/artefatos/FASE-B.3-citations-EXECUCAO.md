@@ -15,7 +15,12 @@ range: 199ce9f..3d10f34
 > Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-chatB`, branch
 > `feat/chat-rag-trackB`.
 
-## ⚠️ Gate com dado real ainda PENDENTE
+## ✅ Gate executado na tentativa 2 (o aviso abaixo é da tentativa 1)
+
+Cinco citações reais de uma pergunta sobre o `Exemplo-YAITEC.pdf` foram exibidas
+e **conferidas página a página contra o PDF**. Evidências em §10.
+
+## ⚠️ (Tentativa 1) Gate com dado real ainda PENDENTE
 
 O critério de conclusão pede "citações reais de uma pergunta sobre o
 `Exemplo-YAITEC.pdf` exibidas". Com a `A.4` e a `A.3` do Track A ainda não
@@ -121,8 +126,9 @@ $ grep -nE "#[0-9a-fA-F]{3,6}|text-(gray|slate|zinc)-" src/components/CitationCh
   não há valor padrão para página, trecho ou score no caminho de exibição.
 - [x] **Score discreto** — não aparece no chip (asserção de ausência) e aparece
   no diálogo como `similaridade 0,83`.
-- [ ] **Critério de conclusão com citação real do `Exemplo-YAITEC.pdf`**:
-  **PENDENTE**, depende de `A.3`/`A.4`.
+- [x] **Critério de conclusão com citação real do `Exemplo-YAITEC.pdf`**:
+  cumprido na tentativa 2 (§10) — 5 chips reais, cada trecho conferido contra a
+  página que o chip declara, abertos por `Tab`+`Enter` e fechados por `Esc`.
 
 ## 7. Definition of Done da fase
 
@@ -132,7 +138,7 @@ $ grep -nE "#[0-9a-fA-F]{3,6}|text-(gray|slate|zinc)-" src/components/CitationCh
       fabricado; nenhuma cor fora dos tokens
 - [x] Nenhum segredo no diff
 - [x] Commits em pt-BR, Conventional Commits (`3d10f34`)
-- [ ] Gate com citação real — **pendente do Track A**
+- [x] Gate com citação real — cumprido na tentativa 2 (§10)
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
@@ -161,3 +167,40 @@ Não se aplica — primeira execução.
    par que o design system declara para superfície marcada; não remedi o
    contraste desta combinação nesta fase — o par vem do sistema da `FEAT-0001`,
    que o declarou aprovado para superfície.
+
+## 10. Gate com citação real (tentativa 2, 2026-08-17)
+
+Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `Exemplo-YAITEC.pdf`
+ingerido pela API do compose (3 páginas, 10 chunks, `status: ready`), navegador
+dirigido por Playwright contra `http://localhost:5173` (o nginx do frontend, não
+o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.
+
+Pergunta: *"Quem fundou a YAITEC e qual a formação dele?"* — 5 citações, cada
+`snippet` comparado com o texto extraído da página que o chip declara:
+
+```text
+página 2 | chunk_index 6 | score 0.761 | 231 chars | confere com a página 2? SIM
+página 2 | chunk_index 5 | score 0.753 | 238 chars | confere com a página 2? SIM
+página 1 | chunk_index 0 | score 0.707 | 227 chars | confere com a página 1? SIM
+página 3 | chunk_index 8 | score 0.702 | 236 chars | confere com a página 3? SIM
+página 1 | chunk_index 3 | score 0.701 | 233 chars | confere com a página 1? SIM
+
+chips na tela: ['ver trecho da página 1', 'ver trecho da página 2',
+                'ver trecho da página 2', 'ver trecho da página 3',
+                'ver trecho da página 3']
+foco por teclado em 'ver trecho da página 1'; Enter abriu o diálogo
+Esc fechou; foco devolvido para 'ver trecho da página 1'
+```
+
+- **Citações reais exibidas:** os cinco chips vieram do turno real e estão
+  ordenados por página, como a fase promete.
+- **Página confere com o PDF:** conferência automatizada trecho→página contra o
+  texto extraído do `Exemplo-YAITEC.pdf` — as cinco batem, nenhuma aparece em
+  página diferente da declarada. É a verificação que nenhum teste offline faz.
+- **Recorte do servidor cabe no diálogo:** os `snippet` chegaram entre 227 e 238
+  caracteres (teto de 240) e o diálogo os mostrou inteiros, sem quebrar o layout
+  (`14-dialogo-citacao.png`, com `similaridade 0,74` discreta no rodapé).
+- **Teclado:** `Tab` alcança os chips, `Enter` abre, `Esc` fecha e devolve o foco
+  ao chip de origem.
+
+**Capturas:** `gate-b/02-resposta-com-chips.png`, `gate-b/14-dialogo-citacao.png`.
