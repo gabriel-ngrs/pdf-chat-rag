@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ThemeProvider } from 'next-themes'
 
 import { AppShell } from '@/components/AppShell'
 import { Notices } from '@/components/Notices'
+import { UploadDropzone } from '@/components/UploadDropzone'
 import { Card, CardContent } from '@/components/ui/card'
 import { useNotices } from '@/hooks/useNotices'
 import { loadConfig } from '@/lib/config'
 import type { ConfigState } from '@/lib/config'
+import type { UploadAccepted } from '@/lib/types'
+
+/** O documento em acompanhamento sobrevive a um recarregamento da página. */
+const DOCUMENT_STORAGE_KEY = 'talkdoc:document-id'
 
 const STEPS = [
   {
@@ -55,65 +60,87 @@ function useAppConfig(): ConfigState {
   return state
 }
 
-function Home({ config }: { config: ConfigState }) {
-  const limits =
-    config.status === 'ready'
-      ? `Até ${config.limits.max_upload_mb} MB e ${config.limits.max_pdf_pages} páginas. `
-      : ''
-
+function HowItWorks() {
   return (
-    <div className="flex flex-col gap-12">
-      <section className="flex flex-col gap-4">
-        <h1 className="font-display text-display text-balance">Converse com o seu PDF.</h1>
-        <p className="text-muted-foreground max-w-prose">
-          Envie um documento e pergunte o que quiser sobre ele. O TalkDoc responde apenas com o que
-          está escrito lá, e sempre diz de qual página tirou.
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-4" aria-labelledby="como-funciona">
-        <h2
-          id="como-funciona"
-          className="text-muted-foreground font-mono text-caption tracking-widest uppercase"
-        >
-          Como funciona
-        </h2>
-        <Card className="py-0">
-          <CardContent className="px-0">
-            <ol>
-              {STEPS.map((step, index) => (
-                <li
-                  key={step.title}
-                  className="border-border flex items-start gap-4 px-4 py-4 not-last:border-b sm:px-6"
+    <section className="flex flex-col gap-4" aria-labelledby="como-funciona">
+      <h2
+        id="como-funciona"
+        className="text-muted-foreground font-mono text-caption tracking-widest uppercase"
+      >
+        Como funciona
+      </h2>
+      <Card className="py-0">
+        <CardContent className="px-0">
+          <ol>
+            {STEPS.map((step, index) => (
+              <li
+                key={step.title}
+                className="border-border flex items-start gap-4 px-4 py-4 not-last:border-b sm:px-6"
+              >
+                <span
+                  className="text-muted-foreground tabular pt-0.5 font-mono text-caption"
+                  aria-hidden="true"
                 >
-                  <span
-                    className="text-muted-foreground tabular pt-0.5 font-mono text-caption"
-                    aria-hidden="true"
-                  >
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-body font-medium">{step.title}</h3>
-                    <p className="text-muted-foreground text-caption">
-                      {index === 0 ? `${limits}${step.description}` : step.description}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-      </section>
-    </div>
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-body font-medium">{step.title}</h3>
+                  <p className="text-muted-foreground text-caption">{step.description}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </CardContent>
+      </Card>
+    </section>
   )
 }
 
 function TalkDoc() {
+  const notify = useNotices()
   const config = useAppConfig()
+  const [documentId, setDocumentId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setDocumentId(localStorage.getItem(DOCUMENT_STORAGE_KEY))
+  }, [])
+
+  const handleAccepted = useCallback(
+    (accepted: UploadAccepted) => {
+      localStorage.setItem(DOCUMENT_STORAGE_KEY, accepted.id)
+      setDocumentId(accepted.id)
+      notify.success('Documento recebido. Começando a leitura.')
+    },
+    [notify],
+  )
 
   return (
     <AppShell>
-      <Home config={config} />
+      <div className="flex flex-col gap-12">
+        <section className="flex flex-col gap-4">
+          <h1 className="font-display text-display text-balance">Converse com o seu PDF.</h1>
+          <p className="text-muted-foreground max-w-prose">
+            Envie um documento e pergunte o que quiser sobre ele. O TalkDoc responde apenas com o
+            que está escrito lá, e sempre diz de qual página tirou.
+          </p>
+        </section>
+
+        {documentId ? (
+          <Card>
+            <CardContent className="flex flex-col gap-1">
+              <p className="text-body font-medium">Documento recebido</p>
+              <p className="text-muted-foreground tabular font-mono text-caption">{documentId}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <UploadDropzone
+            limits={config.status === 'ready' ? config.limits : null}
+            onAccepted={handleAccepted}
+          />
+        )}
+
+        <HowItWorks />
+      </div>
     </AppShell>
   )
 }
