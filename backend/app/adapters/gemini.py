@@ -1,4 +1,4 @@
-"""Adapter de embeddings do Gemini.
+"""Adapter do Gemini: embeddings e geração de chat.
 
 É o único ponto do sistema que fala com a rede, e o único onde um erro silencioso
 corrompe tudo a jusante sem quebrar teste nenhum. Daí as três garantias que este
@@ -14,10 +14,11 @@ são detalhe deste adapter; herdam de `AppError` para continuarem saindo no
 envelope único `{code, message}`.
 """
 
+import asyncio
 import math
 import random
 import time
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Sequence
 from typing import NoReturn, Protocol
 
 import httpx
@@ -44,6 +45,27 @@ QUOTA_MESSAGE = "O limite de uso da IA foi atingido. Tente de novo em alguns min
 PAYLOAD_MESSAGE = "O provedor de IA recusou o conteúdo enviado."
 PROVIDER_MESSAGE = "Não foi possível gerar os embeddings do documento. Tente de novo."
 
+# `temperature` baixa porque a tarefa é extrativa: o modelo deve reproduzir o que
+# está no contexto, não variar a redação a cada execução.
+CHAT_TEMPERATURE = 0.2
+CHAT_MAX_OUTPUT_TOKENS = 2048
+# A condensação devolve uma única pergunta reescrita. O teto curto é o que impede
+# que um modelo em dia inspirado gaste latência escrevendo um parágrafo antes de
+# a busca sequer começar.
+CONDENSATION_MAX_OUTPUT_TOKENS = 128
+
+# Duas tentativas, e não as cinco do embedding. O `429` do chat é quota por
+# minuto: um backoff de segundos não a libera, e a NFR-1 dá cinco segundos até o
+# primeiro token — insistir só transformaria um aviso rápido em espera inútil.
+CHAT_MAX_ATTEMPTS = 2
+
+CHAT_QUOTA_MESSAGE = "O limite de uso da IA foi atingido. Espere um minuto e pergunte de novo."
+CHAT_PROVIDER_MESSAGE = "A IA não conseguiu responder agora. Tente perguntar de novo."
+
+# O nível mínimo de raciocínio que a geração 3.x do modelo oferece. É o que
+# substitui `thinking_budget=0`, que ela recusa com `400`.
+MINIMUM_THINKING_LEVEL = types.ThinkingLevel.MINIMAL
+
 
 class MissingApiKeyError(InternalError):
     """`GEMINI_API_KEY` não está definida no ambiente do servidor."""
@@ -61,6 +83,27 @@ class EmbeddingProviderError(InternalError):
     """O provedor falhou de um jeito que o adapter não sabe contornar."""
 
 
+class ChatQuotaError(RateLimitError):
+    """A quota do modelo de chat foi atingida.
+
+    Separada de `EmbeddingQuotaError` porque a ação do usuário é outra: aqui
+    basta esperar o minuto virar e perguntar de novo, sem reenviar documento.
+    """
+
+
+class ChatProviderError(AppError):
+    """O modelo de chat falhou de um jeito que o adapter não sabe contornar.
+
+    Tem `code` próprio (`provedor`, §4.3) em vez de cair em `erro_interno`
+    porque a origem da falha é externa: o frontend usa o código para dizer que
+    o problema não é a pergunta nem o documento, e oferecer "tentar de novo"
+    como ação. O status `502` diz a mesma coisa em HTTP.
+    """
+
+    code = "provedor"
+    status_code = 502
+
+
 class EmbeddingClient(Protocol):
     """O que o pipeline de ingestão e o retrieval consomem.
 
@@ -71,6 +114,58 @@ class EmbeddingClient(Protocol):
     def embed_documents(self, texts: list[str]) -> list[list[float]]: ...
 
     def embed_query(self, text: str) -> list[float]: ...
+
+
+class ChatClient(Protocol):
+    """O que um turno de chat consome do provedor de geração.
+
+    Dois métodos porque são duas chamadas de naturezas diferentes: `generate` é
+    a chamada única que a condensação faz e cujo resultado só serve se chegar
+    dentro do timeout; `stream_answer` é a geração incremental, que precisa
+    entregar o primeiro token o quanto antes.
+
+    Protocolo nomeado, e não a classe concreta, porque é ele que dá ao dublê da
+    suíte uma interface para implementar — sem isso, testar recusa, timeout de
+    condensação e erro mid-stream exigiria rede.
+    """
+
+    async def generate(self, prompt: str, *, timeout: float) -> str: ...
+
+    def stream_answer(self, prompt: str) -> AsyncIterator[str]: ...
+
+
+class GenerateContentApi(Protocol):
+    """A fatia assíncrona do SDK que o cliente de chat usa (`client.aio.models`)."""
+
+    async def generate_content(
+        self,
+        *,
+        model: str,
+        contents: types.ContentListUnion,
+        config: types.GenerateContentConfig,
+    ) -> types.GenerateContentResponse: ...
+
+    def generate_content_stream(
+        self,
+        *,
+        model: str,
+        contents: types.ContentListUnion,
+        config: types.GenerateContentConfig,
+    ) -> Awaitable[AsyncIterator[types.GenerateContentResponse]]: ...
+
+
+class AsyncGenaiApi(Protocol):
+    """O `client.aio` do SDK, reduzido ao que o adapter alcança."""
+
+    @property
+    def models(self) -> GenerateContentApi: ...
+
+
+class AsyncGenaiClient(Protocol):
+    """Cliente do SDK visto pelo cliente de chat: só a face assíncrona."""
+
+    @property
+    def aio(self) -> AsyncGenaiApi: ...
 
 
 class EmbedContentApi(Protocol):
@@ -104,6 +199,20 @@ def sanitize_message(message: str, secret: str) -> str:
     profundidade num segredo é barata.
     """
     return redact_secrets(message, secret)
+
+
+def _thinking_config(budget: int) -> types.ThinkingConfig:
+    """Traduz o orçamento de raciocínio configurado no que o provedor aceita hoje.
+
+    Zero significa "não raciocine" e é o default do projeto (NFR-1). O modelo
+    da geração 3.x não aceita mais essa intenção como orçamento — ela virou o
+    nível de raciocínio —, então zero vira o nível mínimo e qualquer valor positivo
+    continua sendo orçamento explícito, para quem quiser ligar o raciocínio sem
+    trocar de código.
+    """
+    if budget <= 0:
+        return types.ThinkingConfig(thinking_level=MINIMUM_THINKING_LEVEL)
+    return types.ThinkingConfig(thinking_budget=budget)
 
 
 def l2_normalize(vector: Sequence[float]) -> list[float]:
@@ -286,4 +395,164 @@ class GeminiEmbeddingClient:
         crua, que pode conter a chave.
         """
         logger.warning("embedding.failed", reason=reason, status=status, code=error.code)
+        raise error from None
+
+
+class GeminiChatClient:
+    """Implementação de `ChatClient` sobre a face assíncrona do `google-genai`.
+
+    Assíncrono, e não `asyncio.to_thread` como o cliente de embeddings, por um
+    motivo de comportamento e não de estilo: quando o usuário fecha a aba, o
+    cancelamento precisa chegar ao provedor e parar o consumo de quota (FR-12).
+    Uma thread não é cancelável — ela seguiria baixando tokens que ninguém iria
+    ler, exatamente o custo que a desconexão deveria evitar.
+
+    O cliente do SDK e o `sleep` entram pelo construtor para que os testes
+    exercitem o backoff e os caminhos de erro sem rede e sem espera real.
+    """
+
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        *,
+        client: AsyncGenaiClient | None = None,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        max_attempts: int = CHAT_MAX_ATTEMPTS,
+        rng: random.Random | None = None,
+    ) -> None:
+        self._settings = settings if settings is not None else get_settings()
+        self._client = client
+        self._sleep = sleep
+        self._max_attempts = max(1, max_attempts)
+        # Mesmo caso do cliente de embeddings: o sorteio só espalha o jitter do
+        # backoff, não gera segredo nem token (daí o nosec).
+        self._rng = rng if rng is not None else random.Random()  # nosec B311
+
+    async def generate(self, prompt: str, *, timeout: float) -> str:
+        """Faz a chamada única da condensação e devolve o texto da resposta.
+
+        O `timeout` é do chamador porque quem sabe quanto a espera vale a pena é
+        quem tem o fallback na mão: passar do prazo aqui não é erro, é o sinal
+        para a condensação desistir e seguir com a query concatenada (FR-4).
+        """
+        return await asyncio.wait_for(self._generate(prompt), timeout)
+
+    async def stream_answer(self, prompt: str) -> AsyncIterator[str]:
+        """Emite os pedaços de texto da resposta à medida que o provedor os produz.
+
+        O `chunk.text` do SDK pode vir `None` — em pedaços que carregam só
+        metadado — e emitir isso como token faria a tela mostrar "null" no meio
+        da frase. O filtro é aqui, e não no cliente do navegador, porque é aqui
+        que a forma do SDK é conhecida.
+
+        Retry acontece só na abertura do stream: uma vez que o primeiro token
+        saiu, repetir a chamada duplicaria o texto já exibido na tela.
+        """
+        stream = await self._open_stream(prompt)
+        try:
+            async for chunk in stream:
+                text = chunk.text
+                if text:
+                    yield text
+        except errors.APIError as exc:
+            self._fail_chat(self._sanitize(str(exc)), exc.code)
+        finally:
+            # O iterador do provedor é fechado aqui e não no chamador: quando o
+            # cliente desconecta, este `finally` roda pelo `aclose()` do gerador
+            # e é o que garante que a conexão com o provedor não fique aberta.
+            aclose = getattr(stream, "aclose", None)
+            if aclose is not None:
+                await aclose()
+
+    async def _generate(self, prompt: str) -> str:
+        response = await self._call_with_retry(
+            lambda: self._models().generate_content(
+                model=self._settings.gemini_chat_model,
+                contents=prompt,
+                config=self._config(CONDENSATION_MAX_OUTPUT_TOKENS),
+            )
+        )
+        return (response.text or "").strip()
+
+    async def _open_stream(self, prompt: str) -> AsyncIterator[types.GenerateContentResponse]:
+        return await self._call_with_retry(
+            lambda: self._models().generate_content_stream(
+                model=self._settings.gemini_chat_model,
+                contents=prompt,
+                config=self._config(CHAT_MAX_OUTPUT_TOKENS),
+            )
+        )
+
+    async def _call_with_retry[T](self, call: Callable[[], Awaitable[T]]) -> T:
+        """Executa a chamada, re-tentando o que é transitório e nada além disso.
+
+        A classificação é a mesma do cliente de embeddings (`RETRYABLE_STATUS`),
+        e por isso mora nas mesmas constantes: dois mapas de status divergentes
+        seriam duas verdades sobre o mesmo provedor.
+        """
+        attempt = 1
+        while True:
+            try:
+                return await call()
+            except errors.APIError as exc:
+                status: int | None = exc.code
+                reason = self._sanitize(str(exc))
+                if status not in RETRYABLE_STATUS:
+                    self._fail_chat(reason, status)
+            except (TimeoutError, OSError, httpx.TransportError) as exc:
+                status = None
+                reason = self._sanitize(f"{type(exc).__name__}: {exc}")
+
+            if attempt >= self._max_attempts:
+                self._fail_chat(reason, status)
+
+            logger.warning("chat.retry", attempt=attempt, reason=reason)
+            await self._sleep(backoff_delay(attempt, self._rng))
+            attempt += 1
+
+    def _config(self, max_output_tokens: int) -> types.GenerateContentConfig:
+        """Monta a configuração comum às duas chamadas.
+
+        O objetivo é o da NFR-1: **o mínimo de raciocínio possível**, porque RAG
+        extrativo não se beneficia dele e ele só adia o primeiro token — a
+        métrica que a spec limita a cinco segundos.
+
+        Como pedir esse mínimo mudou de forma entre gerações do modelo, e a
+        forma antiga virou erro em vez de ser ignorada: `gemini-3.x` responde
+        `400 INVALID_ARGUMENT` a `thinking_budget=0` (medido contra a API real
+        no gate da fase A.4) e expõe o mesmo controle como `thinking_level`.
+        `GEMINI_THINKING_BUDGET=0` continua sendo a forma de pedir "sem
+        raciocínio" no ambiente — o que muda é só como isso chega ao provedor.
+        """
+        return types.GenerateContentConfig(
+            temperature=CHAT_TEMPERATURE,
+            max_output_tokens=max_output_tokens,
+            thinking_config=_thinking_config(self._settings.gemini_thinking_budget),
+        )
+
+    def _models(self) -> GenerateContentApi:
+        """Devolve a API assíncrona de geração, criando o cliente na primeira chamada."""
+        if self._client is None:
+            api_key = self._settings.gemini_api_key
+            if not api_key:
+                raise MissingApiKeyError(MISSING_KEY_MESSAGE)
+            self._client = Client(api_key=api_key)
+        return self._client.aio.models
+
+    def _sanitize(self, message: str) -> str:
+        return sanitize_message(message, self._settings.gemini_api_key)
+
+    def _fail_chat(self, reason: str, status: int | None) -> NoReturn:
+        """Registra o motivo já sanitizado e levanta o erro de domínio do chat.
+
+        `from None` pelo mesmo motivo do cliente de embeddings: encadear a
+        exceção do provedor faria o traceback carregar a mensagem crua, que
+        pode conter a chave.
+        """
+        error: AppError = (
+            ChatQuotaError(CHAT_QUOTA_MESSAGE)
+            if status == QUOTA_STATUS
+            else ChatProviderError(CHAT_PROVIDER_MESSAGE)
+        )
+        logger.warning("chat.provider_failed", reason=reason, status=status, code=error.code)
         raise error from None

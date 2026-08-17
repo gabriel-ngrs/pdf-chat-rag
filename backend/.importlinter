@@ -17,20 +17,26 @@ include_external_packages = True
 ; camadas impede que um adapter passe a chamar o pipeline (inversão que tornaria
 ; a ingestão inalcançável para teste sem banco) e que o pipeline importe a rota.
 ;
+; `chat` entrou na mesma altura de `ingestion`, e não acima nem abaixo: as duas
+; são máquinas de estado de um fluxo (o documento e o turno), consomem os mesmos
+; adapters e não têm nada a dizer uma à outra. Declaradas como irmãs, o contrato
+; passa a proibir que uma importe a outra — que é exatamente o acoplamento que
+; faria a ingestão precisar do chat no ar para ser testada.
+;
 ; `exhaustive` obriga todo módulo de primeiro nível de `app` a ter um lugar na
 ; pilha: um módulo novo criado sem posição declarada quebra o gate em vez de
 ; escapar dele silenciosamente. Os três ignorados são transversais de propósito
 ; — `config` não importa nada do app, e `errors`/`logging_setup` são consumidos
 ; por todas as camadas; empilhá-los seria fingir uma hierarquia que não existe.
 [importlinter:contract:layers]
-name = Camadas: main -> api -> ingestion -> adapters -> core
+name = Camadas: main -> api -> (chat | ingestion) -> adapters -> core
 type = layers
 containers =
     app
 layers =
     main
     api
-    ingestion
+    chat : ingestion
     adapters
     core
 exhaustive = True

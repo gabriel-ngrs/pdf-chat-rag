@@ -1,7 +1,10 @@
 """Ponto de entrada da API do TalkDoc.
 
 Monta o app, o lifespan e as rotas de infraestrutura. As rotas de documento
-vivem em `app/api/documents.py`.
+vivem em `app/api/documents.py` e as de conversa em `app/api/conversations.py`.
+
+Nenhum middleware de compressão é registrado aqui, e a ausência é deliberada:
+`GZipMiddleware` bufferiza a resposta e mataria o streaming do chat.
 """
 
 from collections.abc import AsyncIterator
@@ -11,8 +14,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, FastAPI, Request
 
 from app.adapters.db import Database
-from app.adapters.gemini import GeminiEmbeddingClient
-from app.adapters.repository import PostgresDocumentRepository
+from app.adapters.gemini import GeminiChatClient, GeminiEmbeddingClient
+from app.adapters.repository import (
+    PostgresConversationRepository,
+    PostgresDocumentRepository,
+)
+from app.api.conversations import router as conversations_router
 from app.api.documents import router as documents_router
 from app.api.middleware import RequestIdMiddleware
 from app.api.schemas import ConfigResponse, HealthResponse
@@ -70,7 +77,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     swept = await repository.sweep_orphans()
     app.state.database = database
     app.state.repository = repository
+    app.state.conversations = PostgresConversationRepository(database)
     app.state.embedder = GeminiEmbeddingClient(settings)
+    app.state.chat_client = GeminiChatClient(settings)
     logger.info("app.started", orphans_swept=swept)
     try:
         yield
@@ -86,6 +95,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(router, prefix="/api")
     app.include_router(documents_router, prefix="/api")
+    app.include_router(conversations_router, prefix="/api")
     return app
 
 

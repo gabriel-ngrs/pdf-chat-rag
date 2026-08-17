@@ -21,13 +21,19 @@ from fastapi import FastAPI
 from structlog.testing import capture_logs
 
 from app import ingestion
-from app.adapters.gemini import EmbeddingClient
-from app.adapters.repository import DocumentRepository
+from app.adapters.gemini import ChatClient, EmbeddingClient
+from app.adapters.repository import ConversationRepository, DocumentRepository
+from app.api.conversations import get_chat_client, get_conversation_repository
 from app.api.documents import get_embedder, get_repository
 from app.config import Settings, get_settings
 from app.logging_setup import clear_request_context, configure_logging
 from app.main import create_app
-from tests.fakes import FakeEmbeddingClient, FakeRepository
+from tests.fakes import (
+    FakeChatClient,
+    FakeConversationRepository,
+    FakeEmbeddingClient,
+    FakeRepository,
+)
 
 BASE_URL = "http://testserver"
 
@@ -110,8 +116,34 @@ def embedder() -> FakeEmbeddingClient:
 
 
 @pytest.fixture
+def journal() -> list[str]:
+    """Linha do tempo única compartilhada pelos dublês do chat.
+
+    A ordem que FR-9 promete — pergunta gravada **antes** de qualquer chamada ao
+    provedor — atravessa dois colaboradores, e cada um deles só enxerga as
+    próprias chamadas. Um diário compartilhado é o que torna a ordem entre eles
+    verificável por asserção.
+    """
+    return []
+
+
+@pytest.fixture
+def conversations(journal: list[str]) -> FakeConversationRepository:
+    return FakeConversationRepository(journal=journal)
+
+
+@pytest.fixture
+def chat_client(journal: list[str]) -> FakeChatClient:
+    return FakeChatClient(journal=journal)
+
+
+@pytest.fixture
 def build_app(
-    repository: FakeRepository, embedder: FakeEmbeddingClient, settings: Settings
+    repository: FakeRepository,
+    embedder: FakeEmbeddingClient,
+    settings: Settings,
+    conversations: FakeConversationRepository,
+    chat_client: FakeChatClient,
 ) -> Callable[..., FastAPI]:
     """Fábrica de app com os dublês no lugar das dependências de infraestrutura."""
 
@@ -120,6 +152,8 @@ def build_app(
         repo: DocumentRepository | None = None,
         embedding_client: EmbeddingClient | None = None,
         config: Settings | None = None,
+        conversation_repo: ConversationRepository | None = None,
+        chat: ChatClient | None = None,
     ) -> FastAPI:
         app = create_app()
         app.dependency_overrides[get_repository] = lambda: repo if repo is not None else repository
@@ -127,6 +161,12 @@ def build_app(
             lambda: embedding_client if embedding_client is not None else embedder
         )
         app.dependency_overrides[get_settings] = lambda: config if config is not None else settings
+        app.dependency_overrides[get_conversation_repository] = (
+            lambda: conversation_repo if conversation_repo is not None else conversations
+        )
+        app.dependency_overrides[get_chat_client] = (
+            lambda: chat if chat is not None else chat_client
+        )
         return app
 
     return make
