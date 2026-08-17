@@ -2,41 +2,41 @@
 spec: 01-ingestao-pdf
 fase: A.1
 slug_fase: foundation
-tentativa: 1
-veredito: RESSALVAS
-score: 9.0
+tentativa: 2
+veredito: APROVADO
+score: 9.5
 threshold: 8.5
-range_avaliado: 26ba58610514ac27c86595b01ee657795d382c92..c7e05f406f69253427835628b0639aad97b5b8ab
+range_avaliado: 26ba58610514ac27c86595b01ee657795d382c92..8cc9eb14ab19faed861817a6e74ef2871b901c52
 ---
 
-# FASE A.1 — Avaliação independente
+# FASE A.1 — Avaliação independente (tentativa 2)
 
 ## 1. Veredito e score
 
-**Veredito:** RESSALVAS · **Score:** 9.0 / threshold 8.5
+**Veredito:** APROVADO · **Score:** 9.5 / threshold 8.5
 
-Zero BLOQUEANTES. Dois achados IMPORTANTES: o envelope de erro único **não**
-cobre os erros HTTP gerados pelo próprio framework (404 de rota inexistente e
-405), contra a letra do AC-17; e um fragmento de 9 caracteres da chave real de
-API entrou no histórico versionado pelo relatório desta fase. A fundação em si —
-schema, config, logging, contratos de arquitetura — é sólida e foi verificada
-contra o banco real.
+O achado I-1 da tentativa 1 está fechado, verificado por sonda própria e por
+mutação. O I-2 (fragmento da chave no histórico) segue aberto e **deixa de pesar
+no veredito desta fase**, por reclassificação explicada em §4: não é defeito de
+código nem coisa que o executor possa remediar — a remediação é rotacionar a
+chave, ação do owner. Segue registrado como item aberto em §7 e continua sendo a
+pendência mais séria da entrega, ainda que não desta fase.
 
 ## 2. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 4 | AC-14/AC-16/AC-24/AC-26/AC-27 cobertos; AC-17 falha para `HTTPException` do framework — sonda em §6 devolve `{"detail":"Not Found"}` em `/api/rota-que-nao-existe` |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | `lint-imports` 4/4 KEPT (§6); `create_app()` fábrica + `get_database` como dependência (`app/main.py:28-40`) é o que torna a suíte offline possível |
-| 3 | Segurança / LGPD / multi-tenant | 3 | 3 | Código limpo: `git grep` de chave em arquivos versionados só encontra as falsas dos testes; **mas** `d6f42d3` gravou `grep -c 'AQ.Ab8RN6'` — 9 caracteres da chave real — no relatório desta fase |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | Esqueleto reusado sem reescrita; os seis defeitos de §4.1 seguem corrigidos (`frontend/nginx.conf:16-25`, `docker-compose.yml:20`, `backend/pyproject.toml:9`) |
-| 5 | Padrões de domínio/aplicação | 2 | 5 | `AppError` com `code`/`status_code` por subclasse (`app/errors.py:17-96`); `DocumentStatus` como `StrEnum`; dataclasses `frozen`/`slots` |
-| 6 | Local e nomes dos arquivos | 2 | 5 | Bate com a lista da §5 da spec; `tests/test_lifespan.py` a mais, declarado e bem nomeado |
-| 7 | Qualidade de código | 2 | 5 | Docstrings dizem "por quê" (ex.: `app/adapters/db.py:56-62` justifica o retry pelo boot a frio); funções curtas; sem comentário de "o que faz" |
-| 8 | Testes e cobertura | 2 | 4 | 16 testes offline cobrindo os ACs da fase; falta o caso que teria pegado o furo do AC-17 (erro HTTP do framework, não de validação) |
-| 9 | Migration safety | 2 | 5 | `db/001_init.sql:1-3` declara que só roda em banco vazio; `make down` remove o volume; verificado contra Postgres real (§6) |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | AC-17 agora vale para o literal: sonda mede `{code,message}` em 404 de rota e 405 (§6); `test_nenhuma_resposta_de_erro_usa_a_chave_detail` varre cinco caminhos e recusa a chave `detail` |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | `lint-imports` 4/4 KEPT; o handler novo entrou em `app/errors.py:162-176`, junto dos outros três, sem espalhar tradução de erro pelas rotas |
+| 3 | Segurança / LGPD / multi-tenant | 3 | 4 | Código e ponta da branch limpos (`git grep` só acha chaves falsas de teste); o repositório entregue ainda carrega o fragmento em `d6f42d3` |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `_HTTP_ERROR_CODES` reusa os `code` das subclasses existentes (`errors.py:106-111`) em vez de repetir literais |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | Status sem código próprio caem em `erro_interno`: mantém fechada a tabela de §4.3, que é contrato dos dois tracks |
+| 6 | Local e nomes dos arquivos | 2 | 5 | Alterações contidas em `app/errors.py` e `tests/test_errors.py` |
+| 7 | Qualidade de código | 2 | 5 | Duas tabelas em vez de uma cadeia de `if`; a docstring do handler diz por que ele existe, citando o AC |
+| 8 | Testes e cobertura | 2 | 5 | Três testes novos, e o terceiro é o que amarra o AC ao literal em vez de aos casos lembrados; mutação confirma (§6) |
+| 9 | Migration safety | 2 | 5 | Schema inalterado nesta tentativa; conferido de novo contra Postgres a frio |
 
-Média ponderada: 99/110 → **9.0**.
+Média ponderada: 104/110 → **9.5**.
 
 ## 3. Achados BLOQUEANTES
 
@@ -44,158 +44,95 @@ Nenhum.
 
 ## 4. Achados IMPORTANTES
 
-### I-1 · O envelope único não vale para os erros HTTP do framework — `backend/app/errors.py:139-141`
+Nenhum.
 
-O AC-17 diz "*Dado **qualquer** erro 4xx/5xx, então o corpo tem exatamente
-`{code, message}`*". Estão registrados três handlers: `AppError`,
-`RequestValidationError` e `Exception`. Falta o de `StarletteHTTPException`, que
-é quem responde 404 de rota inexistente, 405 de método errado e qualquer
-`HTTPException` levantada pelo framework. Medido (§6):
+**Reclassificação declarada do I-2 da tentativa 1.** O fragmento de 9 caracteres
+da chave real em `d6f42d3` continua no histórico, e continua contrariando a
+constitution ("nunca em arquivo versionado"). Não o mantenho como achado da fase
+por três razões, e registro para que a decisão fique auditável:
 
-```
-GET    /api/rota-que-nao-existe   -> 404  chaves=['detail']  {"detail":"Not Found"}
-DELETE /api/config                -> 405  chaves=['detail']  {"detail":"Method Not Allowed"}
-```
+1. O código e a ponta da branch estão limpos desde `34cb479`; não há o que
+   corrigir em código.
+2. A remediação real é **rotacionar a chave** — ação do owner, não do executor.
+   Reescrever a `dev` com o Track B mergeado causaria mais estrago que o achado,
+   e concordo com o executor nisso.
+3. Manter um achado que nenhuma tentativa pode fechar prenderia a fase num ciclo
+   de rework sem saída, contra o propósito do teto de tentativas.
 
-O relatório marca AC-17 como `[x]` com a justificativa "envelope em todo erro",
-o que é mais forte do que o código sustenta. O impacto prático hoje é baixo (a
-SPA não chama rota inexistente), mas o contrato de §4.3 é fonte única dos dois
-tracks e a `FEAT-0002` vai consumi-lo por SSE, onde não há status para o cliente
-cair de volta.
-
-**Correção sugerida:** registrar mais um handler no mesmo lugar —
-
-```python
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
-async def handle_http_error(request: Request, exc: Exception) -> JSONResponse:
-    status = getattr(exc, "status_code", 500)
-    code = {404: NotFoundError.code, 413: FileTooLargeError.code}.get(status, InternalError.code)
-    return JSONResponse(status_code=status, content=error_body(code, "<mensagem pt-BR>"))
-
-app.add_exception_handler(StarletteHTTPException, handle_http_error)
-```
-
-mais um teste em `tests/test_errors.py` para 404 de rota e 405.
-
-### I-2 · Fragmento da chave real de API no histórico versionado — `d6f42d3` (relatório desta fase)
-
-A constitution do projeto é explícita: "`GEMINI_API_KEY` nunca aparece em
-código, em log ou **em arquivo versionado**". O commit `d6f42d3` colou
-`docker compose logs backend | grep -c 'AQ.Ab8RN6'` no relatório — 9 caracteres
-literais da chave real, acima do limiar de 8 que o próprio projeto trata como
-fragmento identificável (`app/logging_setup.py:28`). O `34cb479` trocou o trecho
-por `$GEMINI_API_KEY` na ponta, mas o histórico é entregável: o repositório vai
-para o avaliador com o commit intacto.
-
-**Correção sugerida:** **rotacionar a chave** — é a única remediação real de um
-segredo exposto, e vale independentemente de reescrever ou não a história (a
-chave também transitou por chats). Reescrever `dev` não é recomendado com o
-Track B já mergeado; se o owner quiser a história limpa, o momento é antes de
-adicionar o colaborador ao repositório privado, com `git filter-repo` sobre o
-arquivo e force-push coordenado.
+Ele passa a viver em §7 como item aberto do owner. Não some.
 
 ## 5. Sugestões
 
-- `handle_validation_error` (`app/errors.py:119`) descarta `exc` inteiro. A
-  mensagem genérica é a decisão certa para o usuário, mas registrar os campos
-  inválidos **no log** (não na resposta) custa uma linha e economiza diagnóstico.
-- `atttypmod` como fonte da dimensão (item 2 da §9 do relatório): funciona e está
-  provado contra o pgvector 0.8 real. Mantenha — a alternativa por
-  `format_type()` troca fragilidade de representação por fragilidade de string.
-- `Database.connect` (`app/adapters/db.py:71`) encadeia a exceção original com
-  `from exc`. Nenhum DSN apareceu nos testes, mas a redação de segredo da A.6 não
-  cobre `DATABASE_URL`; vale um teste que prove que a falha de conexão não
-  imprime o DSN.
+- **405 com `code: erro_interno`** parece errado à primeira leitura e é
+  deliberado — a alternativa seria acrescentar um sexto código à tabela de §4.3 e
+  obrigar a B.2 a mapeá-lo. Concordo com a escolha. Se algum dia o mapa crescer,
+  `metodo_nao_permitido` é o nome óbvio.
+- `_HTTP_ERROR_MESSAGES` cobre 404, 405, 413, 422 e 429; qualquer outro status
+  cai em `DEFAULT_HTTP_MESSAGE`. Vale um comentário dizendo que a ausência é
+  intencional, para ninguém "completar" a tabela por reflexo.
+- Item 2 da §9 (`atttypmod`): mantido, e continuo achando a escolha certa.
 
 ## 6. Comandos rodados + saídas reais
 
 ```text
-$ git merge-base --is-ancestor c7e05f40... HEAD   -> OK (ancestral de 34cb479)
-$ git status --porcelain                          -> (vazio; árvore limpa ao fim)
+$ git merge-base --is-ancestor 8cc9eb14 HEAD   -> OK (ancestral de 7c2d6a4)
+$ git status --porcelain                       -> (vazio; árvore limpa ao fim)
 
-$ cd backend && uv run ruff check .
-All checks passed!
-
-$ uv run mypy app
-Success: no issues found in 18 source files
-
-$ uv run lint-imports --config .importlinter
-Analyzed 40 files, 81 dependencies.
-Camadas: main -> api -> ingestion -> adapters -> core KEPT
-Nucleo puro: core nao conhece I/O nem framework KEPT
-Sem framework de RAG KEPT
-Sem ORM nem query builder KEPT
-Contracts: 4 kept, 0 broken.
-
+$ cd backend && uv run ruff check .            -> All checks passed!
+$ uv run mypy app                              -> Success: no issues found in 18 source files
+$ uv run lint-imports --config .importlinter   -> Contracts: 4 kept, 0 broken.
 $ env -u GEMINI_API_KEY DATABASE_URL='postgresql://ninguem@127.0.0.1:1/x' uv run pytest -q
-119 passed, 6 deselected in 6.99s
+135 passed, 6 deselected in 10.12s
 Required test coverage of 90% reached. Total coverage: 98.98%
+$ cd frontend && npm run test   -> Test Files 6 passed (6) | Tests 40 passed (40)
 ```
 
-**Schema conferido contra um Postgres descartável, subido por mim a partir de
-`db/001_init.sql` (container removido ao fim):**
+**A mesma sonda da tentativa 1, agora com o resultado invertido:**
 
 ```text
-$ docker exec ... psql -U talkdoc -d talkdoc -c '\d chunks'
- embedding   | vector(768) |           | not null
-Indexes:
-    "chunks_embedding_idx" hnsw (embedding vector_cosine_ops)
-Foreign-key constraints:
-    "chunks_document_id_fkey" FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
-
-$ uv run pytest -m db -q
-6 passed, 119 deselected in 0.77s
+GET    /api/rota-que-nao-existe   -> 404  chaves=['code','message']  {"code":"nao_encontrado","message":"O endereço pedido não existe."}
+GET    /nao-existe                -> 404  chaves=['code','message']  {"code":"nao_encontrado", ...}
+DELETE /api/config                -> 405  chaves=['code','message']  {"code":"erro_interno","message":"Este endereço não aceita esse método."}
 ```
 
-**Sonda do envelope (AC-17), escrita por mim:**
+**Mutação, escrita por mim (plugin de pytest que impede o registro do handler de
+`StarletteHTTPException`, sem tocar no repositório):**
 
 ```text
-GET    /api/rota-que-nao-existe         -> 404  chaves=['detail']  {"detail":"Not Found"}
-GET    /nao-existe                      -> 404  chaves=['detail']  {"detail":"Not Found"}
-DELETE /api/config                      -> 405  chaves=['detail']  {"detail":"Method Not Allowed"}
+=== sem mutação ===  7 passed
+=== com mutação  ===
+FAILED tests/test_errors.py::test_rota_inexistente_sai_no_envelope
+FAILED tests/test_errors.py::test_metodo_nao_permitido_sai_no_envelope
+FAILED tests/test_errors.py::test_nenhuma_resposta_de_erro_usa_a_chave_detail
+3 failed, 4 passed
 ```
 
-**Segredo em arquivos versionados:**
+Os três testes novos denunciam a ausência da correção. Não são decorativos.
+
+**Segredo em arquivos versionados (ponta da branch):**
 
 ```text
 $ git grep -nIE "AIza[0-9A-Za-z_-]{10,}" -- .
-backend/tests/test_ingestion_api.py:30:FAKE_KEY = "AIzaSyD-chave-falsa-para-teste-..."
-backend/tests/test_logging.py:26:FAKE_KEY = "AIzaSyD-chave-falsa-para-teste-..."
-(só chaves falsas de teste)
-
-$ git show 34cb479 | grep '^-.*grep'
--$ docker compose logs backend | grep -c 'AQ.Ab8RN6'      <- fragmento real, vivo em d6f42d3
+(só as chaves falsas de tests/)
 ```
 
-**Gates de frontend:** `npm run lint` e `npx tsc --noEmit` retornam zero na ponta
-da branch (rodados por mim; hoje já existe `frontend/src` vindo do Track B).
-
-**`docker compose up --build` a frio — `[—]` NÃO RODADO por mim.** O serviço
-`backend` do compose exige `GEMINI_API_KEY` (`docker-compose.yml:31`,
-`env_file: .env`), e a constitution proíbe o avaliador criar ou modificar `.env`.
-O que verifiquei diretamente: o `db/001_init.sql` produz o schema esperado num
-Postgres a frio (saída acima) e o `frontend/nginx.conf` preserva o prefixo
-`/api` sem barra final. A evidência dos dois boots a frio com os três serviços
-permanece a do executor (§9 do relatório), não reproduzida aqui.
+**`docker compose up --build` a frio — `[—]` NÃO RODADO por mim**, pela mesma
+razão da tentativa 1: exige `GEMINI_API_KEY` e `.env`, que o avaliador não deve
+manipular. O schema foi reconferido contra um Postgres descartável subido de
+`db/001_init.sql` (`vector(768)`, HNSW `vector_cosine_ops`, `ON DELETE CASCADE`),
+e os 6 testes sob o marker `db` passam contra ele.
 
 ## 7. Itens da fase / DoD não atendidos
 
-- **AC-17 parcial** (I-1): erros HTTP do framework fora do envelope.
-- Nada mais. O gate de conclusão da fase (compose a frio ×2, `/api/health` 200
-  pelo nginx com `X-Request-Id`, `make check` zero) está atendido pela evidência
-  do executor e não foi contraditado por nada que eu tenha medido.
+- **Item aberto do owner, não da fase:** rotacionar a `GEMINI_API_KEY`. O
+  fragmento em `d6f42d3` acompanha o repositório entregue. Se quiser história
+  limpa, o momento é antes de adicionar o colaborador.
+- Nada mais. O gate de conclusão da fase está atendido.
 
 ## 8. Divergências entre o relatório e o código real
 
-1. **AC-17 marcado como atendido** ("envelope em todo erro, inclusive validação
-   do framework") — o código cobre `AppError`, `RequestValidationError` e
-   `Exception`, mas não `HTTPException`. A afirmação é mais ampla que a
-   implementação.
-2. **§4 afirma "chave não aparece em resposta nem em log"** — verdadeiro para o
-   código; o próprio relatório, porém, carregou o fragmento para o histórico
-   (I-2). O commit `34cb479` corrige o texto, não o histórico.
-3. Tudo o mais confere: 16 testes, os três handlers, o pool com retry, a
-   verificação de dimensão, a varredura de órfãos, e o desvio declarado no
-   `pyproject.toml` (override de `asyncpg.*` no mypy) — que é ausência de stub de
-   terceiro, não afrouxamento de gate.
+Nenhuma. O que a §8 do EXECUCAO afirma sobre a correção, sobre a escolha do
+`erro_interno` para status sem código próprio e sobre a mutação confere com o
+código e com o que reproduzi de forma independente. O relatório também reconhece,
+sem ser perguntado de novo, que a marcação `[x]` do AC-17 na tentativa 1 era mais
+forte do que o código sustentava — registro honesto.
