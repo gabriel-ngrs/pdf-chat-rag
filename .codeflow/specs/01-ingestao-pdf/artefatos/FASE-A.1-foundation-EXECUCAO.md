@@ -169,7 +169,7 @@ Foreign-key constraints:
  "timestamp": "2026-08-17T17:15:05.275169Z"}
 
 # grep de segredo no log capturado (esperado: 0)
-$ docker compose logs backend | grep -c 'AQ.Ab8RN6'
+$ docker compose logs backend | grep -c "$GEMINI_API_KEY"
 0
 $ docker compose logs backend | grep -c 'postgresql://'
 0
