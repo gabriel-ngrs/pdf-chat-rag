@@ -16,7 +16,6 @@ envelope único `{code, message}`.
 
 import math
 import random
-import re
 import time
 from collections.abc import Callable, Iterator, Sequence
 from typing import NoReturn, Protocol
@@ -25,18 +24,12 @@ from google.genai import Client, errors, types
 
 from app.config import Settings, get_settings
 from app.errors import AppError, InternalError, RateLimitError
-from app.logging_setup import get_logger
+from app.logging_setup import get_logger, redact_secrets
 
 logger = get_logger(__name__)
 
 TASK_TYPE_DOCUMENT = "RETRIEVAL_DOCUMENT"
 TASK_TYPE_QUERY = "RETRIEVAL_QUERY"
-
-REDACTED = "[REDACTED]"
-
-# Abaixo disto um "fragmento" deixa de ser identificável e vira ruído: trechos de
-# 8 caracteres da chave já bastam para reconhecê-la, trechos de 3 não.
-MIN_SECRET_FRAGMENT = 8
 
 DEFAULT_MAX_ATTEMPTS = 5
 INITIAL_BACKOFF_SECONDS = 0.5
@@ -49,9 +42,6 @@ MISSING_KEY_MESSAGE = "A chave da API de IA não está configurada no servidor."
 QUOTA_MESSAGE = "O limite de uso da IA foi atingido. Tente de novo em alguns minutos."
 PAYLOAD_MESSAGE = "O provedor de IA recusou o conteúdo enviado."
 PROVIDER_MESSAGE = "Não foi possível gerar os embeddings do documento. Tente de novo."
-
-# O provedor às vezes ecoa a URL da requisição, que leva a chave em `?key=`.
-_KEY_QUERY_PATTERN = re.compile(r"(?i)((?:api[_-]?)?key=)[^&\s\"']+")
 
 
 class MissingApiKeyError(InternalError):
@@ -104,16 +94,15 @@ class GenaiClient(Protocol):
 def sanitize_message(message: str, secret: str) -> str:
     """Remove da mensagem a chave de API e qualquer fragmento reconhecível dela.
 
-    Fragmento, e não apenas a chave inteira, porque o provedor pode ecoar a URL
-    com a chave truncada — meia chave em log já é vazamento.
+    Delega a `logging_setup.redact_secrets`, que é a mesma redação aplicada na
+    borda de renderização do log. Uma implementação só: duas divergiriam, e a
+    que estivesse errada seria descoberta por um vazamento.
+
+    Aqui a redação continua valendo a pena mesmo com o processador global,
+    porque esta mensagem também alimenta o `reason` estruturado — e defesa em
+    profundidade num segredo é barata.
     """
-    cleaned = _KEY_QUERY_PATTERN.sub(rf"\1{REDACTED}", message)
-    if len(secret) < MIN_SECRET_FRAGMENT:
-        return cleaned
-    for length in range(len(secret), MIN_SECRET_FRAGMENT - 1, -1):
-        for start in range(len(secret) - length + 1):
-            cleaned = cleaned.replace(secret[start : start + length], REDACTED)
-    return cleaned
+    return redact_secrets(message, secret)
 
 
 def l2_normalize(vector: Sequence[float]) -> list[float]:

@@ -18,7 +18,6 @@ from google.genai import errors, types
 from structlog.testing import capture_logs
 
 from app.adapters.gemini import (
-    MIN_SECRET_FRAGMENT,
     TASK_TYPE_DOCUMENT,
     TASK_TYPE_QUERY,
     EmbeddingPayloadError,
@@ -31,6 +30,7 @@ from app.adapters.gemini import (
     sanitize_message,
 )
 from app.config import Settings
+from app.logging_setup import MIN_SECRET_FRAGMENT
 
 FAKE_KEY = "AIzaSyD-fake-key-para-teste-0123456789"
 
