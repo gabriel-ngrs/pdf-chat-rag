@@ -1,15 +1,60 @@
+; Contratos de arquitetura de §4.8, verificados por `make arch`.
+;
+; A regra de convivência com o código: se um contrato reprovar, muda o código —
+; nunca o contrato. Afrouxar uma linha daqui para fazer a suíte passar apaga
+; justamente a garantia pela qual este arquivo existe.
+;
+; `tests/test_architecture.py` prova que estes contratos mordem: injeta um
+; módulo violador e exige que o comando falhe.
+
 [importlinter]
 root_package = app
 include_external_packages = True
 
+; ── 1. Camadas ────────────────────────────────────────────────────────────────
+; A pilha completa, e não só api/adapters/core: `ingestion` é a máquina de
+; estados do documento e fica entre a rota e os adapters — declarar as cinco
+; camadas impede que um adapter passe a chamar o pipeline (inversão que tornaria
+; a ingestão inalcançável para teste sem banco) e que o pipeline importe a rota.
+;
+; `exhaustive` obriga todo módulo de primeiro nível de `app` a ter um lugar na
+; pilha: um módulo novo criado sem posição declarada quebra o gate em vez de
+; escapar dele silenciosamente. Os três ignorados são transversais de propósito
+; — `config` não importa nada do app, e `errors`/`logging_setup` são consumidos
+; por todas as camadas; empilhá-los seria fingir uma hierarquia que não existe.
 [importlinter:contract:layers]
-name = Camadas: api -> adapters -> core
+name = Camadas: main -> api -> ingestion -> adapters -> core
 type = layers
+containers =
+    app
 layers =
-    app.api
-    app.adapters
-    app.core
+    main
+    api
+    ingestion
+    adapters
+    core
+exhaustive = True
+exhaustive_ignores =
+    config
+    errors
+    logging_setup
 
+; ── 2. Núcleo puro ────────────────────────────────────────────────────────────
+; O núcleo é a única parte do sistema que roda sem processo, sem rede e sem
+; configuração. Cada item abaixo é uma forma diferente de perder isso:
+;   fastapi/starlette — o núcleo passaria a depender do ciclo de requisição;
+;   asyncpg/google    — I/O de rede dentro de função que deveria ser pura;
+;   pypdf             — parsing de formato externo é trabalho de adapter;
+;   structlog         — logar é efeito colateral, e exigiria configurar o
+;                       logging só para testar chunking;
+;   pydantic(-settings) — validação de framework e leitura de ambiente;
+;   app.*             — qualquer módulo de camada superior, incluindo os
+;                       transversais `config`, `errors` e `logging_setup`, que
+;                       o contrato de camadas deixa de fora por serem
+;                       transversais e que precisam ser barrados aqui.
+;
+; O contrato também pega import indireto: alcançar `fastapi` via `app.errors`
+; conta como violação, e é assim que tem de ser.
 [importlinter:contract:pure-core]
 name = Nucleo puro: core nao conhece I/O nem framework
 type = forbidden
@@ -21,9 +66,23 @@ forbidden_modules =
     asyncpg
     google
     structlog
+    pypdf
+    pydantic
+    pydantic_settings
     app.adapters
     app.api
+    app.ingestion
+    app.main
+    app.config
+    app.errors
+    app.logging_setup
 
+; ── 3. Sem framework de RAG ───────────────────────────────────────────────────
+; O RAG é o objeto da avaliação: terceirizá-lo a um framework apagaria a
+; decisão de chunking, de embedding e de retrieval que a spec justifica linha a
+; linha. Os pacotes `langchain_*` e `llama_index_*` são distribuições de
+; primeiro nível distintas — proibir só `langchain` deixaria `langchain_core`
+; entrar pela porta ao lado, então cada um é nomeado.
 [importlinter:contract:no-rag-framework]
 name = Sem framework de RAG
 type = forbidden
@@ -31,4 +90,28 @@ source_modules =
     app
 forbidden_modules =
     langchain
+    langchain_core
+    langchain_community
+    langchain_google_genai
+    langchain_text_splitters
+    langgraph
     llama_index
+    llama_index_core
+    haystack
+
+; ── 4. Sem ORM nem query builder ──────────────────────────────────────────────
+; `app/adapters/repository.py` e `app/adapters/db.py` afirmam em docstring que
+; todo SQL é escrito à mão e parametrizado. Isso é uma frase até virar contrato:
+; com um ORM no meio, o teste de injeção de `tests/test_security.py` passaria a
+; provar a segurança da biblioteca, não a do SQL deste projeto.
+[importlinter:contract:no-orm]
+name = Sem ORM nem query builder
+type = forbidden
+source_modules =
+    app
+forbidden_modules =
+    sqlalchemy
+    sqlmodel
+    tortoise
+    peewee
+    databases
