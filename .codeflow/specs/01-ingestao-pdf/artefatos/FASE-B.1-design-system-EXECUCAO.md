@@ -205,3 +205,26 @@ Não se aplica — primeira execução.
 4. **O gate do `make check` completo só pode rodar quando a `A.1` existir na
    mesma árvore.** Nesta branch de track, os alvos de backend não têm o que
    validar.
+
+## 10. Adendo pós-aprovação (não altera a tentativa nem o range)
+
+A fase recebeu **APROVADO** (score 9,6) na tentativa 1, e as três dúvidas acima
+foram respondidas pelo avaliador: `next-themes` não é violação do escopo travado
+(provider de preferência, e chegou pelo `sonner` do próprio shadcn),
+`--text-wordmark` não é violação (marca não é conteúdo, exceção declarada no
+lugar certo), e a verificação automatizada é o formato correto para um gate —
+medir contraste "no olho" é o que a skill de acessibilidade proíbe. O item 4 foi
+resolvido pela chegada do Track A: `make check` roda inteiro e retorna zero.
+
+Dois arquivos desta fase foram tocados depois, nos reworks de `B.2`/`B.4`, e o
+registro fica aqui para o histórico não ficar torto:
+
+- **`src/components/ui/progress.tsx`** — o primitivo descartava o `value` em vez
+  de repassá-lo à Root. Defeito que veio do gerador do shadcn e passou por esta
+  fase sem ser notado; corrigido na fonte no rework da `B.4`, com teste de
+  regressão. Detalhe em `FASE-B.4-processing-status-EXECUCAO.md` §8.
+- **`src/index.css`** — o comentário da escala de espaçamento fixava
+  1/2/3/4/6/8/12/16 enquanto o código usava `py-10`, `py-14` e `pt-0.5`. O
+  avaliador apontou o desvio como decisão pendente do owner; resolvi abrindo o
+  comentário para os degraus de seção (10 e 14) e registrando o `0.5` como
+  alinhamento óptico, que é a exceção que a skill `visual-consistency` prevê.

@@ -17,8 +17,11 @@ arch:
 	cd backend && uv run lint-imports --config .importlinter
 
 # Suíte offline: sem rede, sem banco, sem GEMINI_API_KEY.
+# Os dois lados entram: uma suíte que cobre metade do projeto deixa o `check`
+# ficar verde com a outra metade vermelha.
 test:
 	cd backend && uv run pytest
+	cd frontend && npm run test
 
 # Testes que exigem o Postgres do compose (marcados com @pytest.mark.db).
 # Rode `make up` antes.

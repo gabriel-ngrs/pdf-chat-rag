@@ -2,12 +2,12 @@
 spec: 01-ingestao-pdf
 fase: B.2
 slug_fase: app-shell
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: f01ed27
-sha_final: fcc36eb
-range: f01ed27..fcc36eb
+sha_final: 3be5eed
+range: f01ed27..3be5eed
 ---
 
 # FASE B.2 — Relatório de execução
@@ -129,9 +129,30 @@ $ python3 check_aria.py
 {"tag": "section", "ariaLive": "polite", "ariaAtomic": "false", "ariaLabel": "Avisos alt+T"}
 ```
 
-> Gates de backend do `make check` marcados `[—]`: `ruff`, `mypy`,
-> `lint-imports` e `pytest` operam sobre `backend/app/`, que nesta branch de
-> track ainda é o esqueleto vazio da `A.1`. Justificativa idêntica à da `B.1`.
+**Tentativa 2 — o gate agora roda inteiro.** Com o Track A mergeado em `dev`, os
+alvos de backend deixaram de ser `[—]`:
+
+```text
+$ make check
+cd backend && uv run ruff check .        # All checks passed!
+cd frontend && npm run lint              # exit 0
+cd backend && uv run mypy app            # Success
+cd frontend && npx tsc --noEmit          # exit 0
+cd backend && uv run lint-imports --config .importlinter
+Contracts: 4 kept, 0 broken.
+cd backend && uv run pytest
+119 passed, 6 deselected · cobertura de core/ 98.98% (mínimo 90%)
+cd frontend && npm run test
+Test Files 6 passed (6) · Tests 40 passed (40)
+
+MAKE_CHECK_EXIT=0
+
+$ make security
+bandit -q -r app                         # sem achados
+pip-audit                                # No known vulnerabilities found
+npm audit --audit-level=high             # found 0 vulnerabilities
+MAKE_SECURITY_EXIT=0
+```
 
 ## 6. Critérios de aceite da fase (com evidência)
 
@@ -152,8 +173,9 @@ $ python3 check_aria.py
 
 ## 7. Definition of Done da fase
 
-- [x] Testes da fase verdes (10/10)
-- [x] `tsc --noEmit` e `eslint` zero; gates de backend `[—]` justificados
+- [x] Testes da fase verdes (10/10 nesta fase; 40/40 no frontend inteiro)
+- [x] **`make check` inteiro retorna zero** — inclusive as duas suítes, que é o
+  que o achado I-1 exigia
 - [x] Escopo travado respeitado: nenhum mapeamento por status HTTP, nenhum limite
   duplicado em constante, nenhum `alert()`, nenhuma stack trace / corpo bruto /
   nome de exceção exibido, textos em pt-BR e identificadores em inglês
@@ -162,22 +184,43 @@ $ python3 check_aria.py
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+Avaliação da tentativa 1: **RESSALVAS**, score 9,3. Zero BLOQUEANTES, um
+IMPORTANTE e cinco sugestões.
+
+### I-1 — testes do frontend fora de todo gate → **corrigido**
+
+`Makefile`, alvo `test:`, ganhou `cd frontend && npm run test`. A razão que
+motivou a recusa na tentativa 1 (arquivo compartilhado com o Track A, risco de
+conflito de merge) deixou de existir: os dois tracks já vivem na mesma árvore em
+`dev`. Agora `make check` roda as duas suítes e **falha se qualquer uma falhar**.
+
+### Sugestões acatadas
+
+- **S-1, `errors.ts:19` — `severity` nascia morto.** `notify.error` passou a
+  despachar por ele: `CHANNEL_BY_SEVERITY` escolhe o canal do `sonner` e a
+  duração a partir da severidade do mapa. Um código futuro marcado como aviso
+  deixa de sair como erro vermelho.
+- **S-3, `api.ts` — o timeout não cobria a leitura do corpo.** O `clearTimeout`
+  saiu do `finally` do `fetch` e passou a envolver o `request` inteiro. Uma
+  resposta que trava no corpo agora é cortada, e o corte vira
+  `rede_indisponivel` em vez de `erro_interno` — é falta de resposta, não
+  resposta estranha.
+- **S-2, `useNotices()` não é um hook.** Mantido como está, com o comentário que
+  o avaliador pediu: a indireção é deliberada, para trocar o `sonner` por um
+  provider com estado sem mexer em todo componente que avisa algo.
+
+### Sugestões avaliadas e não acatadas
+
+- **S-4 (timeout de upload de 120 s) e S-5 (`api.ts` com os três endpoints)** —
+  o avaliador concordou com as decisões originais e não pediu ação. Sem mudança.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 
-1. **O `make check` não roda os testes do frontend.** Acrescentei `vitest` e
-   `npm run test`, mas **não** editei o `Makefile`, porque ele está fora da lista
-   de arquivos desta fase e é compartilhado com o Track A (risco de conflito de
-   merge com os agentes que trabalham em `feat/trackA-ingestao`). A consequência
-   é que hoje esses testes só rodam sob comando explícito. A linha a acrescentar
-   ao alvo `test:` é `cd frontend && npm run test`; sugiro fazê-lo ao integrar
-   os dois tracks.
-2. **`api.ts` foi escrito com os três endpoints de uma vez** (config, documento,
-   upload), antecipando o que `B.3` e `B.4` consomem. A alternativa era tocar
-   `api.ts` naquelas fases, que não o declaram. Se o avaliador preferir escopo
-   estrito por fase, o conserto é mover `uploadDocument` e `fetchDocument` para
-   os commits das fases correspondentes.
-3. **O timeout de upload (120 s) é um número escolhido por mim**, não fixado na
-   spec. Cobre 25 MB em rede local com folga larga; se o avaliador quiser, vira
-   variável.
+1. **`api.ts` foi escrito com os três endpoints de uma vez** (config, documento,
+   upload), antecipando o que `B.3` e `B.4` consomem. Avaliado na tentativa 1 e
+   aceito (S-5). Registro para o histórico.
+2. **`vitest`, `@testing-library/react` e `jsdom` são devDependencies novas**,
+   fora da lista de arquivos original da fase. A subseção "Testes" da fase exige
+   testes e o frontend não tinha runner; o desvio foi declarado e aceito na
+   tentativa 1, e nesta tentativa cresceu com a testing-library, exigida pelos
+   achados IMPORTANTES de `B.3` e `B.4`.

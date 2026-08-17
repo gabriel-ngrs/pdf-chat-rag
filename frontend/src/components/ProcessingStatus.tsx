@@ -36,14 +36,70 @@ const LABELS: Record<DocumentDetail['status'], { title: string; description: str
   },
 }
 
+type View = {
+  title: string
+  description: string
+  icon: ReactNode
+  showReset: boolean
+  /** Em `failed` a ação é o próximo passo óbvio; em `ready` é alternativa. */
+  resetVariant: 'default' | 'outline'
+}
+
+function resolveView(doc: DocumentDetail | null, missing: boolean): View {
+  if (missing) {
+    const { title, message, action } = describeError('nao_encontrado')
+    return {
+      title,
+      description: `${message} ${action}`,
+      icon: <TriangleAlertIcon className="text-destructive size-4" aria-hidden="true" />,
+      showReset: true,
+      resetVariant: 'default',
+    }
+  }
+
+  if (!doc) {
+    return {
+      title: 'Verificando o documento',
+      description: 'Buscando o estado no servidor.',
+      icon: null,
+      showReset: false,
+      resetVariant: 'outline',
+    }
+  }
+
+  const { title, description } = LABELS[doc.status]
+
+  if (doc.status === 'failed') {
+    return {
+      title,
+      description:
+        doc.error_message ?? 'O servidor não explicou o motivo. Tente enviar o arquivo de novo.',
+      icon: <TriangleAlertIcon className="text-destructive size-4" aria-hidden="true" />,
+      showReset: true,
+      resetVariant: 'default',
+    }
+  }
+
+  return {
+    title,
+    description,
+    icon:
+      doc.status === 'ready' ? (
+        <CheckIcon className="text-success size-4" aria-hidden="true" />
+      ) : null,
+    showReset: doc.status === 'ready',
+    resetVariant: 'outline',
+  }
+}
+
 /**
  * Progresso derivado do que o backend informou, sem deixar a barra andar para
  * trás: uma resposta atrasada chegando fora de ordem não pode desfazer na tela
  * um avanço que o usuário já viu.
  */
-function useMonotonicPercent(document: DocumentDetail | null): number | null {
+function useMonotonicPercent(doc: DocumentDetail | null): number | null {
   const highest = useRef(0)
-  const percent = progressPercent(document)
+  const percent = progressPercent(doc)
 
   if (percent === null) {
     return null
@@ -52,71 +108,46 @@ function useMonotonicPercent(document: DocumentDetail | null): number | null {
   return highest.current
 }
 
+/**
+ * Acompanhamento do processamento.
+ *
+ * O card é sempre o mesmo elemento, do primeiro render ao estado terminal: uma
+ * live region recém-inserida no DOM costuma não ser anunciada, e remontá-la na
+ * transição do esqueleto para o conteúdo faria a primeira mudança de estado
+ * passar em silêncio para quem usa leitor de tela.
+ */
 export function ProcessingStatus({ documentId, onReset }: ProcessingStatusProps) {
-  const { document, missing, loading } = useDocumentStatus(documentId)
-  const percent = useMonotonicPercent(document)
-
-  if (missing) {
-    const { title, message, action } = describeError('nao_encontrado')
-    return (
-      <StatusCard
-        icon={<TriangleAlertIcon className="text-destructive size-4" aria-hidden="true" />}
-        title={title}
-        description={`${message} ${action}`}
-        onReset={onReset}
-        resetLabel="Enviar outro documento"
-      />
-    )
-  }
-
-  if (!document) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col gap-3" aria-busy={loading}>
-          <Skeleton className="h-4 w-40" />
-          <Skeleton className="h-3 w-full" />
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const { title, description } = LABELS[document.status]
-  const inProgress = document.status === 'pending' || document.status === 'processing'
+  const { document: doc, missing, loading } = useDocumentStatus(documentId)
+  const percent = useMonotonicPercent(doc)
+  const view = resolveView(doc, missing)
+  const inProgress = doc?.status === 'pending' || doc?.status === 'processing'
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-4" aria-busy={loading}>
         <div className="flex items-start justify-between gap-4">
-          <div className="flex flex-col gap-1">
-            {/* Mudança de estado anunciada para leitor de tela: quem não vê a
-                barra precisa saber que o documento ficou pronto. */}
+          <div className="flex min-w-0 flex-col gap-1">
             <p className="flex items-center gap-2 text-body font-medium" role="status">
-              {document.status === 'ready' ? (
-                <CheckIcon className="text-success size-4" aria-hidden="true" />
-              ) : null}
-              {document.status === 'failed' ? (
-                <TriangleAlertIcon className="text-destructive size-4" aria-hidden="true" />
-              ) : null}
-              {title}
+              {view.icon}
+              {view.title}
             </p>
-            <p className="text-muted-foreground text-caption break-words">
-              {document.status === 'failed'
-                ? (document.error_message ??
-                  'O servidor não explicou o motivo. Tente enviar o arquivo de novo.')
-                : description}
-            </p>
+            <p className="text-muted-foreground text-caption break-words">{view.description}</p>
           </div>
-          {document.status === 'ready' ? (
+          {doc?.status === 'ready' ? (
             <Badge variant="secondary">Pronto para conversar</Badge>
           ) : null}
         </div>
 
-        <p className="text-muted-foreground tabular font-mono text-caption break-all">
-          {document.filename}
-          {document.page_count ? ` · ${document.page_count} páginas` : ''}
-        </p>
+        {doc ? (
+          <p className="text-muted-foreground tabular font-mono text-caption break-all">
+            {doc.filename}
+            {doc.page_count ? ` · ${doc.page_count} páginas` : ''}
+          </p>
+        ) : (
+          <Skeleton className="h-3 w-48" />
+        )}
 
-        {inProgress ? (
+        {inProgress && doc ? (
           percent === null ? (
             // Janela legítima de indeterminação: o total de trechos ainda não
             // existe, então não há porcentagem a mostrar.
@@ -126,67 +157,24 @@ export function ProcessingStatus({ documentId, onReset }: ProcessingStatusProps)
               <Progress
                 value={percent}
                 aria-label="Progresso da leitura do documento"
-                // `aria-valuenow` e `aria-valuetext` explícitos: o primitivo
-                // desenha a barra mas não estava expondo o valor, e uma barra
-                // sem valor não diz nada a quem usa leitor de tela.
-                aria-valuenow={percent}
-                aria-valuetext={`${document.chunks_processed} de ${document.chunks_total} trechos`}
+                // `aria-valuenow` vem do primitivo. O `aria-valuetext` fica
+                // porque "8 de 12 trechos" diz mais a quem ouve do que "67%".
+                aria-valuetext={`${doc.chunks_processed} de ${doc.chunks_total} trechos`}
               />
               <p className="text-muted-foreground tabular font-mono text-caption">
-                {document.chunks_processed} de {document.chunks_total} trechos · {percent}%
+                {doc.chunks_processed} de {doc.chunks_total} trechos · {percent}%
               </p>
             </div>
           )
         ) : null}
 
-        {document.status === 'failed' ? (
+        {view.showReset ? (
           <div className="flex justify-end">
-            <Button size="lg" onClick={onReset}>
+            <Button size="lg" variant={view.resetVariant} onClick={onReset}>
               Enviar outro documento
             </Button>
           </div>
         ) : null}
-
-        {document.status === 'ready' ? (
-          <div className="flex justify-end">
-            <Button size="lg" variant="outline" onClick={onReset}>
-              Enviar outro documento
-            </Button>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
-  )
-}
-
-function StatusCard({
-  icon,
-  title,
-  description,
-  onReset,
-  resetLabel,
-}: {
-  icon: ReactNode
-  title: string
-  description: string
-  onReset: () => void
-  resetLabel: string
-}) {
-  return (
-    <Card>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <p className="flex items-center gap-2 text-body font-medium" role="status">
-            {icon}
-            {title}
-          </p>
-          <p className="text-muted-foreground text-caption">{description}</p>
-        </div>
-        <div className="flex justify-end">
-          <Button size="lg" onClick={onReset}>
-            {resetLabel}
-          </Button>
-        </div>
       </CardContent>
     </Card>
   )

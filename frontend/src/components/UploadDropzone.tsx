@@ -83,7 +83,13 @@ export function UploadDropzone({ limits, onAccepted }: UploadDropzoneProps) {
             event.preventDefault()
             setDraggingOver(true)
           }}
-          onDragLeave={() => setDraggingOver(false)}
+          onDragLeave={(event) => {
+            // `dragleave` borbulha: entrar num filho dispara o evento no pai e
+            // apagaria o destaque no meio do arraste.
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              setDraggingOver(false)
+            }
+          }}
           onDrop={handleDrop}
         >
           <label

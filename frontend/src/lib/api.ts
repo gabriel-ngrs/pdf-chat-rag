@@ -54,33 +54,43 @@ async function request<T>(
 ): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const semResposta = () =>
+    new ApiError('rede_indisponivel', 'Não foi possível falar com o servidor.', null)
 
-  let response: Response
+  // O timeout só é desarmado quando a resposta inteira foi lida. Desarmá-lo
+  // logo após os headers deixaria um corpo que nunca termina de chegar sem
+  // ninguém para cortá-lo, e a promessa penduraria para sempre.
   try {
-    response = await fetch(`${BASE_URL}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        'X-Session-Id': getSessionId(),
-        ...init.headers,
-      },
-    })
-  } catch {
-    // Rede fora, DNS, CORS ou timeout: nada disso tem envelope do servidor.
-    throw new ApiError('rede_indisponivel', 'Não foi possível falar com o servidor.', null)
+    let response: Response
+    try {
+      response = await fetch(`${BASE_URL}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          'X-Session-Id': getSessionId(),
+          ...init.headers,
+        },
+      })
+    } catch {
+      // Rede fora, DNS, CORS ou timeout: nada disso tem envelope do servidor.
+      throw semResposta()
+    }
+
+    if (!response.ok) {
+      const envelope = await readErrorEnvelope(response)
+      throw new ApiError(envelope.code, envelope.message, response.status)
+    }
+
+    try {
+      return (await response.json()) as T
+    } catch {
+      // Corpo cortado pelo timeout é falta de resposta, não resposta estranha.
+      throw controller.signal.aborted
+        ? semResposta()
+        : new ApiError('erro_interno', 'Resposta inesperada do servidor.', response.status)
+    }
   } finally {
     clearTimeout(timer)
-  }
-
-  if (!response.ok) {
-    const envelope = await readErrorEnvelope(response)
-    throw new ApiError(envelope.code, envelope.message, response.status)
-  }
-
-  try {
-    return (await response.json()) as T
-  } catch {
-    throw new ApiError('erro_interno', 'Resposta inesperada do servidor.', response.status)
   }
 }
 

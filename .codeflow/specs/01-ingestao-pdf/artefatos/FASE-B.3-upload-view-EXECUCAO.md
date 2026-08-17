@@ -2,12 +2,12 @@
 spec: 01-ingestao-pdf
 fase: B.3
 slug_fase: upload-view
-status: executado
-tentativa: 1
-reprovacoes: 0
+status: rework
+tentativa: 2
+reprovacoes: 1
 sha_inicial: cb386f4
-sha_final: 2e43df0
-range: cb386f4..2e43df0
+sha_final: 3be5eed
+range: cb386f4..3be5eed
 ---
 
 # FASE B.3 — Relatório de execução
@@ -15,28 +15,16 @@ range: cb386f4..2e43df0
 > Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-trackB`, branch
 > `feat/trackB-frontend`.
 
-## ⚠️ Dependência `A.4` não satisfeita — leia antes de avaliar
+## ✅ Dependência `A.4` satisfeita na tentativa 2
 
-A fase declara **"Depende de: `B.2`, `A.4`"**. No momento da execução, o Track A
-está em `A.1` (executada, aguardando avaliação) — `A.2`, `A.3` e `A.4` não
-existem em nenhuma branch. O protocolo do `/execute-spec-phase` mandaria
-**parar** aqui (Passo 3, linha 5 da tabela de seleção).
+Na tentativa 1 esta fase rodou com o Track A ainda em `A.1`, e o critério de
+conclusão — "upload de ponta a ponta **através do `docker compose`**" — foi
+cumprido contra um stub, o que gerou o BLOQUEANTE B-1 e a reprovação.
 
-Segui por instrução explícita do usuário ("execute todas as fases da track B, em
-sequência"). O que isso significa em concreto:
-
-- **O código não depende da `A.4`.** O contrato de §4.5 é fonte única e foi
-  escrito antes das fases; a própria spec manda escrever `types.ts` a partir
-  dela, "não de `schemas.py`, que pode ainda não existir quando esta fase roda".
-- **O gate depende.** "Upload de ponta a ponta **através do `docker compose`**"
-  não pôde ser cumprido contra o backend real. Foi cumprido contra o **nginx do
-  container real** (mesma imagem, mesmo `nginx.conf`, mesmo `client_max_body_size`,
-  mesmo prefixo `/api`) apontando para um **backend-stub fiel à §4.5**, rodando
-  no host via `--add-host backend:host-gateway`. O stub vive no scratchpad da
-  sessão e **não** foi commitado.
-- **O que continua pendente:** revalidar `AC-1`, `AC-2` e `AC-3` contra o
-  backend da `A.4` na integração dos dois tracks. Em particular o `413` do
-  nginx e o `422` de assinatura, que são caminhos do servidor.
+O Track A foi concluído e mergeado em `dev` (`9c5d8e8`). Nesta tentativa o gate
+foi cumprido **contra o backend real**: `docker compose down -v && docker compose
+up --build`, `.env` com `GEMINI_API_KEY` válida, e o `Exemplo-YAITEC.pdf`
+percorrendo o caminho inteiro pelo nginx. As saídas estão na §5.
 
 ## 1. Resumo do que foi feito
 
@@ -52,6 +40,7 @@ persistência do `id` devolvido no `202`.
 | `frontend/src/hooks/useUpload.ts` | Estado do envio (`idle / sending / error`), `validateSelection()` e `formatFileSize()` |
 | `frontend/src/components/UploadDropzone.tsx` | A tela: área de soltar, arquivo escolhido, botão de enviar |
 | `frontend/src/hooks/useUpload.test.ts` | Testes da validação local e da formatação de tamanho |
+| `frontend/src/components/UploadDropzone.test.tsx` | *(tentativa 2)* 10 testes de comportamento do componente e do hook de envio |
 
 ## 3. Arquivos ALTERADOS
 
@@ -100,12 +89,37 @@ $ npm --prefix frontend run test
 $ cd frontend && npx tsc --noEmit    # exit 0
 $ cd frontend && npm run lint        # exit 0
 
-# container real (imagem do Dockerfile) + backend-stub fiel à §4.5
-$ docker run -d --name talkdoc-b3 --add-host backend:host-gateway -p 5173:80 talkdoc-frontend:b3
-$ curl -s http://localhost:5173/api/config
-{"max_upload_mb": 25, "max_pdf_pages": 20, "max_extracted_chars": 60000}
+# TENTATIVA 2 — compose real, com a A.4 na árvore
+$ docker compose down -v && docker compose up --build -d
+Container yaitec-talkdoc-trackb-db-1        Healthy
+Container yaitec-talkdoc-trackb-backend-1   Started
+Container yaitec-talkdoc-trackb-frontend-1  Started
 
-# gate da fase
+$ curl -s -i http://localhost:5173/api/health | head -8
+HTTP/1.1 200 OK
+Server: nginx/1.27.5
+Content-Type: application/json
+x-request-id: 15c4aca5-8483-419e-bb31-d671e2075516
+
+$ curl -s http://localhost:5173/api/config
+{"max_upload_mb":25,"max_pdf_pages":20,"max_extracted_chars":60000}
+
+# AC-2 — 28 MB através do nginx: JSON do envelope, não HTML do nginx
+$ curl -s -o /dev/null -w "status=%{http_code} tipo=%{content_type}\n" \
+    -F "file=@big.pdf" http://localhost:5173/api/documents
+status=413 tipo=application/json
+$ curl -s -F "file=@big.pdf" http://localhost:5173/api/documents
+{"code":"arquivo_grande","message":"O arquivo excede o limite de 25 MB."}
+
+# AC-3 — .txt renomeado para .pdf, recusado pelo servidor
+$ curl -s -F "file=@planilha.txt;filename=disfarcado.pdf" http://localhost:5173/api/documents
+{"code":"arquivo_invalido","message":"O arquivo enviado não é um PDF. Envie um documento com extensão .pdf válida."}
+
+# 404 — o código que o errors.ts mapeia
+$ curl -s http://localhost:5173/api/documents/00000000-0000-0000-0000-000000000000
+{"code":"nao_encontrado","message":"Documento não encontrado."}
+
+# gate da fase, contra o backend real
 $ python3 audit_upload.py http://localhost:5173
 {
   "ac20_aviso": [{
@@ -126,7 +140,7 @@ $ python3 audit_upload.py http://localhost:5173
   "ac21_nome_visivel": true,
   "ac21_tamanho_visivel": true,
   "gate_post_enviado": ["POST http://localhost:5173/api/documents"],
-  "gate_id_persistido": "69da5caf-890a-42cc-b770-9a44781300b8",
+  "gate_id_persistido": "bd1ee92a-6abc-4807-bab5-39315c2e4aa4",
   "gate_aviso_sucesso": [{"title": "Documento recebido. Começando a leitura.", "type": "success"}]
 }
 ```
@@ -142,17 +156,27 @@ $ python3 audit_upload.py http://localhost:5173
 - [x] **AC-23 (parte de teclado)** — o terceiro `Tab` da página chega ao input
   de arquivo e a área de soltar destaca a borda com o token `--ring`; o botão
   "Enviar documento" é o quarto ponto de foco.
-- [x] **Recusa de formato** — `.txt` renomeado é bloqueado no cliente, sem
-  requisição. (O `422` do servidor, `AC-3`, continua sendo responsabilidade da
-  `A.4` e será revalidado na integração.)
-- [~] **Critério de conclusão da fase** — "upload de ponta a ponta através do
-  `docker compose`": cumprido através do **nginx do container real** contra o
-  backend-stub; **pendente** contra o backend da `A.4`. Ver o aviso no topo.
+- [x] **AC-1** — `POST /api/documents` pelo nginx devolve `202` com
+  `{"id": "0285208b-…", "status": "pending"}` e o processamento segue em
+  background (§5 do relatório da `B.4`).
+- [x] **AC-2** — 28 MB através do nginx: `413` com
+  `Content-Type: application/json` e corpo `{"code":"arquivo_grande", …}`.
+  **Não é HTML do nginx** — que era exatamente o risco.
+- [x] **AC-3** — `.txt` renomeado para `.pdf` recusado pelo **servidor** com
+  `422` e `code: "arquivo_invalido"`.
+- [x] **Recusa de formato no cliente** — arquivo cujo nome **e** tipo MIME não
+  são de PDF é bloqueado antes da requisição. Um `.txt` com o nome trocado para
+  `.pdf` **passa** pelo cliente por construção (a checagem é extensão-ou-MIME) e
+  é recusado pelo servidor: é o servidor quem lê a assinatura `%PDF`, e AC-3 é
+  dele. Ver a correção D-1 na §8.
+- [x] **Critério de conclusão da fase** — upload de ponta a ponta **através do
+  `docker compose`** com o backend da `A.4`. Cumprido na tentativa 2.
 
 ## 7. Definition of Done da fase
 
-- [x] Testes da fase verdes (16/16)
-- [x] `tsc --noEmit` e `eslint` zero; gates de backend `[—]` justificados
+- [x] Testes da fase verdes (10 testes de componente + 6 de lógica pura)
+- [x] `make check` inteiro retorna zero (lint, typecheck, arch, 119 testes de
+  backend, 40 de frontend); `make security` zero
 - [x] Escopo travado respeitado: validação do cliente não substitui a do
   servidor, nenhum outro formato aceito, **nenhuma barra de progresso de upload
   prometida**, nenhuma cor fora dos tokens
@@ -161,20 +185,53 @@ $ python3 audit_upload.py http://localhost:5173
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-Não se aplica — primeira execução.
+Avaliação da tentativa 1: **REPROVADO**, score 8,8. Um BLOQUEANTE, um
+IMPORTANTE, uma divergência e quatro sugestões.
+
+### B-1 — gate não cumprido contra o backend real → **corrigido**
+
+O Track A foi concluído e mergeado em `dev`. `docker compose up --build` com a
+`A.4` real, e o ciclo rodou pelo nginx do projeto. Além do gate, os três
+caminhos que só o servidor pode provar foram exercitados e batem com o
+`errors.ts`: `413 arquivo_grande` (em JSON, não HTML), `422 arquivo_invalido` e
+`404 nao_encontrado`. Saídas na §5.
+
+### I-1 — nenhum teste de componente nem de hook → **corrigido**
+
+`src/components/UploadDropzone.test.tsx`, 10 testes com
+`@testing-library/react` + `jsdom`, cobrindo o que o avaliador listou: seleção
+por `input` **e** por arrastar, limpeza do campo após recusa, `sending`
+bloqueando campo e botão, o `notify.error` com a mensagem específica, e
+`onAccepted` disparando só quando o servidor aceita. Mais um caso que o
+avaliador não pediu e vale ter: sem limites conhecidos, nada é bloqueado por
+tamanho.
+
+### D-1 — divergência entre relatório e código → **corrigida**
+
+A tentativa 1 afirmava "`.txt` renomeado é bloqueado no cliente". Não é o que
+`useUpload.ts:39` faz: a checagem é `type === 'application/pdf' ||
+name.endsWith('.pdf')`, então um `.txt` renomeado **passa** pelo cliente. O
+avaliador testou e está certo. O **código está correto** — quem lê a assinatura
+`%PDF` é o servidor, e AC-3 é dele por construção. A frase da §6 foi reescrita
+para dizer o que o código faz, e o teste novo separa os dois casos.
+
+### Sugestões acatadas
+
+- **S-1, `onDragLeave` piscava.** `dragleave` borbulha, então entrar num filho
+  apagava o destaque por um frame. O handler agora confere
+  `currentTarget.contains(relatedTarget)`.
+- **S-2 e S-4** — o avaliador registrou concordância com o código atual
+  (tratamento de `limits` degradado no `drop`; ausência de botão "trocar
+  arquivo" separado). Sem mudança.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 
-1. **O gate contra o backend real da `A.4` não foi cumprido** — é o item mais
-   importante deste relatório. Ver o aviso no topo.
-2. **O caminho do `413` do servidor não foi exercitado na interface.** Como o
-   cliente bloqueia antes, só chega ao servidor quem estiver com a config
-   degradada. O tratamento existe (`ApiError` → `notify.error('arquivo_grande')`),
-   mas quem prova que o nginx devolve JSON e não HTML é a `A.1`/`A.4`.
-3. **Não há teste de componente**, só de lógica pura (`validateSelection`,
-   `formatFileSize`). O comportamento de DOM foi verificado por Playwright
-   contra o container, com a saída colada acima, mas esse script não está
-   versionado. Se o avaliador quiser isso no repositório, o caminho é
-   `@testing-library/react` + `jsdom` numa fase própria.
-4. **O painel "Documento recebido" que aparece após o `202` é provisório** — a
-   `B.4` o substitui pelo acompanhamento de verdade.
+1. **O painel após o `202` é da `B.4`** — nesta fase ele só existe como ponte.
+2. **O `413` do servidor continua sem exercício pela interface**, porque o
+   cliente bloqueia antes e só chegaria lá quem estivesse com a config
+   degradada. O caminho de código existe e está testado
+   (`UploadDropzone.test.tsx`, caso de falha do servidor com `limite_de_uso`); o
+   `413` em si foi provado por `curl` através do nginx, na §5.
+3. **A verificação de DOM por Playwright continua fora do repositório.** Agora
+   ela é redundante com os testes versionados — mantive o registro na §5 como
+   evidência de que o gate rodou no container, não como suíte.
