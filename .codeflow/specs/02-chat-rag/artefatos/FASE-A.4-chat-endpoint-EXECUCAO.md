@@ -123,6 +123,18 @@ ausência ficou registrada em comentário no `main.py`.
    esta fase e está fora do `range` acima — está registrado aqui para o avaliador não
    procurá-lo no lugar errado.
 
+5. **Defeito de FR-11 desta fase, encontrado e corrigido na `A.6`, no commit `8a1c5f0`
+   — também fora do `range` acima.** A versão commitada aqui tratava a `AppError`
+   levantada na **abertura** do stream como erro mid-stream: ela virava evento `error` e
+   a rota entregava HTTP `200` com `text/event-stream`, quando FR-11 exige o envelope
+   `{code, message}` com o status. Como o `429` do chat estoura justamente na abertura,
+   o caminho quebrado era o caso comum. A correção decide pelo único fato que importa —
+   se algum token já saiu —, e o `phase` do log passa a dizer a verdade nos dois casos.
+   No mesmo commit: o iterador do provedor passou a ser fechado explicitamente ao sair
+   do laço (FR-12 determinístico, em vez de depender do finalizador do event loop) e a
+   constante `TOKEN_EVENT` ganhou `# nosec B105`, porque o `bandit` a lia como
+   credencial embutida e derrubava `make security` por falso positivo.
+
 ## 5. Comandos rodados + saídas reais
 
 ```text
@@ -270,3 +282,8 @@ Não se aplica — primeira execução.
 - **A rede de segurança do `_frames`** converte uma exceção não prevista em evento
   `error` com fechamento limpo. Não foi exercitada contra o provedor real (não houve
   como provocá-la); a `A.6` a cobre offline.
+- **O gate contra o compose foi executado antes da correção do commit `8a1c5f0`.** Os
+  caminhos validados lá (resposta fundamentada, pergunta de continuação, recusa, `409`,
+  `404`, `422`, histórico) não são afetados por ela — nenhum deles passa pelo caminho de
+  falha do provedor. O caminho corrigido é provado offline pela `A.6`
+  (`test_quota_na_abertura_do_stream_sai_como_http_429`).
