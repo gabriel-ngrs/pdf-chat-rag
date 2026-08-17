@@ -6,8 +6,10 @@ no fim do arquivo, marcado `db`, fora de `make test`.
 """
 
 from collections.abc import AsyncIterator
+from typing import Any
 from uuid import UUID, uuid4
 
+import asyncpg
 import pytest
 
 from app.adapters.db import Database
@@ -281,10 +283,19 @@ async def test_documento_sem_chunks_devolve_lista_vazia(
     assert recuperados == []
 
 
+class PoolFixo:
+    """Um `Database` mínimo: só o `pool`, que é tudo que o repositório alcança.
+
+    Existe para que o teste possa abrir a conexão com opções de planejamento
+    próprias sem acrescentar um parâmetro a `Database` que só o teste usaria.
+    """
+
+    def __init__(self, pool: "asyncpg.Pool[Any]") -> None:
+        self.pool = pool
+
+
 @pytest.fixture
-async def busca_com_indice_forcado(
-    database: Database,
-) -> AsyncIterator[PostgresConversationRepository]:
+async def busca_com_indice_forcado() -> AsyncIterator[PostgresConversationRepository]:
     """Entrega um repositório que roda no regime em que o índice HNSW é usado.
 
     Com poucas dezenas de linhas o planejador escolhe varredura sequencial, que
@@ -293,21 +304,22 @@ async def busca_com_indice_forcado(
     que aconteceria naturalmente num corpus grande: o índice devolve os vizinhos
     globais mais próximos, e o filtro por documento descarta parte deles.
 
-    As opções entram no papel (`ALTER ROLE`) e o pool é criado **depois** —
-    nessa ordem, e não em outra: configuração de papel só vale para conexão
-    aberta a partir dali, e um pool já conectado seguiria com os defaults, o que
-    faria este teste passar sem exercitar nada.
+    As duas opções viajam no `server_settings` da conexão, e **não** num
+    `ALTER ROLE`: aqui elas nascem e morrem com este pool, enquanto no papel
+    valeriam para toda conexão do projeto — inclusive as de outro teste rodando
+    ao lado, e inclusive depois, se a suíte morresse antes de restaurá-las.
     """
-    await database.pool.execute("ALTER ROLE talkdoc SET enable_seqscan = off")
-    await database.pool.execute("ALTER ROLE talkdoc SET hnsw.ef_search = 2")
-    forcado = Database(Settings().database_url)
-    await forcado.connect(timeout_seconds=5.0)
+    pool = await asyncpg.create_pool(
+        dsn=Settings().database_url,
+        min_size=1,
+        max_size=2,
+        server_settings={"enable_seqscan": "off", "hnsw.ef_search": "2"},
+    )
+    assert pool is not None
     try:
-        yield PostgresConversationRepository(forcado)
+        yield PostgresConversationRepository(PoolFixo(pool))  # type: ignore[arg-type]
     finally:
-        await forcado.close()
-        await database.pool.execute("ALTER ROLE talkdoc RESET enable_seqscan")
-        await database.pool.execute("ALTER ROLE talkdoc RESET hnsw.ef_search")
+        await pool.close()
 
 
 @pytest.mark.db
