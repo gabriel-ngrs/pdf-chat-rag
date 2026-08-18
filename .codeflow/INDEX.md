@@ -14,6 +14,8 @@ schema_version: 1.0
 ## Leia se relevante ao contexto
 - `decisions/INDEX.md` — índice navegável de decisões. Filtrar por tag relevante antes de carregar decisions individuais.
 - `specs/` — specs de feature e relatórios de fase, gerados por `/create-spec` e pelos workflows de execução.
+- `melhorias/INDEX.md` — pedidos de melhoria do owner (legibilidade, identidade visual, motion). Numerados, um documento por melhoria.
+- `bugs/INDEX.md` — índice dos defeitos abertos, encontrados no teste de ponta a ponta.
 
 ## Arquivos gerados automaticamente — não editar manualmente
 - `checkpoints/*` — estado intermediário de workflows em execução. Efêmero, vai para `.gitignore`.
