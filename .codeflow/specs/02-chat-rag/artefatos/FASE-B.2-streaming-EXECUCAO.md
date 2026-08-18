@@ -233,3 +233,10 @@ primeiro token: 3.244s  (AC-23: <= 5s -> OK)
   acontece; o que não acontece é o registro no log.
 
 **Capturas:** `gate-b/02-resposta-com-chips.png` (resposta completa na tela).
+
+> **Versão exercitada:** a imagem do compose foi construída em `e76fbed`.
+> Entre ele e o HEAD desta branch o único delta em código de aplicação é a
+> tipagem de `chat_timeout_seconds`/`condense_timeout_seconds` (int → float,
+> vinda do rework paralelo da `A.4`), que não toca nada medido aqui. O
+> backend foi reconstruído no HEAD ao final e voltou a responder `/api/health`,
+> `POST /api/conversations` (201) e `GET .../messages` (200).

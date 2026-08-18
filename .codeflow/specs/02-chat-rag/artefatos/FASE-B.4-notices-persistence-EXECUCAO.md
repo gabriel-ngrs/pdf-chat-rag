@@ -320,3 +320,10 @@ bastam. Correção sugerida: criar o cliente no `lifespan`, ou proteger a criaç
 preguiçosa com um `threading.Lock`.
 
 **Capturas:** `gate-b/06-f5-no-meio-do-stream.png`, `gate-b/10-rede-indisponivel.png`, `gate-b/12-provedor-na-ui.png`, `gate-b/13-tentar-de-novo-ok.png`.
+
+> **Versão exercitada:** a imagem do compose foi construída em `e76fbed`.
+> Entre ele e o HEAD desta branch o único delta em código de aplicação é a
+> tipagem de `chat_timeout_seconds`/`condense_timeout_seconds` (int → float,
+> vinda do rework paralelo da `A.4`), que não toca nada medido aqui. O
+> backend foi reconstruído no HEAD ao final e voltou a responder `/api/health`,
+> `POST /api/conversations` (201) e `GET .../messages` (200).
