@@ -34,14 +34,14 @@ disputam a 5173, então pare um antes de subir o outro.
 ## Exemplo de uso
 
 1. Abra `http://localhost:5173`.
-2. Envie [Exemplo-YAITEC.pdf](Exemplo-YAITEC.pdf).
+2. Envie um PDF com texto extraível.
 3. Espere a leitura terminar; a tela abre o chat automaticamente.
-4. Pergunte `Quem fundou a YAITEC?`.
+4. Faça uma pergunta sobre uma informação presente no documento.
 
-O TalkDoc responde que a empresa foi fundada por Ygor Alves e mostra os trechos
-consultados, incluindo a página 2. Em seguida, experimente `e a formação dele?`:
-o histórico da conversa é usado para transformar a continuação em uma pergunta
-autocontida antes da busca.
+O TalkDoc responde com os trechos consultados e a respectiva página. Em seguida,
+faça uma pergunta de continuação sobre a mesma informação: o histórico da
+conversa é usado para transformar a continuação em uma pergunta autocontida
+antes da busca.
 
 Se a pergunta não estiver no PDF, o chat responde explicitamente que não
 encontrou essa informação no documento, sem inventar uma resposta.
