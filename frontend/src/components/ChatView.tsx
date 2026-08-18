@@ -112,7 +112,7 @@ function DocumentHeader({ document, onReset }: ChatViewProps) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="font-display text-title text-balance">Converse com o documento</h1>
+        <h1 className="text-title font-semibold text-balance">Converse com o documento</h1>
         <p className="text-muted-foreground tabular font-mono text-caption break-all">
           {document.filename}
           {document.page_count ? ` · ${document.page_count} páginas` : ''}

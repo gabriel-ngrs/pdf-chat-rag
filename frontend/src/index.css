@@ -2,18 +2,23 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-/* Tipografia — três famílias, cada uma com um trabalho declarado.
-   IBM Plex Sans: toda a interface (herança de engenharia, humanista, não é a
-   grotesca default de todo produto de IA).
+/* Tipografia — duas famílias, cada uma com um trabalho declarado.
+   IBM Plex Sans: toda a interface, da marca ao corpo (herança de engenharia,
+   humanista, não é a grotesca default de todo produto de IA). A hierarquia sai
+   do peso, e não da troca de família: 600/700 no lockup e no título, 400/500 no
+   resto.
    IBM Plex Mono: números que o usuário compara — tamanho de arquivo, contagem
    de páginas, id de documento. Compartilha o esqueleto do Plex, então não
    parece parafusada.
-   Instrument Serif: só a marca e o título de primeiro nível. É o que dá o tom
-   documental — o produto é sobre ler papel, não sobre conversar com um robô. */
+
+   O Instrument Serif saiu com o mockup de 2026-08-18. Ele carregava o tom
+   documental ("o produto é sobre ler papel, não sobre conversar com um robô"),
+   e essa leitura foi trocada, por decisão do owner, pela do mockup: um app de
+   produto, marca em sans bold e "Doc" em azul. O que distingue este produto
+   passa a ser o azul da Yaitec e o rigor da citação, não a família. */
 @import '@fontsource-variable/ibm-plex-sans/wght.css';
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
-@import '@fontsource/instrument-serif/400.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -51,15 +56,12 @@
 @theme inline {
   --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-  --font-display: 'Instrument Serif', ui-serif, Georgia, serif;
-  /* Título de card e afins seguem a sans: o serif é reservado à marca e ao H1,
-     senão o efeito documental vira maneirismo. */
   --font-heading: var(--font-sans);
 
   /* Quatro degraus tipográficos para conteúdo, e só.
      `--text-wordmark` é a exceção declarada: lockup de marca não é conteúdo, e
      amarrá-lo à escala de texto faria a marca encolher junto com o corpo. */
-  --text-wordmark: 1.375rem;
+  --text-wordmark: 1.3125rem;
   --text-display: clamp(1.75rem, 1.35rem + 1.8vw, 2.25rem);
   --text-display--line-height: 1.12;
   --text-display--letter-spacing: -0.015em;
@@ -238,12 +240,12 @@
    #1D2730 é o degrau elevado. Três superfícies no mesmo matiz frio, separáveis
    sem sombra. */
 .dark {
-  --background: oklch(0.16 0.018 245);
-  --foreground: oklch(0.94 0.006 250);
-  --card: oklch(0.209 0.016 245);
-  --card-foreground: oklch(0.94 0.006 250);
-  --popover: oklch(0.209 0.016 245);
-  --popover-foreground: oklch(0.94 0.006 250);
+  --background: oklch(0.155 0.028 252);
+  --foreground: oklch(0.94 0.008 252);
+  --card: oklch(0.198 0.03 254);
+  --card-foreground: oklch(0.94 0.008 252);
+  --popover: oklch(0.198 0.03 254);
+  --popover-foreground: oklch(0.94 0.008 252);
 
   /* O azul da marca não muda entre os temas: é o único token que atravessa os
      dois, e é o que faz a ação parecer a mesma coisa dos dois lados. */
@@ -253,12 +255,12 @@
      isto é um token por tema, e não uma opacidade fixa no componente. */
   --primary-hover: oklch(0.79 0.075 249);
   --primary-foreground: oklch(0.16 0.018 245);
-  --secondary: oklch(0.267 0.022 246);
-  --secondary-foreground: oklch(0.94 0.006 250);
-  --muted: oklch(0.267 0.022 246);
-  --muted-foreground: oklch(0.72 0.015 248);
-  --accent: oklch(0.3 0.025 247);
-  --accent-foreground: oklch(0.94 0.006 250);
+  --secondary: oklch(0.262 0.028 254);
+  --secondary-foreground: oklch(0.94 0.008 252);
+  --muted: oklch(0.262 0.028 254);
+  --muted-foreground: oklch(0.72 0.018 252);
+  --accent: oklch(0.3 0.032 254);
+  --accent-foreground: oklch(0.94 0.008 252);
 
   --destructive: oklch(0.7 0.17 25);
   --destructive-foreground: oklch(0.16 0.018 245);
@@ -272,8 +274,8 @@
   --highlight: oklch(0.789 0.06 246);
   --highlight-foreground: oklch(0.209 0.016 245);
 
-  --border: oklch(0.3 0.018 246);
-  --input: oklch(0.34 0.018 246);
+  --border: oklch(0.3 0.026 254);
+  --input: oklch(0.34 0.026 254);
   --ring: oklch(0.71 0.079 249);
 
   --chart-1: oklch(0.71 0.079 249);
@@ -282,13 +284,13 @@
   --chart-4: oklch(0.8 0.13 80);
   --chart-5: oklch(0.72 0.015 248);
 
-  --sidebar: oklch(0.185 0.017 245);
+  --sidebar: oklch(0.18 0.028 253);
   --sidebar-foreground: oklch(0.94 0.006 250);
   --sidebar-primary: oklch(0.71 0.079 249);
   --sidebar-primary-foreground: oklch(0.16 0.018 245);
-  --sidebar-accent: oklch(0.3 0.025 247);
+  --sidebar-accent: oklch(0.3 0.032 254);
   --sidebar-accent-foreground: oklch(0.94 0.006 250);
-  --sidebar-border: oklch(0.3 0.018 246);
+  --sidebar-border: oklch(0.3 0.026 254);
   --sidebar-ring: oklch(0.71 0.079 249);
 }
 
@@ -373,5 +375,32 @@
       color-mix(in oklab, var(--highlight) 26%, transparent),
       transparent 72%
     );
+  }
+}
+
+@layer components {
+  /* Halo atrás de um ícone (mockup de 2026-08-18).
+
+     O sistema resolve PROFUNDIDADE por borda de 1 px, e essa regra continua de
+     pé — isto não é profundidade. É foco decorativo: um disco borrado na cor da
+     marca, atrás de um ícone, dizendo "a ação principal desta tela começa
+     aqui". Não projeta sombra, não flutua sobre nada e fica contido no próprio
+     elemento.
+
+     Nada a fazer em `prefers-reduced-motion`: o halo não se move. */
+  .icon-halo {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .icon-halo::before {
+    content: '';
+    position: absolute;
+    inset: -35%;
+    z-index: -1;
+    border-radius: 50%;
+    background: var(--primary);
+    opacity: 0.16;
+    filter: blur(18px);
   }
 }

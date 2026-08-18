@@ -82,15 +82,33 @@ describe('UploadDropzone', () => {
     vi.unstubAllGlobals()
   })
 
-  it('começa com o botão de enviar desabilitado e a instrução visível', () => {
+  it('abre com a instrução visível e a ação principal viva', () => {
     montar()
 
-    expect(screen.getByText(/Arraste um PDF aqui ou clique para escolher/)).toBeTruthy()
+    // A frase é quebrada em dois elementos porque "clique para escolher" é
+    // pintado no azul da marca. A asserção é sobre o texto da área de soltar
+    // inteira, que é o que a pessoa lê como uma frase só.
+    const area = campoDeArquivo().closest('label')
+    expect(area?.textContent).toContain('Arraste um PDF aqui ou clique para escolher')
     expect(screen.getByText(/PDF de até 25 MB e 20 páginas/)).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Enviar documento' })).toHaveProperty(
-      'disabled',
-      true,
-    )
+
+    // A tela de entrada não abre com a sua ação principal apagada: sem arquivo
+    // o botão é o seletor, e só vira "Enviar documento" quando há o que enviar.
+    const acao = screen.getByRole('button', { name: 'Escolher arquivo' })
+    expect(acao).toHaveProperty('disabled', false)
+    expect(screen.queryByRole('button', { name: 'Enviar documento' })).toBeNull()
+  })
+
+  it('o botão principal abre o seletor enquanto não há arquivo', async () => {
+    montar()
+    const input = campoDeArquivo()
+    const abriu = vi.fn()
+    input.addEventListener('click', abriu)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Escolher arquivo' }))
+
+    expect(abriu).toHaveBeenCalledOnce()
+    expect(uploadDocumentMock).not.toHaveBeenCalled()
   })
 
   it('mostra nome e tamanho do arquivo escolhido pelo input', async () => {
@@ -100,6 +118,7 @@ describe('UploadDropzone', () => {
 
     expect(screen.getByText('contrato.pdf')).toBeTruthy()
     expect(screen.getByText('3,0 MB')).toBeTruthy()
+    // Com arquivo escolhido, o mesmo botão troca de trabalho e de rótulo.
     expect(screen.getByRole('button', { name: 'Enviar documento' })).toHaveProperty(
       'disabled',
       false,

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
-import { MoonIcon, SunIcon } from 'lucide-react'
+import { MoonIcon, QuoteIcon, ShieldCheckIcon, SunIcon } from 'lucide-react'
 
 import { AppBackground } from '@/components/backgrounds/AppBackground'
 import type { BackgroundKind } from '@/components/backgrounds/AppBackground'
@@ -32,9 +32,10 @@ function ThemeToggle() {
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           aria-label={label}
+          className="rounded-full"
           onClick={() => setTheme(isDark ? 'light' : 'dark')}
         >
           {mounted ? (
@@ -56,14 +57,19 @@ function ThemeToggle() {
 /**
  * Marca do produto.
  *
- * O marca-texto sobre "Doc" é a identidade inteira em um gesto: é o que o
- * produto faz com o documento — marcar o trecho que responde à pergunta.
+ * Sans bold com "Doc" no azul da Yaitec, como no mockup de 2026-08-18. Antes
+ * era Instrument Serif com o "Doc" dentro de um chip da cor do marca-texto —
+ * a mesma cor que marca a citação no chat, o que amarrava a marca ao que o
+ * produto faz. O lockup ficou mais direto e menos particular; a ligação com a
+ * citação passou a ser só a cor, sem o gesto do chip.
+ *
+ * `tracking-tight` porque em 21 px e peso 700 o Plex abre demais entre as
+ * letras e o lockup deixa de ler como uma palavra só.
  */
 function Wordmark() {
   return (
-    <span className="font-display text-wordmark leading-none tracking-normal">
-      Talk
-      <span className="bg-highlight text-highlight-foreground rounded-xs px-1 py-0.5">Doc</span>
+    <span className="text-wordmark leading-none font-bold tracking-tight">
+      Talk<span className="text-primary">Doc</span>
     </span>
   )
 }
@@ -147,19 +153,33 @@ export function AppShell({ children, contentWidth = 'reading', background }: App
         {/* `min-h-0` deixa o conteúdo encolher dentro da linha `1fr` do grid,
             que é o que permite uma tela pedir `h-full` e ocupar exatamente o
             que sobra — sem ninguém precisar saber de cor quanto a casca mede. */}
-        <main id="main-content" className={cn(column, 'min-h-0 py-6 sm:py-8')}>
+        <main id="main-content" className={cn(column, 'min-h-0 py-5 sm:py-6')}>
           {children}
         </main>
 
         <footer className="border-border bg-background/90 border-t backdrop-blur-sm">
+          {/* As duas garantias do produto, com o disco de ícone preenchido do
+              mockup. Ficaram no rodapé, e não num card no fim da página como
+              lá: o mockup dizia as mesmas duas frases duas vezes — uma no card
+              e outra no rodapé — e a tela precisa caber sem rolagem. */}
           <div
             className={cn(
               column,
-              'text-muted-foreground flex flex-col gap-1 py-6 text-caption sm:flex-row sm:items-center sm:justify-between',
+              'text-muted-foreground flex flex-col gap-3 py-3 text-caption sm:flex-row sm:items-center sm:justify-between sm:gap-6',
             )}
           >
-            <p>Toda resposta cita a página do PDF de onde veio.</p>
-            <p>Seus documentos ficam nesta sessão do navegador.</p>
+            <p className="flex items-center gap-2.5">
+              <span className="bg-primary/15 text-primary flex size-7 shrink-0 items-center justify-center rounded-full">
+                <QuoteIcon className="size-3.5" aria-hidden="true" />
+              </span>
+              Toda resposta cita a página do PDF de onde veio.
+            </p>
+            <p className="flex items-center gap-2.5">
+              <span className="bg-primary/15 text-primary flex size-7 shrink-0 items-center justify-center rounded-full">
+                <ShieldCheckIcon className="size-3.5" aria-hidden="true" />
+              </span>
+              Seus documentos ficam nesta sessão do navegador.
+            </p>
           </div>
         </footer>
       </div>
