@@ -101,7 +101,11 @@ export function UploadDropzone({ limits, onAccepted }: UploadDropzoneProps) {
               // o arraste precisa de resposta imediata, e a escala de 1% é o
               // limite entre "a área reagiu" e "a página pulou". `transform`
               // não invalida layout, então o card ao lado não se move junto.
-              'border-border flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center transition-[color,background-color,border-color,transform] duration-150 ease-out',
+              // `border-input` pelo mesmo motivo do campo de pergunta: o
+              // retângulo tracejado é o controle, e com `--border` ele saía a
+              // 1,3:1 contra o branco do card — a principal affordance da tela
+              // de entrada quase sem contorno.
+              'border-input flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center transition-[color,background-color,border-color,transform] duration-150 ease-out',
               'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-3',
               draggingOver && 'border-ring bg-accent scale-[1.01]',
               sending && 'pointer-events-none opacity-60',

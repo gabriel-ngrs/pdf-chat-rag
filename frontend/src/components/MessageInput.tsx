@@ -61,7 +61,11 @@ export function MessageInput({ value, onChange, onSubmit, pending, disabled }: M
     <form
       onSubmit={handleSubmit}
       className={cn(
-        'border-border bg-card focus-within:border-ring focus-within:ring-ring/50 flex items-end gap-2 rounded-lg border p-2 transition-colors focus-within:ring-3',
+        // `border-input`, e não `border-border`: aqui a borda é o que diz
+        // "isto recebe entrada", e a 1.4.11 do WCAG pede 3:1 para o contorno
+        // que identifica um controle. `--border` é o fio estrutural dos
+        // divisores, e a 1,6:1 dele deixava o campo de pergunta sem contorno.
+        'border-input bg-card focus-within:border-ring focus-within:ring-ring/50 flex items-end gap-2 rounded-lg border p-2 transition-colors focus-within:ring-3',
       )}
     >
       <label htmlFor="chat-question" className="sr-only">

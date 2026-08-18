@@ -72,9 +72,16 @@ export function AppBackground({ kind }: { kind: BackgroundKind }) {
           {/* Degradação sem WebGL2, e cor de espera enquanto o shader compila.
               As paradas saem dos mesmos tokens do shader, então a troca de uma
               coisa pela outra não é uma troca de paleta. */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_115%,color-mix(in_oklab,var(--highlight)_30%,transparent),color-mix(in_oklab,var(--primary)_12%,transparent)_45%,transparent_75%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_85%_55%_at_50%_115%,color-mix(in_oklab,var(--highlight)_16%,transparent),color-mix(in_oklab,var(--primary)_7%,transparent)_45%,transparent_75%)] dark:bg-[radial-gradient(ellipse_85%_55%_at_50%_115%,color-mix(in_oklab,var(--highlight)_30%,transparent),color-mix(in_oklab,var(--primary)_12%,transparent)_45%,transparent_75%)]" />
           {waveColors.length === WAVE_TOKENS.length ? (
-            <div className="absolute inset-0 opacity-90">
+            /* Metade da intensidade no claro. Não é gosto: medido na tela, o
+               campo de ondas ia de L 0.94 a L 0.67 ao longo da viewport — uma
+               variação de 1,46:1, mais forte que qualquer fio do design system.
+               O resultado era o card ter aresta de 1,05:1 no topo da página e
+               1,46:1 embaixo, com o fundo desenhando a borda que o sistema
+               deveria desenhar. Sobre tinta o mesmo campo cai para uma
+               luminescência e não disputa com nada, por isso o escuro fica. */
+            <div className="absolute inset-0 opacity-45 dark:opacity-90">
               <GradientWaves
                 horizonColor={waveColors[0]}
                 waveColor={waveColors[1]}
@@ -82,11 +89,12 @@ export function AppBackground({ kind }: { kind: BackgroundKind }) {
               />
             </div>
           ) : null}
-          {/* Véu leve sobre o shader: quem garante o contraste é o recorte,
-              não ele. O que este véu faz é puxar o campo inteiro na direção do
-              fundo da página, para o efeito parecer parte da tela em vez de
-              um vídeo colado atrás dela. */}
-          <div className="bg-background/25 absolute inset-0" />
+          {/* Véu sobre o shader: quem garante o contraste do texto é o
+              recorte, não ele. O que este véu faz é puxar o campo inteiro na
+              direção do fundo da página, para o efeito parecer parte da tela em
+              vez de um vídeo colado atrás dela. Mais denso no claro, onde o
+              papel tem menos margem antes de o fundo virar figura. */}
+          <div className="bg-background/45 dark:bg-background/25 absolute inset-0" />
         </div>
       ) : null}
 

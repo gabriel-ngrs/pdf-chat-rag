@@ -79,6 +79,11 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  /* A ação primária precisa de uma superfície de hover própria, e não de uma
+     opacidade sobre a de repouso. `bg-primary/80` desloca a cor na direção do
+     fundo — no escuro isso escurece o botão e funciona, no claro isso o clareia
+     e derruba o texto branco para 2,6:1. Hover é estado, e estado é token. */
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -140,68 +145,89 @@
 }
 
 /* ── Tema claro: papel ────────────────────────────────────────────────────────
-   O fundo é o #FBF9F8 do site da Yaitec — papel levemente quente — e os cards
-   são brancos puros: é o que levanta o conteúdo da página sem precisar de
-   sombra. O azul-aço da marca entra como ação e como marca-texto; o texto
-   continua sendo tinta, porque num app onde o conteúdo é texto a cor de marca
-   no corpo competiria com o que se está lendo. */
+   O fundo é papel levemente quente e os cards são brancos puros: é o que
+   levanta o conteúdo da página sem precisar de sombra.
+
+   Os valores foram recalibrados depois que o tema claro foi medido na tela e
+   não no papel. O que a medição mostrou:
+
+   - o card contra a página dava **1,05:1** no topo e **1,46:1** embaixo. Quem
+     desenhava a aresta do card não era o design system: era o campo de ondas
+     passando atrás. O mesmo card tinha borda em um lugar e não tinha em outro,
+     e é daí que vinha a sensação de tela lavada. O fundo desceu de 0.983 para
+     0.958 para o degrau existir sozinho, sem depender de onde a onda está.
+   - o azul da marca a L 0.71 dá **2,43:1** contra o papel. Como superfície de
+     botão isso reprova a 1.4.11 do WCAG, que pede 3:1 para o contorno de um
+     controle. No escuro o mesmo azul tem contraste de sobra contra a tinta —
+     por isso só o claro muda. A marca é o matiz, não a luminosidade: 250 é o
+     mesmo hue do #7BA6D1 do site.
+   - `--border` fazia dois trabalhos: divisor decorativo e contorno de campo.
+     Separados agora — `--border` é o fio estrutural, `--input` é o contorno de
+     controle e precisa dos 3:1. */
 :root {
   --radius: 0.5rem;
 
-  --background: oklch(0.983 0.003 49);
+  --background: oklch(0.958 0.004 60);
   --foreground: oklch(0.209 0.016 245);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.209 0.016 245);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.209 0.016 245);
 
-  /* #7BA6D1 — o azul dos botões do site. Croma baixo (0.079) de propósito: é
-     cor de marca sem ser cor saturada, e por isso pode carregar a ação sem
-     brigar com o texto ao lado. O texto sobre ele é tinta, não branco: branco
-     dá 2,6:1 e reprovaria no gate de contraste. */
-  --primary: oklch(0.71 0.079 249);
-  --primary-foreground: oklch(0.209 0.016 245);
-  --secondary: oklch(0.955 0.006 49);
+  /* O azul da marca aprofundado até virar ação de verdade sobre papel: 4,3:1
+     contra a página como superfície, 4,6:1 para o texto por cima. O matiz é o
+     do #7BA6D1 do site; o que muda é a luminosidade, que é o que precisa mudar
+     entre um tema e outro para a mesma cor seguir significando a mesma coisa.
+     O hover escurece mais um degrau — no claro, clarear seria andar na direção
+     do papel e apagar o botão. */
+  --primary: oklch(0.55 0.11 250);
+  --primary-hover: oklch(0.47 0.115 250);
+  --primary-foreground: oklch(0.985 0.003 60);
+  --secondary: oklch(0.925 0.006 55);
   --secondary-foreground: oklch(0.267 0.022 246);
-  --muted: oklch(0.955 0.006 49);
-  --muted-foreground: oklch(0.45 0.018 246);
-  --accent: oklch(0.93 0.03 250);
+  --muted: oklch(0.925 0.006 55);
+  --muted-foreground: oklch(0.44 0.018 246);
+  --accent: oklch(0.9 0.035 250);
   --accent-foreground: oklch(0.267 0.022 246);
 
   /* Os três estados de sistema não são cor de marca: eles significam a mesma
      coisa em qualquer produto, e amarrá-los à paleta apagaria o significado. */
   --destructive: oklch(0.47 0.19 27);
-  --destructive-foreground: oklch(0.983 0.003 49);
+  --destructive-foreground: oklch(0.985 0.003 60);
   --success: oklch(0.45 0.12 155);
-  --success-foreground: oklch(0.983 0.003 49);
+  --success-foreground: oklch(0.985 0.003 60);
   --warning: oklch(0.52 0.13 72);
-  --warning-foreground: oklch(0.983 0.003 49);
+  --warning-foreground: oklch(0.985 0.003 60);
 
   /* Marca-texto: o #AACDF2, a diluição mais clara do azul da marca. Superfície,
      nunca texto — 10,7:1 com a tinta por cima, 2,4:1 se fosse traço. */
   --highlight: oklch(0.835 0.064 250);
   --highlight-foreground: oklch(0.209 0.016 245);
 
-  --border: oklch(0.9 0.006 49);
-  --input: oklch(0.885 0.008 49);
-  /* Anel de foco: o azul da marca escurecido até 4,4:1 sobre o papel — o
-     mínimo para traço fino é 3:1, e o #7BA6D1 puro daria 2,4:1. */
-  --ring: oklch(0.56 0.1 249);
+  /* `--border` é o fio estrutural: divisor entre itens, régua de cabeçalho e
+     rodapé, aresta de card. Ele não identifica controle nenhum, então o que
+     ele precisa é ser visível — não os 3:1. */
+  --border: oklch(0.855 0.007 55);
+  /* `--input` é o contorno de controle: campo de texto, área de soltar. Aqui a
+     borda **é** o que diz "isto recebe entrada", e a 1.4.11 do WCAG pede 3:1.
+     Dá 3,4:1 contra o branco do card, onde os dois controles vivem. */
+  --input: oklch(0.63 0.011 55);
+  --ring: oklch(0.55 0.11 250);
 
-  --chart-1: oklch(0.71 0.079 249);
-  --chart-2: oklch(0.56 0.1 249);
+  --chart-1: oklch(0.55 0.11 250);
+  --chart-2: oklch(0.71 0.079 249);
   --chart-3: oklch(0.45 0.12 155);
   --chart-4: oklch(0.52 0.13 72);
   --chart-5: oklch(0.45 0.018 246);
 
-  --sidebar: oklch(0.968 0.004 49);
+  --sidebar: oklch(0.94 0.005 58);
   --sidebar-foreground: oklch(0.209 0.016 245);
-  --sidebar-primary: oklch(0.71 0.079 249);
-  --sidebar-primary-foreground: oklch(0.209 0.016 245);
-  --sidebar-accent: oklch(0.93 0.03 250);
+  --sidebar-primary: oklch(0.55 0.11 250);
+  --sidebar-primary-foreground: oklch(0.985 0.003 60);
+  --sidebar-accent: oklch(0.9 0.035 250);
   --sidebar-accent-foreground: oklch(0.267 0.022 246);
-  --sidebar-border: oklch(0.9 0.006 49);
-  --sidebar-ring: oklch(0.56 0.1 249);
+  --sidebar-border: oklch(0.855 0.007 55);
+  --sidebar-ring: oklch(0.55 0.11 250);
 }
 
 /* ── Tema escuro: tinta ───────────────────────────────────────────────────────
@@ -222,6 +248,10 @@
   /* O azul da marca não muda entre os temas: é o único token que atravessa os
      dois, e é o que faz a ação parecer a mesma coisa dos dois lados. */
   --primary: oklch(0.71 0.079 249);
+  /* No escuro o hover anda para o outro lado: sobre tinta, clarear é que
+     aproxima o botão do dedo. Mesma ideia, direção oposta — e é por isso que
+     isto é um token por tema, e não uma opacidade fixa no componente. */
+  --primary-hover: oklch(0.79 0.075 249);
   --primary-foreground: oklch(0.16 0.018 245);
   --secondary: oklch(0.267 0.022 246);
   --secondary-foreground: oklch(0.94 0.006 250);

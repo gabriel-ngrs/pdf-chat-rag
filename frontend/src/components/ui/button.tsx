@@ -9,7 +9,20 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        // `hover:bg-primary-hover` no lugar de `hover:bg-primary/80`: uma
+        // opacidade sobre a cor de repouso desloca o botão na direção do fundo,
+        // e no tema claro isso o CLAREIA — o texto caía para 2,6:1 exatamente
+        // quando o ponteiro estava em cima dele. O token de hover escurece no
+        // claro e clareia no escuro, que é o que "mais próximo do dedo"
+        // significa em cada tema.
+        //
+        // O desabilitado sai do `opacity-50` herdado da base: azul de marca
+        // desbotado sobre papel dava 3,0:1 e o "Enviar documento" ficava
+        // ilegível justamente no estado em que a pessoa precisa ler para
+        // entender o que falta. Superfície neutra + texto neutro dá 6,2:1 e diz
+        // "ainda não", em vez de dizer "apagado".
+        default:
+          "bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-muted disabled:text-muted-foreground disabled:border-border disabled:opacity-100",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
