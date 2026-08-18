@@ -100,3 +100,32 @@ def test_fallback_ignora_as_respostas_do_assistente() -> None:
 
 def test_fallback_sem_pergunta_anterior_devolve_a_pergunta_atual() -> None:
     assert fallback_query([], "e quanto a isso?") == "e quanto a isso?"
+
+
+def test_fronteira_de_tamanho_condensa_ate_quatro_palavras_e_para_na_quinta() -> None:
+    """A fronteira exata do ramo de tamanho, que o BUG-001 mostrou estar um passo curta.
+
+    Três casos porque um só não prende a fronteira: o de quatro palavras é o que
+    o owner digitou e o sistema recusou, e o de cinco é o AC-3, que precisa
+    continuar **não** condensando.
+    """
+    history = _history(PERGUNTA_INICIAL, "Consultoria e dados.")
+
+    assert should_condense(history, "e os valores agora?")
+    assert should_condense(history, "e a formação dela?")
+    assert not should_condense(history, "qual o endereço da empresa?")
+
+
+def test_formas_contraidas_sao_reconhecidas_como_marcador_anaforico() -> None:
+    """`dele`, `nela` e afins: o português falado contrai, e a lista precisa segui-lo."""
+    history = _history(PERGUNTA_INICIAL, "Consultoria e dados.")
+
+    assert should_condense(history, "e a formação acadêmica dele em qual instituição?")
+    assert should_condense(history, "quais são os clientes atendidos por eles nela hoje?")
+
+
+def test_forma_contraida_nao_dispara_dentro_de_outra_palavra() -> None:
+    """`canela` carrega `nela`, e continua sendo uma pergunta autocontida."""
+    history = _history(PERGUNTA_INICIAL, "Consultoria e dados.")
+
+    assert not should_condense(history, "qual o valor da canela usada na receita industrial?")

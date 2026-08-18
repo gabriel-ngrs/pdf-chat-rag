@@ -42,7 +42,13 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5
     # Medido, não estimado: ver `backend/eval/README.md` para a distribuição de
     # similaridade que separa positivas de negativas e justifica este corte.
-    similarity_threshold: float = 0.625
+    #
+    # 0,561 e não 0,625 desde o BUG-002: o dataset original só tinha positivas
+    # que citavam a empresa pelo nome, e o nome é uma âncora que empurra a
+    # similaridade para cima. Com as positivas sem âncora — as que gente de
+    # verdade escreve — a pior positiva caiu de 0,724 para 0,596, e 0,625
+    # recusava duas perguntas que o documento responde.
+    similarity_threshold: float = 0.561
     history_window: int = 6
     # Segundos, e em ponto flutuante porque é assim que `asyncio.wait_for` os
     # recebe: declará-los inteiros obrigaria o teste do prazo a esperar um

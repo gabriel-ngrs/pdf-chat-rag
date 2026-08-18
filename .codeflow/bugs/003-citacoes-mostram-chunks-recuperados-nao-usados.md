@@ -5,7 +5,7 @@ descoberto_em: 2026-08-17
 descoberto_por: teste de ponta a ponta do owner (blocos 2 e 5 do roteiro)
 severidade: média
 fase_dona: A.4 (chat-endpoint)
-status: aberto
+status: corrigido e verificado (/double-check 2026-08-18)
 ---
 
 # BUG-003 — Cinco chips de citação para uma resposta que usou um trecho
@@ -74,3 +74,13 @@ mesmo jeito que FR-3 e AC-7 já foram corrigidos.
 
 Decisão do owner sobre qual caminho seguir. Se for código, é rework da `A.4`
 (dona de `chat.py`) ou da `B.3` (dona da exibição), conforme a escolha.
+
+---
+
+**Corrigido em 2026-08-17** pelo lote `feat-0002-teste-ponta-a-ponta`
+(`.codeflow/bug-batches/feat-0002-teste-ponta-a-ponta.md`). O fix, o teste de regressão e a reprodução manual estão na linha
+deste bug no ledger; as escolhas não-triviais estão em
+`.codeflow/decisions/2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md`. O
+`/double-check` rodou em **2026-08-18** e marcou este bug como **sanado (✓)**: o
+teste de regressão falha contra o código pré-fix e a reprodução do relato foi
+refeita. Detalhe na seção "Verificação" do ledger.

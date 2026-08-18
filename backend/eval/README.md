@@ -112,12 +112,16 @@ reprovar é decoração.
 
 ### O dataset (`eval/dataset.json`)
 
-16 perguntas versionadas sobre o `Exemplo-YAITEC.pdf` (3 páginas, 10 chunks):
+23 perguntas versionadas sobre o `Exemplo-YAITEC.pdf` (3 páginas, 10 chunks) —
+eram 16 até o BUG-002 acrescentar as sete sem âncora (última seção deste arquivo):
 
-- **12 positivas**, com `expected_page`, distribuídas pelas três páginas e por tipos
+- **19 positivas**, com `expected_page`, distribuídas pelas três páginas e por tipos
   diferentes de pergunta — fato pontual, número, lista, nome próprio e termo exato
   (o e-mail de contato).
-- **2 dessas 12 são perguntas de continuação**, com `history`: a página só é
+- **10 dessas 19 citam a empresa pelo nome e 9 não** (P11–P16 e as continuações). A
+  divisão é o que a `A.5` não tinha e o que o BUG-002 mostrou ser decisiva: o nome
+  funciona como âncora e desloca a distribuição inteira para cima.
+- **3 dessas 19 são perguntas de continuação**, com `history`: a página só é
   alcançável se a pergunta for reescrita antes da busca.
 - **4 negativas**, com `expected_page: null`, sobre assuntos que o documento não
   menciona nem de raspão (receita de bolo, futebol, mecânica de automóvel, dengue).
@@ -129,9 +133,10 @@ Duas regras que valeram na escrita do dataset e que o mantêm honesto:
    faria a métrica medir o desempate, não o retrieval. Ficou de fora.
 2. **O dataset não foi ajustado depois de ver os números.** As perguntas saíram do
    texto extraído, antes da primeira rodada; nenhuma foi trocada para melhorar
-   métrica. `tests/test_eval_metrics.py` prende as propriedades estruturais (8–12
-   positivas, 4 negativas, ≥ 3 páginas cobertas, ≥ 1 continuação) para que um ajuste
-   futuro precise ser deliberado.
+   métrica — e a regra valeu de novo para as sete do BUG-002, escritas a partir do
+   texto extraído antes da primeira rodada. `tests/test_eval_metrics.py` prende as
+   propriedades estruturais (8–20 positivas, 4 negativas, ≥ 3 páginas cobertas, ≥ 1
+   continuação) para que um ajuste futuro precise ser deliberado.
 
 ### O que cada métrica mede, e por que existe
 
@@ -250,6 +255,12 @@ seguidas devolveram scores idênticos até a terceira casa.
 ```
 
 ### Por que o limiar é 0,625 (OQ-10, resolvido com número medido)
+
+> **Superado em 2026-08-17 pelo BUG-002.** O limiar vigente é **0,561**; a medição
+> que o justifica está na última seção deste arquivo. O raciocínio abaixo continua
+> válido como método — o que estava errado era o dataset que o alimentou, não a
+> conta.
+
 
 Os dois grupos não se sobrepõem: a negativa mais parecida com o documento chega a
 **0,526** e a positiva mais difícil fica em **0,724**. Existe, portanto, um intervalo
@@ -426,3 +437,187 @@ da baseline para baixo, que é o que tornaria o delta visível. Não foi feito
 aqui de propósito: mexer no dataset **no meio** de uma medição de antes e depois
 é exatamente o que a `A.5` proíbe ("não ajustar o dataset para inflar a
 métrica").
+
+
+---
+
+## BUG-002 — recalibração do limiar com positivas sem âncora
+
+**Resumo:** o limiar caiu de **0,625** para **0,561**. Nada mudou no código do
+retrieval; o que mudou foi o dataset, que passou a conter as perguntas que o owner
+de fato digitou no teste de ponta a ponta. Elas mostram um piso de similaridade
+0,128 abaixo do que as perguntas ancoradas mostravam.
+
+### O que estava errado, e não era a conta
+
+As 12 positivas originais mencionam **"YAITEC" explicitamente** — *"Qual é o e-mail
+de contato da YAITEC?"*, *"Quais são os valores da YAITEC?"*. O nome da empresa
+aparece em quase todos os chunks de um documento institucional e funciona como
+âncora que empurra a similaridade para cima. Quem usa escreve *"Qual o e-mail de
+contato?"*, sem a âncora — e aí a similaridade cai para a faixa 0,53–0,62, que o
+eval da `A.5` declarou vazia.
+
+A folga de 0,198 não era vazia. Ela era ocupada pela forma como gente de verdade
+pergunta, e o eval não a via porque nenhuma pergunta do dataset era assim.
+
+Vale registrar que a própria fase `A.7` tinha apontado o buraco, na última seção
+acima: *"as 16 perguntas não incluem nenhuma consulta por termo literal ...
+acrescentar duas perguntas literais (o e-mail e uma sigla) mudaria isso"*. É
+exatamente o que a P11 e a P12 são. Ali a mudança foi recusada porque mexer no
+dataset **no meio** de uma medição de antes e depois invalida a comparação; aqui
+ela é o objetivo da medição.
+
+### O que entrou no dataset
+
+Sete positivas novas, escritas a partir do texto extraído e **antes** da primeira
+rodada — nenhuma foi trocada depois de ver os números, que é a regra que mantém o
+dataset honesto:
+
+| id | pergunta | página | por que ela existe |
+|---|---|---|---|
+| P11 | Qual o e-mail de contato? | 3 | a P08 sem a âncora; é a pergunta que o owner digitou |
+| P12 | O que é a UFPB no documento? | 2 | sigla, sem âncora; a outra pergunta recusada no teste |
+| P13 | Que tipo de mercado é atendido? | 1 | a P01 sem a âncora |
+| P14 | Quantos projetos já foram entregues? | 2 | a P05 sem a âncora |
+| P15 | O trabalho é presencial ou remoto? | 3 | a P09 sem a âncora |
+| P16 | Quem é o fundador? | 2 | a P04 sem a âncora |
+| C03 | e a formação dele? | 2 | continuação com forma contraída — exercita o fix do BUG-001 |
+
+O dataset passou de 16 para 23 itens (19 positivas, 4 negativas). O teto de
+positivas em `tests/test_eval_metrics.py` subiu de 12 para 20 junto.
+
+### A medição
+
+`Exemplo-YAITEC.pdf`, `document_id` `ce4e9cd0-fa3a-45e4-852d-5103b73fb736`, 10
+chunks, `RETRIEVAL_TOP_K=5`. Primeira rodada ainda com `SIMILARITY_THRESHOLD=0.625`,
+para ver o estrago; segunda com `0.561`, que é a que segue abaixo.
+
+```
+## Eval de retrieval — `Exemplo-YAITEC.pdf`
+
+- `document_id`: `ce4e9cd0-fa3a-45e4-852d-5103b73fb736`
+- chunks no banco: **10**
+- `RETRIEVAL_TOP_K`: **5** | `SIMILARITY_THRESHOLD`: **0.561**
+- itens: 23 (19 positivas, 4 negativas)
+
+### Por pergunta
+
+| id | grupo | query | esperada | páginas recuperadas | rank | melhor score | recusada? |
+|---|---|---|---|---|---|---|---|
+| P01 | positive | A YAITEC atende que tipo de mercado? | 1 | p1(0.762), p2(0.733), p1(0.732), p3(0.729), p3(0.728) | 1 | 0.762 | não ✓ |
+| P02 | positive | O que os agentes SQL da YAITEC fazem? | 1 | p3(0.724), p1(0.703), p1(0.700), p3(0.685), p2(0.671) | 2 | 0.724 | não ✓ |
+| P03 | positive | O que inclui o serviço de consultoria e prototipação da YAITEC? | 1 | p1(0.768), p2(0.737), p3(0.719), p2(0.704), p1(0.704) | 1 | 0.768 | não ✓ |
+| P04 | positive | Quem fundou a YAITEC? | 2 | p2(0.768), p2(0.765), p1(0.737), p3(0.727), p3(0.726) | 1 | 0.768 | não ✓ |
+| P05 | positive | Quantos projetos e clientes a YAITEC já entregou? | 2 | p2(0.770), p2(0.736), p3(0.724), p1(0.716), p3(0.714) | 1 | 0.770 | não ✓ |
+| P06 | positive | Quais empresas estão entre os clientes e parcerias da YAITEC? | 2 | p2(0.788), p2(0.754), p3(0.742), p1(0.737), p3(0.725) | 1 | 0.788 | não ✓ |
+| P07 | positive | Quais são os valores da YAITEC? | 2 | p2(0.767), p1(0.755), p1(0.737), p3(0.731), p2(0.729) | 1 | 0.767 | não ✓ |
+| P08 | positive | Qual é o e-mail de contato da YAITEC? | 3 | p3(0.748), p1(0.747), p2(0.747), p2(0.740), p3(0.739) | 1 | 0.748 | não ✓ |
+| P09 | positive | A atuação da YAITEC é presencial ou remota? | 3 | p3(0.808), p2(0.741), p3(0.733), p1(0.731), p2(0.730) | 1 | 0.808 | não ✓ |
+| P10 | positive | Em que cidade o time da YAITEC se reúne no coworking? | 3 | p3(0.773), p2(0.734), p2(0.729), p1(0.717), p3(0.716) | 1 | 0.773 | não ✓ |
+| P11 | positive | Qual o e-mail de contato? | 3 | p3(0.596), p3(0.594), p1(0.589), p1(0.585), p2(0.580) | 1 | 0.596 | não ✓ |
+| P12 | positive | O que é a UFPB no documento? | 2 | p1(0.612), p1(0.605), p2(0.604), p2(0.597), p2(0.593) | 3 | 0.612 | não ✓ |
+| P13 | positive | Que tipo de mercado é atendido? | 1 | p1(0.688), p1(0.663), p1(0.652), p3(0.647), p1(0.635) | 1 | 0.688 | não ✓ |
+| P14 | positive | Quantos projetos já foram entregues? | 2 | p2(0.647), p2(0.610), p2(0.609), p1(0.607), p1(0.605) | 1 | 0.647 | não ✓ |
+| P15 | positive | O trabalho é presencial ou remoto? | 3 | p3(0.710), p3(0.610), p1(0.608), p1(0.590), p2(0.585) | 1 | 0.710 | não ✓ |
+| P16 | positive | Quem é o fundador? | 2 | p2(0.673), p2(0.655), p3(0.625), p2(0.616), p1(0.616) | 1 | 0.673 | não ✓ |
+| C01 | positive | Quem fundou a YAITEC? e a formação? | 2 | p2(0.765), p2(0.759), p1(0.725), p3(0.723), p1(0.721) | 1 | 0.765 | não ✓ |
+| C02 | positive | Onde o time da YAITEC se reúne? e quem mora longe de lá? | 3 | p3(0.729), p2(0.703), p3(0.694), p2(0.692), p1(0.666) | 1 | 0.729 | não ✓ |
+| C03 | positive | Quem fundou a YAITEC? e a formação dele? | 2 | p2(0.764), p2(0.761), p1(0.715), p3(0.709), p1(0.709) | 1 | 0.764 | não ✓ |
+| N01 | negative | Qual é a receita do bolo de cenoura com cobertura de chocolate? | — | p1(0.502), p2(0.498), p1(0.491), p3(0.491), p1(0.484) | — | 0.502 | sim ✓ |
+| N02 | negative | Quantos gols Pelé marcou pela seleção brasileira? | — | p2(0.476), p3(0.471), p1(0.470), p1(0.468), p2(0.458) | — | 0.476 | sim ✓ |
+| N03 | negative | De quanto em quanto tempo devo trocar o óleo do motor do carro? | — | p3(0.526), p3(0.525), p2(0.519), p1(0.512), p1(0.506) | — | 0.526 | sim ✓ |
+| N04 | negative | Quais são os sintomas da dengue? | — | p3(0.523), p1(0.517), p1(0.512), p1(0.509), p3(0.507) | — | 0.523 | sim ✓ |
+
+### Continuação: pergunta crua × pergunta condensada
+
+| id | esperada | query crua | rank cru | query condensada | rank condensado |
+|---|---|---|---|---|---|
+| C01 | 2 | e a formação? | 4 | Quem fundou a YAITEC? e a formação? | 1 |
+| C02 | 3 | e quem mora longe de lá? | 1 | Onde o time da YAITEC se reúne? e quem mora longe de lá? | 1 |
+| C03 | 2 | e a formação dele? | 1 | Quem fundou a YAITEC? e a formação dele? | 1 |
+
+### Agregado
+
+| métrica | valor | piso NFR-7 | situação |
+|---|---|---|---|
+| `recall@1` (positivas) | 0.895 | — | — |
+| `recall@3` (positivas) | 1.000 | ≥ 0.80 | ok |
+| `MRR` (positivas) | 0.939 | ≥ 0.70 | ok |
+| taxa de recusa correta (negativas) | 1.000 | 1.00 | ok |
+| taxa de falsa recusa (positivas) | 0.000 | 0.00 | ok |
+
+### Distribuição de similaridade, por grupo
+
+| conjunto | n | mín | média | máx |
+|---|---|---|---|---|
+| positivas — melhor chunk | 19 | 0.596 | 0.729 | 0.808 |
+| negativas — melhor chunk | 4 | 0.476 | 0.507 | 0.526 |
+| positivas — todos os chunks do top-k | 95 | 0.580 | 0.697 | 0.808 |
+| negativas — todos os chunks do top-k | 20 | 0.458 | 0.498 | 0.526 |
+
+- maior similaridade entre as **negativas**: **0.526**
+- menor similaridade entre as **positivas**: **0.596**
+- folga entre os dois grupos: **+0.070**
+- ponto médio da folga (candidato a `SIMILARITY_THRESHOLD`): **0.561**
+
+### Varredura de limiar (offline, sem custo de quota)
+
+| limiar | recusa correta (negativas) | falsa recusa (positivas) | NFR-7 |
+|---|---|---|---|
+| 0.456 | 0.000 | 0.000 | **falha** |
+| 0.487 | 0.250 | 0.000 | **falha** |
+| 0.518 | 0.500 | 0.000 | **falha** |
+| 0.549 | 1.000 | 0.000 | ok |
+| 0.580 | 1.000 | 0.000 | ok |
+| 0.611 | 1.000 | 0.053 | **falha** |
+| 0.642 | 1.000 | 0.105 | **falha** |
+| 0.673 | 1.000 | 0.158 | **falha** |
+| 0.704 | 1.000 | 0.263 | **falha** |
+| 0.735 | 1.000 | 0.421 | **falha** |
+| 0.766 | 1.000 | 0.632 | **falha** |
+| 0.797 | 1.000 | 0.947 | **falha** |
+| 0.828 | 1.000 | 1.000 | **falha** |
+
+### Gate
+
+**NFR-7 ATINGIDO** com `SIMILARITY_THRESHOLD=0.561`.
+```
+
+### Por que 0,561
+
+Mesmo critério da `A.5`, com números novos: os dois grupos **continuam sem se
+sobrepor** — a negativa mais alta fica em **0,526** e a positiva mais baixa em
+**0,596** —, e o valor escolhido é o meio dessa folga, `(0,526 + 0,596) / 2 =
+0,561`, com ~0,035 de margem para cada lado.
+
+O terceiro caminho que o relato do BUG-002 previa — *"se a folga sumir, a decisão é
+arquitetural"* — **não** se materializou. A folga encolheu de 0,198 para 0,070, o
+que é bem menos confortável, mas o limiar sozinho ainda separa os dois grupos. Não
+há motivo para trazer reranking ou segunda condição de recusa para dentro desta
+entrega.
+
+Com 0,625, duas positivas eram recusadas por engano (P11 em 0,596 e P12 em 0,612) —
+taxa de falsa recusa de 0,105, e o gate NFR-7 reprovava. Com 0,561, as duas taxas
+voltam a zero.
+
+### O que a margem menor significa
+
+- **0,035 de folga de cada lado é apertado**, e é honesto dizer isso. Uma negativa
+  um pouco mais temática que a N03 ("troca de óleo", 0,526) ou uma positiva um
+  pouco mais difícil que a P11 (0,596) cai do lado errado. A margem de 0,10 do
+  valor anterior era ilusória: media a distância entre negativas de fora do
+  assunto e positivas com âncora, dois grupos que o uso real não produz.
+- **O que compraria margem de volta** é aumentar a separação, não mover o corte:
+  reranking, ou a query lexical menos restritiva que a `A.7` já deixou apontada
+  (`websearch_to_tsquery` no lugar do `AND` entre todos os termos). Fica registrado
+  como próximo passo medido, não como dívida escondida.
+- **`recall@1` caiu de 0,917 para 0,895** e o `MRR` de 0,958 para 0,939. Não é
+  regressão do retrieval: são sete perguntas mais difíceis entrando na conta. A
+  única que erra a primeira posição entre as novas é a P12 (rank 3) — a sigla
+  "UFPB" aparece uma vez só, e a busca densa borra termo exato, que é o sintoma
+  conhecido desde a `A.5`.
+- **A C03 confirma o fix do BUG-001 pelo lado do retrieval:** crua, *"e a formação
+  dele?"* já vinha em 1º neste documento; o que o fix garante é que ela **seja
+  condensada** antes de chegar aqui — sem isso, `should_condense` devolvia `False`
+  e a query crua ia para a busca no chat de verdade, onde pontuou 0,527 e foi
+  recusada.

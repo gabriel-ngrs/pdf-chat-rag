@@ -70,7 +70,7 @@ def chunk(
     return RetrievedChunk(chunk_index=index, page_number=page, content=texto, score=score)
 
 
-# Acima do `similarity_threshold` de 0,625 da fixture de configuração.
+# Acima do `similarity_threshold` de 0,561 da fixture de configuração.
 FUNDAMENTADOS = [
     chunk(0.91, index=3, page=2),
     chunk(0.71, index=7, page=5, texto="Contato: sao paulo."),

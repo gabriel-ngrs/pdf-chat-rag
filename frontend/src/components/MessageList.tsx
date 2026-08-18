@@ -87,7 +87,10 @@ function UserMessage({ content }: { content: string }) {
 }
 
 /**
- * As citações de uma resposta, da página menor para a maior.
+ * Os trechos consultados numa resposta, da página menor para a maior.
+ *
+ * "Consultados", e não "citados": são os que passaram do limiar de similaridade
+ * e entraram no prompt, e o modelo não se apoia em todos eles (BUG-003).
  *
  * Resposta sem citação não rende área nenhuma — nem título, nem espaço vazio:
  * citação vazia é recusa por falta de fundamento, e a `B.4` cuida de mostrá-la
@@ -104,7 +107,7 @@ function Citations({ citations }: { citations: Citation[] }) {
   )
 
   return (
-    <ul aria-label="Trechos que fundamentam a resposta" className="flex flex-wrap gap-2 pt-1">
+    <ul aria-label="Trechos consultados para esta resposta" className="flex flex-wrap gap-2 pt-1">
       {ordered.map((citation) => (
         <li key={`${citation.page_number}-${citation.chunk_index}`}>
           <CitationChip citation={citation} />

@@ -26,6 +26,7 @@ from structlog.testing import capture_logs
 
 from app.adapters.gemini import (
     CHAT_MAX_OUTPUT_TOKENS,
+    CHAT_QUOTA_MESSAGE,
     CHAT_TEMPERATURE,
     CONDENSATION_MAX_OUTPUT_TOKENS,
     TASK_TYPE_DOCUMENT,
@@ -714,3 +715,14 @@ async def test_chave_ausente_falha_antes_de_qualquer_chamada_de_chat() -> None:
 
     with pytest.raises(MissingApiKeyError):
         await client.generate("prompt", timeout=5)
+
+
+def test_mensagem_de_quota_do_chat_nao_promete_um_minuto() -> None:
+    """A cota que estoura no plano gratuito é diária, não por minuto (BUG-004).
+
+    O adapter não sabe qual das duas estourou — o `429` não é diferenciado —,
+    então a mensagem cobre as duas em vez de mandar esperar um minuto, que é o
+    conselho que o usuário seguiu e viu falhar de novo.
+    """
+    assert "diária" in CHAT_QUOTA_MESSAGE
+    assert "Espere um minuto" not in CHAT_QUOTA_MESSAGE

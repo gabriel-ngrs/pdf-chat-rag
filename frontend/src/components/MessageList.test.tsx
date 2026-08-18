@@ -76,7 +76,7 @@ describe('MessageList', () => {
       />,
     )
 
-    const chips = screen.getAllByRole('button', { name: /ver trecho da página/ })
+    const chips = screen.getAllByRole('button', { name: /ver trecho consultado da página/ })
     expect(chips.map((chip) => chip.textContent)).toEqual(['página 2', 'página 7'])
   })
 
@@ -90,7 +90,7 @@ describe('MessageList', () => {
     )
 
     expect(screen.queryByRole('button', { name: /ver trecho/ })).toBeNull()
-    expect(screen.queryByLabelText('Trechos que fundamentam a resposta')).toBeNull()
+    expect(screen.queryByLabelText('Trechos consultados para esta resposta')).toBeNull()
   })
 
   it('mostra a recusa como resposta legítima, com marca sutil e sem cara de erro', () => {

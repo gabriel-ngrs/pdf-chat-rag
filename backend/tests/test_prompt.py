@@ -137,3 +137,16 @@ def test_montagem_e_deterministica_para_a_mesma_entrada() -> None:
 def test_recusa_e_texto_em_portugues_pronto_para_a_tela() -> None:
     assert "não encontrei" in REFUSAL_MESSAGE.lower()
     assert REFUSAL_MESSAGE.strip() == REFUSAL_MESSAGE
+
+
+def test_prompt_proibe_citar_o_numero_do_trecho_e_manda_citar_so_a_pagina() -> None:
+    """O rótulo `<<<TRECHO N>>>` é endereço interno do prompt, e vazava na resposta.
+
+    Asserir sobre o texto que o modelo gera não vale — ele não é determinístico.
+    O que dá para prender é a instrução estar no prompt, que é o que a `A.2`
+    controla; o efeito na tela é verificado pela reprodução manual do BUG-005.
+    """
+    prompt = build_answer_prompt(_chunks(), [], "onde fica a sede?")
+
+    assert "não mencione o número do trecho" in prompt
+    assert prompt.index("não mencione o número do trecho") > prompt.index("<<<FIM DO TRECHO")

@@ -118,7 +118,11 @@ class TestDataset:
         items = load_dataset(DATASET)
         positives = [item for item in items if item.group == POSITIVE]
         negatives = [item for item in items if item.group == NEGATIVE]
-        assert 8 <= len(positives) <= 12
+        # O teto subiu de 12 para 20 no BUG-002: as sete positivas sem âncora
+        # (P11–P16 e C03) são o que revela o piso real de similaridade de quem
+        # pergunta sem repetir o nome da empresa. O intervalo continua existindo
+        # para que mexer no dataset seja deliberado, não acidental.
+        assert 8 <= len(positives) <= 20
         assert len(negatives) == 4
 
     def test_every_positive_has_a_page_and_every_negative_has_none(self) -> None:

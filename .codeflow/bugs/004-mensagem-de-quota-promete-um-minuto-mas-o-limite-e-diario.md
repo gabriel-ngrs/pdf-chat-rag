@@ -5,7 +5,7 @@ descoberto_em: 2026-08-17
 descoberto_por: teste de ponta a ponta do owner (bloco 6 do roteiro)
 severidade: média
 fase_dona: B.4 (notices-persistence) e A.4 (chat-endpoint)
-status: aberto
+status: corrigido e verificado (/double-check 2026-08-18)
 ---
 
 # BUG-004 — A orientação da mensagem de quota está errada
@@ -74,3 +74,13 @@ gerações por dia e por modelo, planeje a gravação — e considere trocar
 Rework da `B.4` (dona de `errors.ts`) para o texto da interface e da `A.4` (dona
 de `gemini.py`) para o texto do backend, ou um `/bugfix` cobrindo os dois. **Não**
 consertar dentro da `B.5`.
+
+---
+
+**Corrigido em 2026-08-17** pelo lote `feat-0002-teste-ponta-a-ponta`
+(`.codeflow/bug-batches/feat-0002-teste-ponta-a-ponta.md`). O fix, o teste de regressão e a reprodução manual estão na linha
+deste bug no ledger; as escolhas não-triviais estão em
+`.codeflow/decisions/2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md`. O
+`/double-check` rodou em **2026-08-18** e marcou este bug como **sanado (✓)**: o
+teste de regressão falha contra o código pré-fix e a reprodução do relato foi
+refeita. Detalhe na seção "Verificação" do ledger.

@@ -471,7 +471,7 @@ describe('ChatView', () => {
 
     expect(await screen.findByText('Consultoria e engenharia de dados.')).toBeTruthy()
     expect(screen.getByText('quais serviços a YAITEC oferece?')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'ver trecho da página 3' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'ver trecho consultado da página 3' })).toBeTruthy()
     expect(listMessagesMock).toHaveBeenCalledWith('conv-guardada')
     expect(createConversationMock).not.toHaveBeenCalled()
   })

@@ -59,7 +59,15 @@ CONDENSATION_MAX_OUTPUT_TOKENS = 128
 # primeiro token — insistir só transformaria um aviso rápido em espera inútil.
 CHAT_MAX_ATTEMPTS = 2
 
-CHAT_QUOTA_MESSAGE = "O limite de uso da IA foi atingido. Espere um minuto e pergunte de novo."
+# O adapter não distingue **qual** cota estourou: o `429` do plano gratuito pode
+# ser o limite por minuto ou o de 20 requisições por dia por modelo, e o
+# `retryDelay: 58s` que a API sugere é genérico — para a cota diária ele é um
+# conselho errado, que foi o que o BUG-004 mostrou o usuário seguindo em vão.
+# A mensagem cobre os dois casos em vez de prometer o que não sabe.
+CHAT_QUOTA_MESSAGE = (
+    "O limite de uso da IA foi atingido. Pode ser o limite por minuto ou a cota diária do "
+    "plano gratuito: espere um pouco e pergunte de novo; se persistir, a cota do dia acabou."
+)
 CHAT_PROVIDER_MESSAGE = "A IA não conseguiu responder agora. Tente perguntar de novo."
 
 # O nível mínimo de raciocínio que a geração 3.x do modelo oferece. É o que

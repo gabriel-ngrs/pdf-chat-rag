@@ -32,6 +32,16 @@ const SEVERIDADE_ESPERADA: Record<ErrorCode, NoticeSeverity> = {
 }
 
 describe('describeError', () => {
+  it('não promete que esperar um minuto resolve o limite de uso', () => {
+    // BUG-004: a cota que estoura no plano gratuito é de 20 requisições por
+    // dia, por modelo. Mandar esperar um minuto faz a pessoa tentar de novo,
+    // falhar de novo, e concluir que o app está quebrado.
+    const { action } = describeError('limite_de_uso')
+
+    expect(action).toContain('diário')
+    expect(action).not.toMatch(/cerca de um minuto/)
+  })
+
   it('descreve todos os códigos do envelope da spec', () => {
     for (const code of CODIGOS_DA_SPEC) {
       expect(ERROR_CODES).toContain(code)

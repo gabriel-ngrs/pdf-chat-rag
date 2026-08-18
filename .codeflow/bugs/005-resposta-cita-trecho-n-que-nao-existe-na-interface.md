@@ -5,7 +5,7 @@ descoberto_em: 2026-08-17
 descoberto_por: teste de ponta a ponta do owner (telas dos blocos 3 e 5)
 severidade: média
 fase_dona: A.2 (core-prompting)
-status: aberto
+status: corrigido e verificado (/double-check 2026-08-18)
 ---
 
 # BUG-005 — Referência pendurada: "Trecho 5" não existe na tela
@@ -72,3 +72,13 @@ Recomendo a primeira. A segunda só se o BUG-003 for resolvido junto.
 Rework da `A.2`, dona de `core/prompt.py` e de `tests/test_prompt.py`. Um teste
 de que a instrução está presente cobre a mudança; asserir sobre o texto que o
 modelo gera não vale, e o escopo travado da `A.6` proíbe.
+
+---
+
+**Corrigido em 2026-08-17** pelo lote `feat-0002-teste-ponta-a-ponta`
+(`.codeflow/bug-batches/feat-0002-teste-ponta-a-ponta.md`). O fix, o teste de regressão e a reprodução manual estão na linha
+deste bug no ledger; as escolhas não-triviais estão em
+`.codeflow/decisions/2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md`. O
+`/double-check` rodou em **2026-08-18** e marcou este bug como **sanado (✓)**: o
+teste de regressão falha contra o código pré-fix e a reprodução do relato foi
+refeita. Detalhe na seção "Verificação" do ledger.

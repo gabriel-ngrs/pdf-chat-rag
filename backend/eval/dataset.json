@@ -8,7 +8,11 @@
     "notório é 'RAG evita alucinação', presente nas páginas 2 e 3 — foram deliberadamente",
     "evitados: com resposta ambígua, o recall mediria a sorte do desempate, não o retrieval.",
     "As negativas são assuntos que o documento não menciona nem de raspão; elas existem para",
-    "que a calibração do limiar não seja circular (ver eval/README.md)."
+    "que a calibração do limiar não seja circular (ver eval/README.md).",
+    "P11–P16 e C03 foram acrescentadas pelo BUG-002: são as mesmas informações das positivas",
+    "anteriores, perguntadas SEM o nome da empresa. O nome aparece em quase todo chunk de um",
+    "documento institucional e funciona como âncora que empurra a similaridade para cima; sem",
+    "ele, a pergunta cai na faixa que o limiar calibrado só com positivas ancoradas recusava."
   ],
   "items": [
     {
@@ -82,6 +86,48 @@
       "expected_page": 3
     },
     {
+      "id": "P11",
+      "group": "positive",
+      "kind": "termo exato, sem âncora",
+      "question": "Qual o e-mail de contato?",
+      "expected_page": 3
+    },
+    {
+      "id": "P12",
+      "group": "positive",
+      "kind": "sigla, sem âncora",
+      "question": "O que é a UFPB no documento?",
+      "expected_page": 2
+    },
+    {
+      "id": "P13",
+      "group": "positive",
+      "kind": "fato pontual, sem âncora",
+      "question": "Que tipo de mercado é atendido?",
+      "expected_page": 1
+    },
+    {
+      "id": "P14",
+      "group": "positive",
+      "kind": "número, sem âncora",
+      "question": "Quantos projetos já foram entregues?",
+      "expected_page": 2
+    },
+    {
+      "id": "P15",
+      "group": "positive",
+      "kind": "fato pontual, sem âncora",
+      "question": "O trabalho é presencial ou remoto?",
+      "expected_page": 3
+    },
+    {
+      "id": "P16",
+      "group": "positive",
+      "kind": "nome próprio, sem âncora",
+      "question": "Quem é o fundador?",
+      "expected_page": 2
+    },
+    {
       "id": "C01",
       "group": "positive",
       "kind": "continuação (anáfora por elipse)",
@@ -104,6 +150,17 @@
           "role": "assistant",
           "content": "Em um coworking em João Pessoa, uma vez por semana."
         }
+      ]
+    },
+    {
+      "id": "C03",
+      "group": "positive",
+      "kind": "continuação (forma contraída 'dele')",
+      "question": "e a formação dele?",
+      "expected_page": 2,
+      "history": [
+        { "role": "user", "content": "Quem fundou a YAITEC?" },
+        { "role": "assistant", "content": "A YAITEC foi fundada por Ygor Alves, fundador e CEO." }
       ]
     },
     {

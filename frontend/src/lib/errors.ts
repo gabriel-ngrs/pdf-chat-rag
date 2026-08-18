@@ -58,7 +58,11 @@ const DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
   limite_de_uso: {
     title: 'Limite de uso atingido',
     message: 'O provedor de IA recusou mais requisições por enquanto.',
-    action: 'Espere cerca de um minuto e tente de novo.',
+    // Nem "um minuto" nem "amanhã": o servidor não sabe qual das duas cotas do
+    // plano gratuito estourou — a por minuto ou a de 20 requisições por dia —,
+    // e prometer a errada faz a pessoa esperar e falhar de novo (BUG-004).
+    action:
+      'Pode ser o limite por minuto ou o limite diário do plano gratuito. Espere um pouco e tente de novo; se persistir, a cota do dia acabou.',
     severity: 'error',
   },
   erro_interno: {

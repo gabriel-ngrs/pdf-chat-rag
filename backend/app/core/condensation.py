@@ -21,6 +21,11 @@ from app.core.prompt import render_history
 # relação ao que foi dito antes. Escritos sem acento porque a comparação roda
 # sobre o texto normalizado — assim "por quê" e "por que" caem no mesmo caso,
 # que é como as duas formas chegam de quem digita apressado.
+#
+# As formas contraídas entram uma a uma porque o casamento é com fronteira de
+# palavra: em "dele" não há fronteira entre o "d" e o "e", então `\bele\b` não
+# alcança a contração — e é justamente ela a forma mais comum de quem escreve
+# "e a formação dele?" (BUG-001).
 ANAPHORIC_MARKERS = (
     "isso",
     "isto",
@@ -29,6 +34,18 @@ ANAPHORIC_MARKERS = (
     "ele",
     "ela",
     "la",
+    "dele",
+    "dela",
+    "deles",
+    "delas",
+    "nele",
+    "nela",
+    "neles",
+    "nelas",
+    "disso",
+    "nisso",
+    "desse",
+    "dessa",
     "e quanto a",
     "e sobre",
     "detalhe mais",
@@ -39,13 +56,16 @@ ANAPHORIC_MARKERS = (
 # Abaixo disto a pergunta é curta demais para carregar contexto próprio ("e os
 # preços?", "e agora?"), mesmo sem nenhum marcador da lista.
 #
-# DESVIO DELIBERADO de FR-3, que escreve "< 12 palavras": com 12, o AC-3 fica
-# impossível de cumprir, porque "qual o endereço da empresa?" tem cinco palavras
-# e o AC exige que ela **não** seja condensada. Os dois não podem valer ao mesmo
-# tempo, e o AC é o critério verificável. O número baixo também é o que preserva
-# o motivo da heurística existir: cada condensação é uma chamada a mais num teto
-# de ~10 RPM, e um limiar de 12 palavras condensaria quase toda pergunta real.
-SELF_CONTAINED_MIN_WORDS = 4
+# O número é apertado dos dois lados, e o AC-3 é quem fixa o teto: "qual o
+# endereço da empresa?" tem cinco palavras e o AC exige que ela **não** seja
+# condensada, então 5 é o maior valor admissível. O piso é o custo: cada
+# condensação é uma chamada a mais num teto de ~10 RPM, e o "< 12 palavras" que
+# FR-3 pedia originalmente condensaria quase toda pergunta real (a spec foi
+# corrigida na revisão 4, e de novo na 5 para acompanhar este valor).
+#
+# 5, e não 4: com 4, "e a formação dele?" — quatro palavras — caía fora do ramo
+# e ia crua ao retrieval, que a recusava (BUG-001).
+SELF_CONTAINED_MIN_WORDS = 5
 
 _ANAPHORA_PATTERN = re.compile(
     r"\b(?:" + "|".join(re.escape(marker) for marker in ANAPHORIC_MARKERS) + r")\b"

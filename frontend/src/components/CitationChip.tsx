@@ -21,11 +21,17 @@ type CitationChipProps = {
 }
 
 /**
- * A prova de que a resposta veio do documento.
+ * Um dos trechos que o servidor consultou para montar a resposta.
+ *
+ * O rótulo diz **consultado**, e não "usado": o backend emite os trechos que
+ * passaram do limiar de similaridade, que é um conjunto maior do que aquele em
+ * que a resposta de fato se apoiou (BUG-003). Prometer "esta é a fonte desta
+ * frase" seria mentira verificável — quem abrisse o segundo chip veria um
+ * trecho sem relação com o que leu.
  *
  * O trecho **não** é recortado aqui: ele já chega em 240 caracteres, cortado em
  * fronteira de palavra pelo servidor. Recortar de novo no cliente arriscaria
- * mostrar menos do que foi de fato usado para responder.
+ * mostrar menos do que foi de fato consultado.
  *
  * O diálogo vem do Radix porque foco, `Esc` e retorno do foco ao chip já vêm
  * resolvidos — refazer isso à mão é onde acessibilidade de modal costuma
@@ -40,7 +46,10 @@ export function CitationChip({ citation }: CitationChipProps) {
           variant="outline"
           className="hover:bg-highlight hover:text-highlight-foreground focus-visible:bg-highlight focus-visible:text-highlight-foreground cursor-pointer transition-colors"
         >
-          <button type="button" aria-label={`ver trecho da página ${citation.page_number}`}>
+          <button
+            type="button"
+            aria-label={`ver trecho consultado da página ${citation.page_number}`}
+          >
             <QuoteIcon aria-hidden="true" />
             página {citation.page_number}
           </button>
@@ -49,9 +58,10 @@ export function CitationChip({ citation }: CitationChipProps) {
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Página {citation.page_number}</DialogTitle>
+          <DialogTitle>Trecho consultado · página {citation.page_number}</DialogTitle>
           <DialogDescription>
-            Trecho do documento que sustentou esta parte da resposta.
+            Um dos trechos do documento que o TalkDoc consultou para responder. Nem todo
+            trecho consultado aparece na resposta.
           </DialogDescription>
         </DialogHeader>
 

@@ -5,7 +5,7 @@ descoberto_em: 2026-08-17
 descoberto_por: teste de ponta a ponta do owner (blocos 3 e 5 do roteiro)
 severidade: alta
 fase_dona: A.5 (rag-eval)
-status: aberto
+status: corrigido e verificado (/double-check 2026-08-18)
 ---
 
 # BUG-002 — Recusa falsa em pergunta que o documento responde
@@ -93,3 +93,13 @@ se somam: a continuação não condensada chega ao retrieval como frase vazia
 Rework da fase `A.5`, dona do dataset e da calibração. **Não** consertar dentro
 da `B.5`, e **não** ajustar o limiar sem remedir — trocar a constante sem dado é
 o que a `A.5` existe para não deixar acontecer.
+
+---
+
+**Corrigido em 2026-08-17** pelo lote `feat-0002-teste-ponta-a-ponta`
+(`.codeflow/bug-batches/feat-0002-teste-ponta-a-ponta.md`). O fix, o teste de regressão e a reprodução manual estão na linha
+deste bug no ledger; as escolhas não-triviais estão em
+`.codeflow/decisions/2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md`. O
+`/double-check` rodou em **2026-08-18** e marcou este bug como **sanado (✓)**: o
+teste de regressão falha contra o código pré-fix e a reprodução do relato foi
+refeita. Detalhe na seção "Verificação" do ledger.
