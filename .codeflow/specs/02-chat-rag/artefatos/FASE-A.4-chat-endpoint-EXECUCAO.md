@@ -3,11 +3,11 @@ spec: 02-chat-rag
 fase: A.4
 slug_fase: chat-endpoint
 status: rework
-tentativa: 3
-reprovacoes: 2
+tentativa: 4
+reprovacoes: 3
 sha_inicial: 7fe47de9ac92e62523d38eab7366615b7d70d0bb
-sha_final: defa164b815295c39781376b2fc10fa7f6630b48
-range: 7fe47de..defa164
+sha_final: e8915cf238b04df63aa06d09a6816a06dfadc4d9
+range: 7fe47de..e8915cf
 ---
 
 # FASE A.4 — Relatório de execução
@@ -245,11 +245,74 @@ $ GET /api/conversations/<id>/messages
 
 ## 8. (Em rework) O que mudou nesta tentativa
 
-> **Tentativa 3.** A tentativa 1 recebeu RESSALVAS com três achados; a tentativa 2 os
-> fechou e recebeu RESSALVAS de novo, com **um achado novo** — o teste do prazo que a
-> própria tentativa 2 escreveu não exercitava o que dizia exercitar. Este relatório
-> descreve as duas rodadas. **`reprovacoes: 2`: um próximo veredito não-APROVADO fecha o
-> teto de três e a fase precisa ser escalada ao owner** (`ARTIFACTS_SPEC` §2.11.4).
+> **Tentativa 4, autorizada por decision.** Três rodadas de RESSALVAS: a 1 com três
+> achados, a 2 com o teste do prazo que não exercitava o que dizia, a 3 com esse mesmo
+> teste intermitente. `reprovacoes: 3` **fecha o teto de §2.11.4**; esta quarta tentativa
+> existe por autorização explícita do owner, com escopo travado numa constante, registrada
+> em `.codeflow/decisions/2026-08-17-quarta-tentativa-da-fase-a4.md`. Qualquer achado fora
+> dessa linha não é coberto pela autorização e volta a parar a fase.
+
+### Achado da tentativa 3 — o teste que fechou o achado anterior era intermitente (commit `e8915cf`)
+
+`assert models.closed is True` falhava ~1 em 15 execuções, dentro do `make test`. A
+avaliação deixou duas hipóteses em aberto e disse não conseguir separá-las: corrida na
+asserção (defeito só do teste) ou `aclose()` que não finaliza no cancelamento (defeito de
+produção, com FR-12 não cumprido justamente quando o prazo estoura).
+
+**Investiguei fora do repositório**, com um plugin de pytest instrumentando o dublê, e a
+dúvida fechou:
+
+```text
+[diag] PASSED  | corpo do gerador iniciou: True  | closed: True  | stream aberto: True
+[diag] FAILED  | corpo do gerador iniciou: False | closed: False | stream aberto: True
+```
+
+Correlação perfeita em 12 rodadas: **em toda falha o corpo do gerador nunca executou**.
+Com o orçamento de 50 ms consumido antes da primeira leitura, o `wait_for` cancela sem
+iniciar o gerador — e um gerador que não começou não tem `finally` para rodar. `aclose()`
+nele é no-op **correto**.
+
+Em **400 rodadas em que o corpo iniciou, `closed` foi `True` 400 vezes**: a hipótese de
+produção está descartada por medição, e FR-12 está cumprido. **Nenhuma linha de produção
+mudou nesta tentativa.**
+
+O remédio sugerido pela avaliação — `await asyncio.sleep(0)` antes da asserção — **não
+resolveria**: não há nada pendente quando o corpo nunca entrou. Ele teria voltado "não
+estabilizou" e migrado o achado para `gemini.py` por engano.
+
+**A correção é uma constante**, `PRAZO_CURTO_SEGUNDOS`, de `0.05` para `0.5`:
+
+| prazo | CPU ocupada | CPU ociosa |
+|---|---|---|
+| 0,05 s | **17 falhas em 30** | 0 em 40 |
+| 0,5 s | **0 em 30** | 0 |
+
+E o teste continua mordendo — removendo só a linha que ele protege:
+
+```text
+$ uv run pytest tests/test_gemini_adapter.py -k prazo -q
+E               TimeoutError
+FAILED ...test_provedor_que_emudece_no_meio_do_stream_estoura_o_prazo_do_turno
+1 failed, 1 passed, 43 deselected in 5.10s
+
+$ (com a linha) 2 passed, 43 deselected in 0.53s
+```
+
+### Gates da tentativa 4
+
+```text
+$ make check
+All checks passed! · Contracts: 4 kept, 0 broken.
+Required test coverage of 90% reached. Total coverage: 99.55%
+263 passed, 19 deselected in 12.83s · Test Files 10 passed | Tests 84 passed
+
+$ uv run pytest -m db -q     -> 19 passed, 263 deselected
+$ uv run bandit -q -r app    -> exit 0
+```
+
+---
+
+### Tentativa 3 — o achado da segunda avaliação
 
 ### Achado da tentativa 2 — o teste do prazo não mordia (commit `defa164`)
 
