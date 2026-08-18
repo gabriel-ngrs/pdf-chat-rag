@@ -192,23 +192,48 @@ function TalkDoc() {
             ondas, texto solto ficaria sobre uma cor que muda a cada frame — e
             contraste medido uma vez ali não valeria para o frame seguinte. O
             card é opaco por isso, e não por estilo. */}
+        {/* O card de abertura chega em três tempos, e não em um.
+            O card sobe; o tile entra com escala, porque é a única peça com
+            massa aqui; título e texto seguem, com 80 ms entre um e outro. É a
+            ordem em que a pessoa vai ler de qualquer jeito — a defasagem só
+            deixa de esconder isso. Uma varredura de luz cruza o card uma vez,
+            fechando a chegada, e a aresta azul do mockup fica como repouso.
+
+            Sob movimento reduzido não sobra nenhuma das quatro: nem classe, nem
+            atraso. O que se vê é o card pronto, com a aresta acesa — que é o
+            estado final de todas elas. */}
         <section
           className={cn(
-            'border-border bg-card flex items-start gap-4 rounded-xl border p-4 sm:gap-5 sm:p-5',
-            !reducedMotion && 'animate-rise',
+            'hero-card border-border bg-card relative isolate flex items-start gap-4 overflow-hidden rounded-xl border p-4 sm:gap-5 sm:p-5',
+            !reducedMotion && 'card-sheen animate-rise',
           )}
         >
           {/* Tile do mockup. Some abaixo de `sm`: em 360 px ele comeria um
               quarto da largura do título, que é quem precisa dela. */}
           <span
             aria-hidden="true"
-            className="bg-primary/12 text-primary hidden size-14 shrink-0 items-center justify-center rounded-xl sm:flex"
+            className={cn(
+              'bg-primary/12 text-primary hidden size-14 shrink-0 items-center justify-center rounded-xl sm:flex',
+              !reducedMotion && 'animate-pop',
+            )}
+            style={reducedMotion ? undefined : { animationDelay: '120ms' }}
           >
             <FileTextIcon className="size-7" />
           </span>
           <div className="flex flex-col gap-2">
-            <h1 className="text-display font-bold text-balance">Converse com o seu PDF</h1>
-            <p className="text-muted-foreground max-w-prose text-pretty">
+            <h1
+              className={cn('text-display font-bold text-balance', !reducedMotion && 'animate-rise')}
+              style={reducedMotion ? undefined : { animationDelay: '200ms' }}
+            >
+              Converse com o seu PDF
+            </h1>
+            <p
+              className={cn(
+                'text-muted-foreground max-w-prose text-pretty',
+                !reducedMotion && 'animate-rise',
+              )}
+              style={reducedMotion ? undefined : { animationDelay: '280ms' }}
+            >
               Envie um documento e pergunte o que quiser sobre ele. O TalkDoc responde apenas com o
               que está escrito lá, e sempre diz de qual página tirou.
             </p>

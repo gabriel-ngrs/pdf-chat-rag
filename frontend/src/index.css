@@ -131,6 +131,13 @@
   --animate-rise: rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade: fade 160ms ease-out both;
   --animate-think: think 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  /* `pop` é a entrada de uma peça que tem massa — o tile do hero. `rise` sobe
+     4 px e serve a texto; um ladrilho de 56 px subindo 4 px não lê como
+     chegada, lê como tremor. */
+  --animate-pop: pop 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Luz atravessando o card, uma vez. Anda em `transform`, não em
+     `background-position`: a segunda repinta a caixa inteira a cada frame. */
+  --animate-sheen: sheen 1150ms cubic-bezier(0.33, 0, 0.2, 1) 260ms both;
 }
 
 @keyframes rise {
@@ -150,6 +157,28 @@
    `fill-mode`, o elemento volta ao estado base, e o base precisa ser o estado
    bom. Uma animação que subisse de 0.25 para 1 deixaria a malha apagada
    justamente para quem pediu menos movimento. */
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* O fim da varredura deixa a luz FORA do card, e o `both` a segura ali: depois
+   de passar uma vez, o `::after` continua existindo e continua invisível. */
+@keyframes sheen {
+  from {
+    transform: translateX(-140%) skewX(-14deg);
+  }
+  to {
+    transform: translateX(340%) skewX(-14deg);
+  }
+}
+
 @keyframes think {
   0%,
   100% {
@@ -433,5 +462,68 @@
     background: var(--primary);
     opacity: 0.16;
     filter: blur(18px);
+  }
+}
+
+@layer components {
+  /* Aresta iluminada do card de abertura.
+
+     Vem do mockup de 2026-08-18, que desenha um fio azul no canto superior
+     esquerdo do hero. É borda, não sombra: o truque das duas máscaras recorta o
+     gradiente em um anel de 1 px, então o card continua resolvendo profundidade
+     por traço, como o resto do sistema.
+
+     Fica em 70% no repouso e fecha em 100% no hover. Não é um laço infinito de
+     enfeite: é resposta a uma ação, e o card inteiro é a área que o convite da
+     tela ocupa. */
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0.7;
+    transition: opacity 300ms ease-out;
+    background: linear-gradient(
+      145deg,
+      color-mix(in oklab, var(--primary) 70%, transparent),
+      color-mix(in oklab, var(--primary) 12%, transparent) 38%,
+      transparent 62%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+
+  .hero-card:hover::before {
+    opacity: 1;
+  }
+
+  /* A varredura de luz. Uma passagem, no carregamento, e nunca mais — o que
+     explica alguma coisa aqui é a chegada do card, e repetir para sempre seria
+     decoração competindo com o texto que está logo abaixo. */
+  .card-sheen::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    width: 28%;
+    pointer-events: none;
+    animation: var(--animate-sheen);
+    background: linear-gradient(
+      100deg,
+      transparent,
+      color-mix(in oklab, var(--primary) 20%, transparent),
+      transparent
+    );
   }
 }
