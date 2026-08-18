@@ -5,6 +5,7 @@ origem: .codeflow/bugs/INDEX.md e relatos .codeflow/bugs/006–010 (instruções
 criado: 2026-08-18
 atualizado: 2026-08-18
 placar: 5 corrigido, 0 bloqueado, 0 não-reproduz
+verificação: 5 sanados (✓), 0 não sanados (✗), 0 inconclusivos (⚠) — /double-check de 2026-08-18
 ---
 
 # Lote `segunda-rodada-teste-ponta-a-ponta`

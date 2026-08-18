@@ -65,4 +65,5 @@ assíncronas de limpeza, para que um turno interrompido ainda tenha um fecho com
 - BUG-006 permanece com reprodução manual de navegador como prova de layout:
   jsdom não calcula a altura/rolagem reais; o teste de componente garante a
   altura definida que torna essa reprodução possível.
-- O lote está pronto para `/double-check`.
+- O lote foi confirmado pelo `/double-check` em 2026-08-18: 5 sanados, sem
+  regressões ou itens inconclusivos.
