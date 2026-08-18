@@ -1,0 +1,58 @@
+# Override de desenvolvimento: o código do host vira a fonte da verdade, e uma
+# edição salva aparece no navegador sem rebuild.
+#
+# Uso: `make dev`, que é
+# `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`.
+#
+# **Por que um arquivo separado, e não `docker-compose.override.yml`.** O
+# override de nome padrão é carregado sozinho por qualquer `docker compose up`.
+# Se o modo de desenvolvimento morasse nele, o `docker compose up --build` de um
+# clone limpo — que é requisito literal do desafio — subiria o servidor do Vite
+# em vez do nginx, e o avaliador testaria uma coisa diferente da que se entrega.
+# Este arquivo só entra quando alguém o nomeia.
+#
+# Exige Docker Compose 2.24+ pelo `!override` (a versão instalada é 2.40).
+
+services:
+  backend:
+    volumes:
+      # Só o código da aplicação. Montar `./backend` inteiro traria o `.venv` do
+      # host por cima do venv do container — Python de outra arquitetura, e a
+      # API não sobe.
+      - ./backend/app:/app/app:ro
+    # `--reload-dir app` em vez de `--reload` puro: sem a pasta explícita o
+    # uvicorn observa o diretório de trabalho inteiro, `.venv` incluso, e passa
+    # a vigiar dezenas de milhares de arquivos para reagir a uma dúzia.
+    command:
+      - .venv/bin/uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - app
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    # `!override` e não uma lista comum: as listas de `ports` são CONCATENADAS
+    # na fusão dos arquivos, então sem ele a publicação de produção (`5173:80`,
+    # onde o Vite não escuta) sobreviveria ao lado desta e as duas brigariam
+    # pela 5173 do host.
+    #
+    # Porta igual dos dois lados de propósito: o cliente de HMR do Vite abre o
+    # websocket na porta que o navegador enxerga, e com 5173 dentro e fora não
+    # há o que reconfigurar.
+    ports: !override
+      - "5173:5173"
+    volumes:
+      # O código do host, montado por cima da imagem: é isto que faz o Vite ver
+      # a edição no mesmo instante em que ela é salva.
+      - ./frontend:/app
+      # Volume anônimo que preserva o `node_modules` instalado na imagem. Sem
+      # ele o mount de cima o esconderia, e o Vite não acharia nem o próprio
+      # binário.
+      - /app/node_modules

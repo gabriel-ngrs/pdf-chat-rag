@@ -1,4 +1,4 @@
-.PHONY: check lint typecheck arch test test-db security eval up down stop logs
+.PHONY: check lint typecheck arch test test-db security eval up dev down stop logs
 
 # Gate agregador: é o que precisa estar verde para uma fase fechar.
 check: lint typecheck arch test
@@ -41,6 +41,16 @@ eval:
 
 up:
 	docker compose up --build
+
+# Modo de desenvolvimento: o código do host é montado nos containers e uma
+# edição salva aparece sem rebuild — Vite com HMR no frontend, uvicorn com
+# --reload no backend. Mesmas portas do `up`.
+#
+# O `up` continua sendo o que o avaliador roda: nginx servindo o build estático,
+# que é o que se entrega. Os dois não sobem juntos (disputam a 5173) — pare um
+# antes de subir o outro.
+dev:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 # Para os serviços preservando os dados.
 stop:
