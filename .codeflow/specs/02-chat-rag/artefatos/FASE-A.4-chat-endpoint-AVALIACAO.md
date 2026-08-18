@@ -2,247 +2,287 @@
 spec: 02-chat-rag
 fase: A.4
 slug_fase: chat-endpoint
-tentativa: 2
+tentativa: 3
 veredito: RESSALVAS
-score: 9.6
+score: 9.8
 threshold: 8.5
-range_avaliado: 7fe47de9ac92e62523d38eab7366615b7d70d0bb..e2b78250d82d3317abefa9359ac2a46d694a6105
+range_avaliado: 7fe47de9ac92e62523d38eab7366615b7d70d0bb..defa164b815295c39781376b2fc10fa7f6630b48
 ---
 
-# FASE A.4 — Avaliação independente (tentativa 2)
+# FASE A.4 — Avaliação independente (tentativa 3)
 
 ## 1. Veredito e score
 
-**Veredito:** RESSALVAS · **Score:** 9.6 / threshold 8.5
+**Veredito:** RESSALVAS · **Score:** 9.8 / threshold 8.5
 
-Zero BLOQUEANTES. Os **três** achados IMPORTANTES da tentativa 1 estão fechados,
-e conferi os três:
+**Leia o §4 antes de decidir qualquer coisa: este é o terceiro veredito
+não-APROVADO da fase.** Com `reprovacoes: 2` no relatório desta tentativa, o teto
+de §2.11.4 fecha aqui — a próxima seleção de rework **para e escala ao owner**.
+Não recomendo mais um ciclo cego; recomendo a decisão humana descrita no §5.
 
-- **I-1** — o `range` agora vai até `e2b7825`, que contém `8a1c5f0` **e**
-  `3c89162` (ancestralidade verificada, §6). O artefato voltou a descrever o
-  código que ele aprova.
-- **I-2** — `CHAT_TIMEOUT_SECONDS` tem consumidor. Verifiquei o comportamento
-  eu mesmo: com prazo de 1 s e um provedor que abre o stream e emudece, o turno
-  morre em **1,00 s** com `ChatProviderError` e o iterador é fechado (§6).
-- **I-3** — 12 testes novos no adapter; cobertura de `gemini.py` **90% → 97%**,
-  medida por mim.
+**O achado da tentativa 2 está fechado, e fechado bem.** Provei o teste mordendo,
+três rodadas de cada lado, removendo apenas a linha protegida:
 
-**Um IMPORTANTE novo**, e é estreito: o teste que deveria proteger a correção do
-I-2 **não protege o trecho que a correção acrescentou**. Ele roda com
-`chat_timeout_seconds=0`, e nesse regime o prazo estoura na **abertura** do
-stream — `generate_content_stream` nem chega a ser chamado. O `stall=True` do
-dublê é inerte ali, e a linha que faz o prazo valer **entre pedaços** poderia ser
-apagada sem que a suíte reclamasse. Provei as duas afirmações (§4, §6).
+```
+codigo atual         -> PASSOU  em 0.05s   (×3)
+sem prazo no laco    -> FALHOU  em 5.01s   (×3, TimeoutError da guarda)
+```
 
-O código está certo — isso eu verifiquei. O que falta é o teste morder, no mesmo
-padrão que a `A.3` aplicou nesta mesma rodada.
+O `wait_for` externo de 5 s foi um acerto que a minha sugestão não previa: sem
+ele, a ausência do prazo penduraria a suíte em vez de reprová-la. As três
+sugestões abertas também fecharam, e verifiquei que a fixture da `A.3`
+**continua mordendo** depois de largar o `ALTER ROLE` (§6).
+
+**O que segura o APROVADO é um achado novo e estreito:** o teste que fecha o
+achado anterior é **flaky**. A asserção `models.closed is True`
+(`test_gemini_adapter.py:682`) falha em cerca de **1 a cada 15 execuções** —
+observei três falhas em 16 invocações do pytest e uma no meu próprio arranjo.
+Como esse teste está dentro do `make test`, o gate `make check` do projeto passou
+a ter uma chance real de sair vermelho sem nenhuma mudança de código.
 
 ## 2. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | `range` coerente com o código aprovado (§6); escopo travado intacto — sem Gemini fora do adapter, sem buffer, sem `GZipMiddleware`, `embed_query` reusado, nem prompt nem pergunta em `info` |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | O prazo ficou no adapter, dono dos prazos do provedor, sem mexer no protocolo `ChatClient` de §4.2 — decisão certa: o dublê da `A.6` não precisou mudar; `Contracts: 4 kept, 0 broken` |
-| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | A mensagem do estouro não carrega prompt nem chave (`gemini.py:491-493`); sanitização e `raise ... from None` intactos; `make security` exit 0 |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `_with_deadline` reusa `_fail_chat`, que reusa a classificação de status já existente; nenhum mapa de erro novo |
-| 5 | Padrões de domínio/aplicação | 2 | 5 | Prazo do **turno**, contado da abertura, é a leitura que um operador faz de "60 s" no arquivo de configuração; o estouro vira `ChatProviderError` e quem escolhe entre envelope HTTP e evento `error` continua sendo `app.chat` (FR-11) |
-| 6 | Local e nomes dos arquivos | 2 | 5 | `gemini.py` e `test_gemini_adapter.py`; o transporte falso mora no próprio arquivo de teste, e não em `fakes.py`, com a razão registrada |
-| 7 | Qualidade de código | 2 | 5 | `_with_deadline` tem cinco linhas e uma responsabilidade; docstrings dizem por quê; `mypy --strict` limpo |
-| 8 | Testes e cobertura | 2 | 3 | 12 testes novos, todos com asserção real sobre o que chegou ao transporte; cobertura 90→97%; desconta pesado: o único teste do prazo não exercita o trecho que a correção do I-2 acrescentou (§4) |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | O achado da t2 está fechado com prova de mordida (§6); escopo travado intacto — nenhuma chamada ao Gemini fora do adapter, sem buffer, sem `GZipMiddleware`, `embed_query` reusado, nada de prompt ou pergunta em `info` |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | O prazo segue no adapter, sem tocar o protocolo `ChatClient` de §4.2; `Contracts: 4 kept, 0 broken` |
+| 3 | Segurança / LGPD / multi-tenant | 3 | 5 | Mensagem do estouro sem prompt e sem chave; `make security` exit 0, sem vulnerabilidade |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `_with_deadline` reusa `_fail_chat` e a classificação de status já existente; o teste irmão reusa o mesmo dublê |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | `chat_timeout_seconds`/`condense_timeout_seconds` viraram `float` (`config.py:50-51`) com a razão registrada — é o tipo que `asyncio.wait_for` recebe; `.env.example:46-54` explica os dois prazos, incluindo por que o da condensação é curto |
+| 6 | Local e nomes dos arquivos | 2 | 5 | `config.py`, `.env.example` e três arquivos de teste; nenhum arquivo de produção tocado nesta tentativa |
+| 7 | Qualidade de código | 2 | 5 | `GUARDA_SEGUNDOS` como constante nomeada e explicada (`test_gemini_adapter.py:52`); o comentário obsoleto de `test_chat_api.py` foi reescrito e o laço de polling virou asserção direta |
+| 8 | Testes e cobertura | 2 | 4 | O teste do prazo agora morde, provado nos dois estados; um teste irmão trava a outra metade; a fixture da `A.3` perdeu o estado global sem perder a mordida. Desconta: o teste do prazo é flaky (§4) |
 
-Score = (5·3 + 5·3 + 5·3 + 5·3 + 5·2 + 5·2 + 5·2 + 3·2) / 20 × 2 = **9.6**
+Score = (5·3 + 5·3 + 5·3 + 5·3 + 5·2 + 5·2 + 5·2 + 4·2) / 20 × 2 = **9.8**
+
+O score subiu de 9,6 para 9,8 e ainda assim o veredito é RESSALVAS: as duas
+coisas medem eixos diferentes, e um IMPORTANTE reprova qualquer que seja o score.
+O trabalho desta tentativa é bom — o que resta é um defeito estreito num teste.
+
+## 3. Achados BLOQUEANTES
+
+Nenhum.
 
 ## 4. Achados IMPORTANTES
 
-### I-1 (novo) — `backend/tests/test_gemini_adapter.py:657` — o teste do prazo não cobre o trecho que a correção do I-2 acrescentou
+### I-1 — `backend/tests/test_gemini_adapter.py:682` — o teste que fecha o achado anterior é flaky (~1 em 15) e pode avermelhar o `make check`
 
 ```python
-async def test_provedor_que_emudece_estoura_o_prazo_do_turno() -> None:
-    """...um provedor que abre o stream e para de emitir..."""
-    models = FakeAsyncModels(stall=True)
     with pytest.raises(ChatProviderError):
-        await coletar(build_chat_client(models, timeout=0))
+        await asyncio.wait_for(coletar(build_chat_client(models, timeout=0.05)), GUARDA_SEGUNDOS)
+
+    assert models.models_pedidos == ["modelo-de-teste"], "o stream nem chegou a ser aberto"
+>   assert models.closed is True, "o iterador do provedor ficou aberto após o estouro"
+E   AssertionError: o iterador do provedor ficou aberto após o estouro
+E   assert False is True
 ```
 
-Com `timeout=0`, `deadline` (`gemini.py:458`) é o instante atual, e o **primeiro**
-`_with_deadline` — o da abertura, `gemini.py:459` — já estoura. O `asyncio.wait_for`
-com prazo zero cancela a corrotina antes de ela rodar, então `generate_content_stream`
-não chega a ser chamado e o `stall=True` do dublê nunca é alcançado.
-
-**Medido por mim, com o próprio dublê da suíte:**
+**Medido, não suposto.** Quinze execuções isoladas do teste: **14 verdes, 1
+vermelha**. Um laço novo depois disso falhou já na primeira rodada. Somando o
+arranjo que escrevi para provar a mordida, são **três falhas observadas** — todas
+na mesma asserção, todas com a mensagem acima.
 
 ```text
-(a) timeout=0 -> ChatProviderError | generate_content_stream chamado? False | closed=False
-(b) timeout=1 -> ChatProviderError apos 1.00s | generate_content_stream chamado? True | closed=True
+$ for i in $(seq 1 15); do uv run pytest ... -k "emudece"; done | sort | uniq -c
+     14 1 passed, 44 deselected
+      1 1 failed, 44 deselected
 ```
 
-A linha (b) é o cenário que a docstring descreve, e ele **funciona** — o código
-está correto. A linha (a) é o que a suíte roda: prova o prazo da abertura, não o
-prazo entre pedaços.
+**Por que isto é IMPORTANTE e não sugestão.** A rule `testing` do framework é
+categórica: *"Teste é determinístico. Flakiness é tratado como bug, não como
+tolerância."* E o efeito prático é maior que o de um teste isolado: este teste
+roda dentro de `make test`, que é o `make check` que a DoD da spec (§9) e a
+constitution do projeto exigem em zero. Um avaliador do desafio que rode
+`make check` uma vez tem chance não desprezível de ver a suíte vermelha, sem
+nada errado no produto — que é o pior resultado possível para uma entrega.
 
-**Consequência concreta:** apagar `chunk = await self._with_deadline(anext(stream),
-deadline)` (`gemini.py:463`) e voltar ao `async for` deixaria a suíte **inteira
-verde** — conferi que `stall` é usado num único teste, e é este. O defeito que o
-I-2 descreveu (provedor que abre e emudece prende o turno até o nginx derrubar)
-voltaria sem nenhum sinal. É o mesmo padrão do achado original: uma promessa sem
-mecanismo que a sustente — desta vez do lado do teste.
+**Duas hipóteses, e eu não consegui separá-las** — digo isso em vez de escolher a
+mais conveniente:
 
-**Correção sugerida** — um caractere de código e uma asserção:
+1. **Corrida na asserção.** `asyncio.wait_for` cancela a task de `anext(stream)`;
+   o `finally` de `FakeAsyncModels._emitir` (que marca `closed`) roda durante o
+   desenrolar da cancelação, e a asserção às vezes chega antes de ele terminar.
+   Neste caso o defeito é só do teste, e a correção é esperar o fechamento ou
+   observá-lo por outro caminho.
+2. **`aclose()` nem sempre finaliza o iterador nesse caminho.** Se for isto, o
+   `finally` de `stream_answer` (`gemini.py:471-477`) não estaria cumprindo FR-12
+   quando o prazo estoura, e o defeito seria de **produção**: a conexão com o
+   provedor ficaria aberta exatamente no caso em que se quer fechá-la.
 
-```python
-    models = FakeAsyncModels(stall=True)
-    with pytest.raises(ChatProviderError):
-        await coletar(build_chat_client(models, timeout=0.05))
-    assert models.models_pedidos, "o prazo precisa estourar depois de o stream abrir"
-    assert models.closed, "o iterador do provedor precisa ser fechado no estouro"
-```
+Tentei instrumentar o dublê para distinguir as duas, e o próprio instrumento
+mudou o tempo o bastante para o problema sumir em 40 rodadas — o que é sintoma
+de corrida, mas não é prova de que a hipótese 2 esteja descartada.
 
-`chat_timeout_seconds` é `int` em `Settings`, então ou o teste passa `timeout=1`
-(um segundo de suíte, aceitável para o único teste que precisa dele) ou o campo
-vira `float` — o que também tornaria o prazo ajustável com granularidade fina em
-produção. A escolha é sua; o que não pode continuar é o `timeout=0`.
+**Correção sugerida — nesta ordem:**
 
-Vale a pena manter **os dois** testes: o de prazo zero prova a metade da abertura,
-que também é comportamento real.
+1. **Descobrir qual das duas é.** Um `await asyncio.sleep(0)` antes da asserção
+   responde em uma linha: se o teste estabilizar, é a hipótese 1 e o produto está
+   íntegro; se continuar falhando, é a hipótese 2 e o achado migra para
+   `gemini.py`.
+2. **Se for a hipótese 1**, trocar a asserção por uma espera explícita e curta
+   (com prazo próprio, para não voltar a pendurar a suíte) — ou observar o
+   fechamento pelo lado do adapter, que é onde ele é determinístico.
+3. **Se for a hipótese 2**, o `finally` precisa garantir a finalização antes de
+   deixar a exceção subir, e aí é código de produção, não teste.
+
+**Não** recomendo `pytest.mark.flaky`, `rerun` ou remover a asserção: seria trocar
+a evidência de FR-12 pelo silêncio, que é a mesma troca que o I-2 da tentativa 1
+apontou na configuração morta.
 
 ## 5. Sugestões
 
-- **`.env.example:45` — `CHAT_TIMEOUT_SECONDS=60` continua sem comentário.**
-  Agora que a variável faz alguma coisa, ela merece a mesma linha de explicação
-  que `SIMILARITY_THRESHOLD` e `CHUNK_SIZE` têm no arquivo: que ela limita o
-  turno inteiro, contado da abertura do stream, e que estourá-la vira erro de
-  provedor. É o arquivo que quem clona lê.
-- **`gemini.py:479-493` — `_with_deadline` engole `TimeoutError` de qualquer
-  origem.** Se o `awaitable` interno levantar `TimeoutError` por conta própria
-  (o `_call_with_retry` já trata o dele, mas nada impede que suba um), a
-  mensagem dirá "o provedor não respondeu dentro de 60s" mesmo tendo passado um
-  segundo. Diagnóstico ruim num caso raro; comparar o relógio antes de decidir
-  resolveria.
-- **`app/chat.py:227` — o ramo "condensação devolveu string vazia → fallback"
-  segue sem teste.** Repetida da tentativa 1; uma linha no `FakeChatClient`
-  (`condensed=""`) cobre.
-- **Sugestões da tentativa 1 acatadas, conferidas por mim:** NFR-1, AC-23, §4.2
-  e §4.8 da spec passaram a cobrar a **intenção** (mínimo de raciocínio) em vez
-  do valor que o provedor recusa, e `.codeflow/manifest.md:17` deixou de
-  anunciar `gemini-2.5-flash`. A nota de revisão 4 no cabeçalho da spec registra
-  as três descobertas com a fonte. Bem feito.
+- **O teto de tentativas fecha aqui — a decisão é do owner, não de outro rework.**
+  `reprovacoes: 2` nesta tentativa; com este veredito, a fase acumula três
+  não-APROVADOS e §2.11.4 manda **parar e escalar**. Concretamente, três saídas
+  legítimas, todas do owner:
+  1. **Aceitar a fase com o achado registrado** e tratar o I-1 como dívida
+     conhecida, anotada no README junto das limitações — o produto está íntegro
+     se a hipótese 1 se confirmar;
+  2. **Autorizar um rework de exceção**, restrito ao passo 1 do I-1 (uma linha
+     para descobrir qual hipótese é a certa), com o resultado decidindo o resto;
+  3. **Registrar uma decision arquitetural** que revise o teto para esta fase,
+     que é o único caminho de override que a constitution admite ("gates duros
+     não admitem override conversacional").
+  Recomendo a **(2)**: o custo é uma linha, e ela transforma uma incerteza sobre
+  FR-12 em fato.
+- **`test_gemini_adapter.py:615` — a outra asserção de `closed` é estável.** Ela
+  está no caminho de conclusão normal (`test_stream_fecha_o_iterador_do_provedor_ao_terminar`),
+  sem cancelação envolvida, e não falhou em nenhuma das minhas execuções. Fica
+  registrado para o diagnóstico do I-1: o que distingue os dois casos é a
+  cancelação, não o `aclose()`.
+- **`test_retrieval.py:298-320` — `PoolFixo` com `# type: ignore[arg-type]`.** O
+  shim é a forma certa de não acrescentar a `Database` um parâmetro que só o
+  teste usaria, e o `mypy` do gate roda só sobre `app`. Registro só para que o
+  `ignore` não seja lido depois como descuido: ele é deliberado e local.
+- **Mantida das rodadas anteriores:** `app/chat.py:227` — o ramo "condensação
+  devolveu string vazia → fallback" segue sem teste. Uma linha no
+  `FakeChatClient` (`condensed=""`) cobre.
 
 ## 6. Comandos rodados + saídas reais
 
 ```text
 $ bash ~/.codeflow/framework/core/scripts/run-structural.sh \
        .codeflow/specs/02-chat-rag/SPEC_02_CHAT_RAG.md
-✓ §5 estruturalmente válida
 EXIT=0
-```
 
-**I-1 da tentativa 1 — o `range` agora contém os commits que faltavam:**
+$ git merge-base --is-ancestor defa164 HEAD && echo "defa164 ancestral de HEAD OK"
+defa164 ancestral de HEAD OK
 
-```text
-$ for s in 8a1c5f0 3c89162 85da080 f1f8be7 c64104f; do
-      git merge-base --is-ancestor $s e2b7825 && echo "$s dentro de e2b7825"; done
-8a1c5f0 dentro de e2b7825
-3c89162 dentro de e2b7825
-85da080 dentro de e2b7825
-f1f8be7 dentro de e2b7825
-c64104f dentro de e2b7825
-$ git merge-base --is-ancestor e2b7825 HEAD && echo "ancestral de HEAD OK"
-ancestral de HEAD OK
-```
-
-**Gates, rodados por mim na ponta da branch:**
-
-```text
 $ make check
-cd backend && uv run ruff check .    → All checks passed!
-cd backend && uv run mypy app        → Success: no issues found in 23 source files
-Camadas: main -> api -> (chat | ingestion) -> adapters -> core KEPT
-Nucleo puro: core nao conhece I/O nem framework KEPT
 Contracts: 4 kept, 0 broken.
-262 passed, 19 deselected in 11.28s
+app/core/condensation.py      31      0     10      0   100%
+app/core/models.py            40      0      0      0   100%
+app/core/prompt.py            28      0      6      0   100%
+app/core/retrieval.py         21      0      4      0   100%
+Required test coverage of 90% reached. Total coverage: 99.55%
+263 passed, 19 deselected in 13.72s
 Test Files  10 passed (10) | Tests  84 passed (84)
 [exited with code 0]
 
-$ make security                      → SEC=0, nenhuma vulnerabilidade
-$ cd backend && uv run pytest -m db -q   → 19 passed, 262 deselected
+$ make security
+bandit -q -r app             → (sem saída)
+pip-audit                    → No known vulnerabilities found
+npm audit --audit-level=high → found 0 vulnerabilities
+SEC=0
+
+$ cd backend && uv run pytest -m db -q
+19 passed, 263 deselected in 2.07s
 ```
 
-**I-2 — a variável passou a ter consumidor:**
+**Prova de que o teste do prazo agora morde** — substituí `stream_answer` por uma
+cópia sem o `_with_deadline` de dentro do laço (só na memória do meu processo, o
+repositório não foi tocado) e rodei o corpo do teste três vezes de cada lado:
 
 ```text
-$ grep -rn "chat_timeout_seconds" --include=*.py backend/
-backend/app/config.py:47:    chat_timeout_seconds: int = 60
-backend/app/adapters/gemini.py:458:  deadline = ... + self._settings.chat_timeout_seconds
-backend/app/adapters/gemini.py:493:  f"o provedor não respondeu dentro de {...}s"
-backend/tests/test_gemini_adapter.py:545:  chat_timeout_seconds=timeout,
+[0] codigo atual         -> PASSOU em 0.05s
+[1] codigo atual         -> PASSOU em 0.05s
+[2] codigo atual         -> PASSOU em 0.05s
+[0] sem prazo no laco    -> FALHOU (TimeoutError da guarda de 5s) em 5.01s
+[1] sem prazo no laco    -> FALHOU (TimeoutError da guarda de 5s) em 5.00s
+[2] sem prazo no laco    -> FALHOU (TimeoutError da guarda de 5s) em 5.01s
 ```
 
-**I-3 — cobertura do adapter, medida por mim:**
+A guarda externa funciona como anunciado: sem o prazo, o modo de falha é vermelho
+em cinco segundos, e não uma suíte pendurada.
+
+**Prova do achado I-1 (flakiness):**
 
 ```text
-Name                         Stmts   Miss Branch BrPart  Cover   Missing
-app/adapters/gemini.py         200      3     36      4    97%   366, 384, 476->exit, 568
-app/chat.py                    139      4     28      2    96%   227, 384-386, 397->exit
-app/api/conversations.py        72     10     16      2    82%   56-59, 64-67, 140, 156
+$ for i in $(seq 1 15); do uv run pytest tests/test_gemini_adapter.py -k "emudece" -q; done \
+      | sed 's/in .*s$//' | sort | uniq -c
+     14 1 passed, 44 deselected
+      1 1 failed, 44 deselected
+
+# saída da rodada vermelha
+>       assert models.closed is True, "o iterador do provedor ficou aberto após o estouro"
+E       AssertionError: o iterador do provedor ficou aberto após o estouro
+E       assert False is True
+tests/test_gemini_adapter.py:682: AssertionError
 ```
 
-As três linhas que restam em `gemini.py` são do cliente de **embeddings**
-(366, 384, pré-existentes) e a criação preguiçosa do cliente de chat (568). O
-que a avaliação anterior apontou — `_thinking_config` nos dois ramos, caminho
-feliz de `generate`, retry transitório, desistência em status não-retentável,
-`chunk.text` nulo — está coberto, e conferi que as asserções são sobre o que
-chegou ao transporte, não sobre a função privada:
+**Sugestão da `A.3` fechada sem perder a mordida** — desliguei a correção do I-1
+da `A.3` por um plugin de pytest (sem tocar o repositório) e rodei os testes `db`
+com a fixture nova, baseada em `server_settings`:
 
 ```text
-tests/test_gemini_adapter.py: assert thinking.thinking_level == types.ThinkingLevel.MINIMAL
-                              assert thinking.thinking_budget is None
-                              assert thinking.thinking_budget == 128
-                              assert thinking.thinking_level is None
+# com a correção
+6 passed, 17 deselected in 0.92s
+
+# com `hnsw.iterative_scan = off` injetado
+>       assert len(recuperados) == 5
+E       assert 0 == 5
+E        +  where 0 = len([])
+1 failed, 5 passed, 17 deselected in 0.76s
 ```
 
-**Verificação do prazo (o achado I-1 novo), com o dublê da própria suíte:**
+**Nenhum estado global sobrou no banco** (era o ponto da sugestão):
 
 ```text
-(a) timeout=0 -> ChatProviderError | generate_content_stream chamado? False | closed=False
-(b) timeout=1 -> ChatProviderError apos 1.00s | generate_content_stream chamado? True | closed=True
-
-$ grep -n "stall" tests/test_gemini_adapter.py
-472,480,508  (definição do dublê)
-663          (único teste que usa: test_provedor_que_emudece_estoura_o_prazo_do_turno)
+$ SELECT rolconfig FROM pg_roles WHERE rolname='talkdoc'   → None
+enable_seqscan: on | hnsw.ef_search: 40 | hnsw.iterative_scan: off
+documentos: 2 | chunks: 18   (os mesmos de antes da avaliação)
 ```
 
-**Não re-executado por mim:** a revalidação pelo `docker compose` com a API real
-(primeiro evento em 1,39 s, citação da página 2, recusa em 0,625). Continua não
-existindo `.env` nesta árvore, e a medição gasta quota do owner. Corroboração
-indireta: os dois documentos que o gate ingeriu estão no banco
-(`Exemplo-YAITEC.pdf`, `session_id: gate-1787009836`, 10 chunks, `ready`), com
-`created_at` coerente com o horário dos commits do rework.
+**Prazos consumidos e documentados:**
+
+```text
+$ grep -n "chat_timeout_seconds\|condense_timeout_seconds" backend/app/config.py
+50:    chat_timeout_seconds: float = 60.0
+51:    condense_timeout_seconds: float = 5.0
+$ .env.example:46-54 — os dois prazos com explicação do porquê de cada um
+```
+
+**Não re-executado por mim:** a revalidação pelo `docker compose` com a API real.
+O `.env` da árvore principal agora existe (criado por outra sessão) e aponta para
+`gemini-3.1-flash-lite`, diferente do default do código; subir o compose gastaria
+quota do owner e mediria um modelo que não é o do `.env.example`. Fica como `[—]`
+justificado.
 
 ## 7. Itens da fase / DoD não atendidos
 
-- **Nenhum item da §5 em aberto.** Os nove `Passos`, os nove `Testes` e o
-  critério de conclusão estão cobertos — os testes de integração pela `A.6`, os
-  de unidade do adapter agora aqui.
-- **Pendência de qualidade de teste, não de escopo:** o `Passo 1` da fase manda
-  filtrar `chunk.text` nulo e passar o mínimo de raciocínio; ambos agora têm
-  teste. O prazo do turno tem teste, mas do lado errado da fronteira (§4).
+- **DoD global "`make check` retorna zero, offline"** — atendido nas minhas
+  execuções, **mas não garantido**: o I-1 introduz uma chance de ~7% de a suíte
+  sair vermelha sem mudança de código. É o único item da §9 com ressalva.
+- Todos os `Passos` (1–9), os nove `Testes` da fase e o critério de conclusão
+  seguem atendidos; o range contém o defeito de FR-11 e a sua cura.
 
 ## 8. Divergências entre o relatório e o código real
 
-- **Nenhuma divergência de fato.** As três correções descritas no §8 do
-  `EXECUCAO` existem, nos commits que ele nomeia, e fazem o que ele diz.
-- **Uma afirmação mais forte do que a evidência sustenta:** a tabela do §8 lista
-  `test_provedor_que_emudece_estoura_o_prazo_do_turno` como o teste da lacuna
-  "prazo do turno (I-2)". O teste existe e passa, mas não exercita o trecho que
-  a correção do I-2 acrescentou (§4). É a mesma forma de otimismo que apontei na
-  tentativa 1 sobre o `EXPLAIN` de 2.000 chunks — e que a `A.3`, nesta mesma
-  rodada, evitou colando o teste vermelho antes da correção.
+- **Nenhuma.** As quatro afirmações do §8 do `EXECUCAO` — teste com
+  `timeout=0.05`, as duas asserções novas, o `wait_for` de guarda e o teste irmão
+  — existem no código e fazem o que ele diz. A prova de mordida que o relatório
+  cola bate com a que eu produzi por outro caminho.
+- **Uma coisa que o relatório não podia saber:** ele afirma "1 failed …
+  TimeoutError em 5,10 s; com ela, 2 passed em 0,12 s", o que é verdade — mas uma
+  única execução verde não revela a flakiness. Foram precisas quinze para ela
+  aparecer. Não é divergência; é o limite de uma amostra de tamanho um, e vale
+  como nota de método para as próximas provas de mordida.
 
-**Nota de perímetro:** o `HEAD` da branch (`e76fbed`) é posterior a este `range`
-e alterou `backend/app/chat.py` (`_is_retry`, +27 linhas) e
-`backend/tests/test_chat_api.py` dentro de um rework do **Track B**. Auditei a
-mudança: ela preserva FR-9 (a pergunta continua persistida antes da chamada ao
-provedor; no retry ela já está lá) e não contradiz nada desta fase. Fica
-registrado porque repete, do lado do Track B, exatamente o padrão que o I-1 da
-`A.6` fechou do lado do Track A — e porque significa que este `range` já não
-descreve o `app/chat.py` de HEAD.
+**Nota de perímetro (fora da responsabilidade desta fase):** a árvore de trabalho
+tem alterações **não commitadas** de outra sessão nos quatro
+`FASE-B.*-EXECUCAO.md` e um diretório `artefatos/gate-b/` não rastreado. Não
+toquei em nada disso, e a minha avaliação rodou contra o `HEAD` commitado. Junto
+com o `app/chat.py` alterado pelo Track B na rodada anterior e com o banco do
+compose disputado entre as duas sessões, é o terceiro sintoma do mesmo problema —
+o que a decision `2026-08-17-paralelizacao-de-tracks-sem-gate-fechado.md` já
+registra e o que a `A.6` fechou do lado do Track A.
