@@ -333,13 +333,53 @@ EVAL_DOCUMENT_ID=89774e1c-… uv run python -m eval.run_eval --threshold 0.625 -
 `diff` das tabelas por pergunta das duas execuções: **vazio**. Nenhuma posição
 mudou em nenhum dos 16 itens.
 
-**Por que zero, e não negativo.** As 16 perguntas do dataset são perguntas em
-linguagem natural ("quais são os valores da YAITEC?"), e as palavras de conteúdo
-delas — YAITEC, contato, valores — aparecem em quase todos os chunks de um
-documento institucional de três páginas. A via lexical, nesse regime, devolve
-mais ou menos o mesmo conjunto que a densa, e o RRF confirma a ordem que já
-existia. O teto também é apertado: `recall@3` já era 1,000 e o `MRR` 0,958, com
-uma única positiva fora da primeira posição.
+**Por que zero, e não negativo — medido, não suposto.**
+
+> *Correção de 2026-08-17.* A primeira redação desta seção dizia que "a via
+> lexical devolve mais ou menos o mesmo conjunto que a densa, e o RRF confirma a
+> ordem que já existia". Era plausível e estava errada. A medição direta abaixo
+> mostra o que de fato acontece, e a causa é mais ampla do que parecia.
+
+`plainto_tsquery` liga os termos da pergunta com **E**, não com OU: para casar,
+**todos** eles precisam estar no mesmo chunk. Numa pergunta em linguagem natural
+isso quase nunca acontece num trecho de 500 caracteres — "O que os agentes SQL da
+YAITEC fazem?" vira `'agent' & 'sql' & 'yaitec' & 'faz'`, e o trecho que descreve
+os agentes SQL não contém as quatro.
+
+Contando as linhas que `search_chunks_lexical` devolve para cada item do dataset,
+contra o mesmo documento da medição:
+
+| resultado da via lexical | itens |
+|---|---|
+| **0 linhas** | 13 de 16 |
+| 1 linha | 3 (P02, P04, P09) |
+
+Nos 13, a fusão é um **no-op estrito**: com a lista lexical vazia, o RRF devolve a
+densa intacta. Nos outros três, o único chunk encontrado era **já o primeiro
+colocado da busca densa** — P02 e P09 casaram o chunk 8 (página 3), P04 o chunk 5
+(página 2), e as três páginas são exatamente as que a densa já trazia em primeiro
+lugar. O RRF reforçou uma ordem que já existia.
+
+É por isso que o `diff` saiu byte a byte idêntico: não é coincidência de duas
+listas parecidas, é a fusão não tendo o que acrescentar em nenhum dos 16 casos.
+
+Um segundo obstáculo, mais estreito, se soma ao primeiro no caso do e-mail: o
+parser do Postgres trata `contato@yaitec.com` como **um token atômico** e não o
+quebra em "contato" + domínio, então nem a palavra "contato" da pergunta alcança
+aquele chunk. Medido:
+
+```
+to_tsvector('portuguese', '… contato@yaitec.com · João Pessoa, PB')
+  -> 'contato@yaitec.com':4 'joã':5 'pb':7 'pesso':6 'solutions':2 'yaitec':1
+plainto_tsquery('portuguese', 'qual o e-mail de contato?')
+  -> 'e-mail' & 'mail' & 'contat'          casa? f
+plainto_tsquery('portuguese', 'contato@yaitec.com')
+  -> 'contato@yaitec.com'                  casa? t
+```
+
+O teto do dataset também é apertado — `recall@3` já era 1,000 e o `MRR` 0,958 —,
+mas ele não é a explicação: a explicação é que a via lexical não entregou nada
+para fundir.
 
 ### O caso que o dataset não exercita, e onde a fusão morde
 
@@ -358,6 +398,12 @@ trechos que *falam de contato*. É o mesmo sintoma que a `A.5` já tinha medido 
 outro ângulo, quando a página do e-mail ganhou a primeira posição por 0,001: a
 similaridade de cosseno não distingue "menciona o assunto" de "contém o dado".
 
+**O alcance disso é estreito, e vale dizer com todas as letras:** as três
+consultas da tabela são o **termo colado sozinho**. Perguntando *sobre* o termo
+em linguagem natural — "qual o e-mail de contato?" — a via lexical devolve vazio,
+pelo motivo da seção anterior, e a resposta sai pela densa (que, nesse caso,
+acerta a página). A fusão ajuda quem cola o dado, não quem pergunta por ele.
+
 ### Conclusão e o que isso significa para o dataset
 
 A fusão foi **mantida**. O critério da spec manda reverter se o delta for
@@ -365,9 +411,15 @@ negativo; ele é zero, e o mecanismo tem ganho medido fora do dataset. O custo �
 uma segunda consulta ao banco por turno, no mesmo pool e sem chamada de rede
 extra.
 
-Fica registrada uma limitação do dataset, que é o achado mais útil desta fase
-para quem vier depois: **as 16 perguntas não incluem nenhuma consulta por termo
-literal**, e por isso as métricas da `A.5` não conseguiam ver o problema que a
+O caminho de conserto, se alguém quiser que a fusão morda também na pergunta
+natural, é o construtor da query e não a fusão: `websearch_to_tsquery` (que não
+força o `AND` entre todos os termos) ou uma query montada com `OR`, mantendo o
+`ts_rank_cd` para ordenar. É mudança pequena com efeito grande, e é escopo novo
+sobre uma fase já fechada — fica como próximo passo, não como dívida escondida.
+
+Fica registrada uma limitação do dataset, que é o segundo achado mais útil desta
+fase para quem vier depois: **as 16 perguntas não incluem nenhuma consulta por
+termo literal**, e por isso as métricas da `A.5` não conseguiam ver o problema que a
 `A.7` existe para resolver — nem podem medir a solução. Acrescentar duas
 perguntas literais (o e-mail e uma sigla) mudaria isso, e mudaria o `recall@1`
 da baseline para baixo, que é o que tornaria o delta visível. Não foi feito
