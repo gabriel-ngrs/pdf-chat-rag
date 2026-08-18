@@ -228,7 +228,14 @@ export function ChatView({ document, onReset }: ChatViewProps) {
     <div className="flex h-full min-h-96 flex-col gap-4">
       <DocumentHeader document={document} onReset={onReset} />
 
-      <div className="min-h-0 flex-1">
+      {/* A conversa mora numa superfície própria, e não solta sobre a malha do
+          fundo. Sem ela, o texto da resposta ficava direto sobre a textura: o
+          contraste continuava passando, mas a leitura perdia a borda — não dava
+          para dizer onde a conversa começa e onde o fundo termina.
+
+          `overflow-hidden` para o conteúdo que rola respeitar o raio, e o
+          `ScrollArea` de dentro continua sendo quem rola. */}
+      <div className="border-border bg-card min-h-0 flex-1 overflow-hidden rounded-xl border px-4 sm:px-5">
         {conversation.status === 'opening' ? (
           <div className="flex flex-col gap-4 py-6" aria-busy="true">
             <Skeleton className="h-4 w-56" />

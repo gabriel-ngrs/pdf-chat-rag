@@ -161,7 +161,12 @@ export function AppShell({ children, contentWidth = 'reading', background }: App
           {/* As duas garantias do produto, com o disco de ícone preenchido do
               mockup. Ficaram no rodapé, e não num card no fim da página como
               lá: o mockup dizia as mesmas duas frases duas vezes — uma no card
-              e outra no rodapé — e a tela precisa caber sem rolagem. */}
+              e outra no rodapé — e a tela precisa caber sem rolagem.
+
+              O texto foi encurtado até caber em uma linha dentro da coluna de
+              leitura. Alargar só o rodapé resolveria a quebra e quebraria outra
+              coisa: cabeçalho, conteúdo e rodapé dividem a mesma coluna, e é
+              isso que dá eixo à página. */}
           <div
             className={cn(
               column,
@@ -172,13 +177,13 @@ export function AppShell({ children, contentWidth = 'reading', background }: App
               <span className="bg-primary/15 text-primary flex size-7 shrink-0 items-center justify-center rounded-full">
                 <QuoteIcon className="size-3.5" aria-hidden="true" />
               </span>
-              Toda resposta cita a página do PDF de onde veio.
+              Toda resposta cita a página de origem.
             </p>
             <p className="flex items-center gap-2.5">
               <span className="bg-primary/15 text-primary flex size-7 shrink-0 items-center justify-center rounded-full">
                 <ShieldCheckIcon className="size-3.5" aria-hidden="true" />
               </span>
-              Seus documentos ficam nesta sessão do navegador.
+              Seus documentos ficam nesta sessão.
             </p>
           </div>
         </footer>

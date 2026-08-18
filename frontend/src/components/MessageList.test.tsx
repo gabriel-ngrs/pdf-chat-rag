@@ -267,6 +267,41 @@ describe('MessageList', () => {
     expect(chips[1]?.style.animationDelay).toBe('20ms')
   })
 
+  it('mostra a malha de peças enquanto a resposta não começou a chegar', () => {
+    const { container } = render(
+      <MessageList messages={[]} streaming={{ content: '', citations: [] }} />,
+    )
+
+    // O anúncio para leitor de tela continua sendo o do `role="status"`; a
+    // malha é decoração e não repete a informação.
+    expect(screen.getByText('Pensando na resposta.')).toBeTruthy()
+    expect(screen.getByText('Juntando os trechos…')).toBeTruthy()
+    expect(container.querySelectorAll('.animate-think')).toHaveLength(9)
+
+    // Defasagem diagonal: (linha + coluna) × 110 ms. O canto oposto fecha a
+    // onda em 440 ms, e é isso que faz a malha ler como algo se juntando em vez
+    // de uma barra de progresso — que prometeria um percentual inexistente.
+    const pecas = [...container.querySelectorAll<HTMLElement>('.animate-think')]
+    expect(pecas[0].style.animationDelay).toBe('0ms')
+    expect(pecas[4].style.animationDelay).toBe('220ms')
+    expect(pecas[8].style.animationDelay).toBe('440ms')
+  })
+
+  it('a malha de peças fica parada e inteira sob movimento reduzido', () => {
+    stubReducedMotion(true)
+
+    const { container } = render(
+      <MessageList messages={[]} streaming={{ content: '', citations: [] }} />,
+    )
+
+    // Sem classe e sem atraso. O repouso da peça é opaco e em tamanho cheio,
+    // então o que sobra é uma malha legível — e não nove quadrados apagados,
+    // que é onde uma animação de 0 → 1 teria parado.
+    expect(container.querySelector('.animate-think')).toBeNull()
+    expect(container.querySelector('[style*="animation-delay"]')).toBeNull()
+    expect(screen.getByText('Juntando os trechos…')).toBeTruthy()
+  })
+
   it('não anima nada quando a pessoa pede movimento reduzido', () => {
     stubReducedMotion(true)
 

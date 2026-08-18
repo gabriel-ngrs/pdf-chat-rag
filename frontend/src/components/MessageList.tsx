@@ -5,7 +5,6 @@ import { SearchXIcon, TriangleAlertIcon } from 'lucide-react'
 import { CitationChip } from '@/components/CitationChip'
 import { Markdown } from '@/components/Markdown'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Skeleton } from '@/components/ui/skeleton'
 import type { StreamingAnswer } from '@/hooks/useChat'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { ChatMessage, Citation } from '@/lib/types'
@@ -27,6 +26,19 @@ const NEAR_BOTTOM_PX = 48
  * 220 ms da animação. Acima disso o último chip pareceria ter chegado depois.
  */
 const CHIP_STAGGER_MS = 20
+
+/**
+ * A malha de nove peças do indicador "pensando".
+ *
+ * A defasagem é diagonal — `(linha + coluna)` — e não sequencial: uma onda que
+ * atravessa a malha lê como coisa se juntando, enquanto acender da esquerda
+ * para a direita lê como barra de progresso, que é uma promessa que não se pode
+ * cumprir aqui (não há percentual de raciocínio para reportar).
+ */
+const THINKING_TILES = Array.from({ length: 9 }, (_, index) => ({
+  index,
+  delay: (Math.floor(index / 3) + (index % 3)) * 110,
+}))
 
 /**
  * A pessoa está no fim da conversa (ou perto o bastante)?
@@ -222,21 +234,42 @@ function AssistantMessage({
 /**
  * O "pensando", entre o envio e o primeiro token.
  *
+ * Eram duas barras de esqueleto. Esqueleto promete forma: ele diz "o texto vem
+ * com este tamanho", e aqui não se sabe o tamanho de nada — o que está
+ * acontecendo é uma busca por trechos, não a chegada de um parágrafo. A malha
+ * de peças diz a coisa certa: alguma coisa está sendo montada, e não há
+ * percentual a mostrar.
+ *
  * O `role="status"` anuncia a espera uma vez, mesmo dentro do item que silencia
- * os tokens: quem não vê a tela precisa saber que o sistema está trabalhando.
+ * os tokens: quem não vê a tela precisa saber que o sistema está trabalhando. A
+ * malha é `aria-hidden` — ela não acrescenta informação a esse anúncio.
  */
-function ThinkingIndicator() {
+function ThinkingIndicator({ reducedMotion = false }: { reducedMotion?: boolean }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-muted-foreground font-mono text-caption tracking-widest uppercase">
+      <p className="text-muted-foreground font-mono text-caption tracking-widest uppercase select-none">
         Resposta
       </p>
       <span role="status" className="sr-only">
         Pensando na resposta.
       </span>
-      <div className="flex flex-col gap-2" aria-hidden="true">
-        <Skeleton className="h-4 w-full max-w-prose" />
-        <Skeleton className="h-4 w-3/5" />
+      <div
+        aria-hidden="true"
+        className="border-border bg-muted/40 flex w-fit items-center gap-3 rounded-lg border px-3 py-2"
+      >
+        <span className="grid grid-cols-3 gap-[3px]">
+          {THINKING_TILES.map((tile) => (
+            <span
+              key={tile.index}
+              className={cn(
+                'bg-primary size-[5px] rounded-[1px]',
+                !reducedMotion && 'animate-think',
+              )}
+              style={reducedMotion ? undefined : { animationDelay: `${tile.delay}ms` }}
+            />
+          ))}
+        </span>
+        <span className="text-muted-foreground text-caption">Juntando os trechos…</span>
       </div>
     </div>
   )
@@ -307,7 +340,7 @@ export function MessageList({ messages, streaming = null, emptyState = null }: M
                 reducedMotion={reducedMotion}
               />
             ) : (
-              <ThinkingIndicator />
+              <ThinkingIndicator reducedMotion={reducedMotion} />
             )}
           </li>
         ) : null}

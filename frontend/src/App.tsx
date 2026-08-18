@@ -179,7 +179,16 @@ function TalkDoc() {
 
   return (
     <AppShell background="waves">
-      <div className="flex flex-col gap-5 sm:gap-6">
+      {/* O respiro entre os blocos cresce com a ALTURA da viewport, não com a
+          largura: o que sobra numa tela de 1080 e falta numa de 768 é altura, e
+          `sm:`/`lg:` medem a outra dimensão. O piso de 1.25rem é o que faz a
+          tela ainda caber em 768; o teto de 2.75rem é o ponto em que os cards
+          param de parecer um grupo.
+
+          `justify-center` usa o que sobra depois disso. Quando o conteúdo é mais
+          alto que o `main`, a linha `1fr` do grid cresce junto — então centrar
+          nunca corta o topo, só deixa de ter espaço para distribuir. */}
+        <div className="flex h-full flex-col justify-center gap-[clamp(1.25rem,3.4vh,2.75rem)]">
         {/* A abertura ganhou superfície própria na MELH-002. Sobre o campo de
             ondas, texto solto ficaria sobre uma cor que muda a cada frame — e
             contraste medido uma vez ali não valeria para o frame seguinte. O
