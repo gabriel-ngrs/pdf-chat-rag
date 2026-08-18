@@ -81,9 +81,12 @@ mantém a conversa utilizável.
 ## Ferramentas de IA usadas no desenvolvimento
 
 O produto usa Google Gemini para embeddings e geração de respostas. Durante o
-desenvolvimento, o OpenAI Codex foi usado para planejamento, implementação,
-testes, revisão de diffs e documentação. As decisões de arquitetura e os
-resultados de validação estão registrados em `.codeflow/`.
+desenvolvimento, OpenAI Codex e Claude foram usados para planejamento,
+implementação, testes, revisão de diffs e documentação.
+
+A pasta `.codeflow/` é um meta-framework pessoal de workflows, skills e
+governança usado nos projetos: ela registra specs, decisões, critérios de
+validação e o histórico de correções, sem fazer parte do runtime da aplicação.
 
 ## Comandos de validação
 
