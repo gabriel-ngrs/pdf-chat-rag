@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { MoonIcon, SunIcon } from 'lucide-react'
 
+import { AppBackground } from '@/components/backgrounds/AppBackground'
+import type { BackgroundKind } from '@/components/backgrounds/AppBackground'
+import { YaitecMark } from '@/components/YaitecMark'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -65,8 +68,40 @@ function Wordmark() {
   )
 }
 
+/**
+ * O lockup do cabeçalho: o produto, um fio, e quem o assina.
+ *
+ * A hierarquia é a informação. Duas marcas do mesmo tamanho brigariam e a
+ * página deixaria de dizer qual é o produto — daí o "Y" da Yaitec vir menor que
+ * o wordmark e em `text-muted-foreground`, subindo para o primeiro plano só no
+ * hover. A separação é um fio de 1 px na cor de borda porque é assim que este
+ * sistema resolve profundidade: por traço, não por sombra.
+ */
+function Lockup() {
+  return (
+    <div className="flex items-center gap-3">
+      <Wordmark />
+      <span aria-hidden="true" className="bg-border h-5 w-px" />
+      <a
+        href="https://yaitec.com"
+        target="_blank"
+        rel="noreferrer"
+        aria-label="por Yaitec — abrir o site em nova aba"
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <YaitecMark className="size-5" />
+      </a>
+    </div>
+  )
+}
+
 type AppShellProps = {
   children: ReactNode
+  /**
+   * O fundo da tela (MELH-002). Sem valor, não há camada nenhuma — que é o que
+   * deve acontecer em qualquer tela nova enquanto ninguém decidiu o contrário.
+   */
+  background?: BackgroundKind
   /**
    * `reading` mantém a coluna em ~72 caracteres, que é o limite confortável de
    * leitura. `wide` existe para o chat da FEAT-0002, onde a conversa e as
@@ -82,7 +117,7 @@ type AppShellProps = {
  * O grid de três linhas garante que o rodapé fique no fim da viewport mesmo com
  * pouco conteúdo, sem depender de altura fixa.
  */
-export function AppShell({ children, contentWidth = 'reading' }: AppShellProps) {
+export function AppShell({ children, contentWidth = 'reading', background }: AppShellProps) {
   // Cabeçalho, conteúdo e rodapé compartilham a mesma coluna: sem isso a marca
   // flutua numa margem e o conteúdo em outra, e a página perde o eixo.
   const column = cn(
@@ -92,6 +127,8 @@ export function AppShell({ children, contentWidth = 'reading' }: AppShellProps) 
 
   return (
     <TooltipProvider>
+      {background ? <AppBackground kind={background} /> : null}
+
       <div className="grid min-h-dvh grid-rows-[auto_1fr_auto]">
         <a
           href="#main-content"
@@ -102,7 +139,7 @@ export function AppShell({ children, contentWidth = 'reading' }: AppShellProps) 
 
         <header className="border-border bg-background/90 sticky top-0 z-40 border-b backdrop-blur-sm">
           <div className={cn(column, 'flex h-14 items-center justify-between gap-4')}>
-            <Wordmark />
+            <Lockup />
             <ThemeToggle />
           </div>
         </header>
@@ -111,7 +148,7 @@ export function AppShell({ children, contentWidth = 'reading' }: AppShellProps) 
           {children}
         </main>
 
-        <footer className="border-border border-t">
+        <footer className="border-border bg-background/90 border-t backdrop-blur-sm">
           <div
             className={cn(
               column,

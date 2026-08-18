@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useChat } from '@/hooks/useChat'
 import { useNotices } from '@/hooks/useNotices'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { ApiError, createConversation } from '@/lib/api'
 import type { DocumentDetail } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 /**
  * Uma conversa por documento.
@@ -137,15 +139,23 @@ const STARTER_QUESTIONS = [
 ]
 
 function ConversationStart({ onSelect }: { onSelect: (question: string) => void }) {
+  const reducedMotion = useReducedMotion()
+
   return (
-    <div className="flex flex-col gap-3 pb-6">
+    <div className={cn('flex flex-col gap-3 pb-6', !reducedMotion && 'animate-rise')}>
       <p className="text-muted-foreground max-w-prose text-caption">
         Pergunte o que quiser sobre o documento. Toda resposta vem com a página de onde saiu — ou
         com um “não encontrei isso aqui”.
       </p>
       <ul className="flex flex-wrap gap-2">
-        {STARTER_QUESTIONS.map((starter) => (
-          <li key={starter}>
+        {STARTER_QUESTIONS.map((starter, index) => (
+          <li
+            key={starter}
+            // A mesma defasagem dos chips de citação, pelo mesmo motivo: as três
+            // sugestões chegaram juntas, e entrar em fila diz isso.
+            className={reducedMotion ? undefined : 'animate-rise'}
+            style={reducedMotion ? undefined : { animationDelay: `${index * 40}ms` }}
+          >
             <Button variant="outline" size="sm" onClick={() => onSelect(starter)}>
               {starter}
             </Button>

@@ -5,6 +5,7 @@ import { FileTextIcon, Loader2Icon, UploadIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useNotices } from '@/hooks/useNotices'
+import { usePointerSpotlight } from '@/hooks/usePointerSpotlight'
 import { formatFileSize, useUpload, validateSelection } from '@/hooks/useUpload'
 import type { AppConfig, UploadAccepted } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -29,6 +30,7 @@ export function UploadDropzone({ limits, onAccepted }: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [selected, setSelected] = useState<File | null>(null)
   const [draggingOver, setDraggingOver] = useState(false)
+  const spotlight = usePointerSpotlight<HTMLDivElement>()
 
   const sending = state.status === 'sending'
 
@@ -76,7 +78,7 @@ export function UploadDropzone({ limits, onAccepted }: UploadDropzoneProps) {
     : 'PDF. Os limites serão conferidos pelo servidor.'
 
   return (
-    <Card>
+    <Card ref={spotlight.ref} className={spotlight.className}>
       <CardContent className="flex flex-col gap-4">
         <div
           onDragOver={(event) => {
@@ -95,9 +97,13 @@ export function UploadDropzone({ limits, onAccepted }: UploadDropzoneProps) {
           <label
             htmlFor={inputId}
             className={cn(
-              'border-border flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center transition-colors',
+              // 120 ms e `transition-[color,background-color,border-color,transform]`:
+              // o arraste precisa de resposta imediata, e a escala de 1% é o
+              // limite entre "a área reagiu" e "a página pulou". `transform`
+              // não invalida layout, então o card ao lado não se move junto.
+              'border-border flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center transition-[color,background-color,border-color,transform] duration-150 ease-out',
               'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-3',
-              draggingOver && 'border-ring bg-accent',
+              draggingOver && 'border-ring bg-accent scale-[1.01]',
               sending && 'pointer-events-none opacity-60',
             )}
           >

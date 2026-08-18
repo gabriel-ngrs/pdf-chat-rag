@@ -150,3 +150,18 @@ def test_prompt_proibe_citar_o_numero_do_trecho_e_manda_citar_so_a_pagina() -> N
 
     assert "não mencione o número do trecho" in prompt
     assert prompt.index("não mencione o número do trecho") > prompt.index("<<<FIM DO TRECHO")
+
+
+def test_prompt_pede_formato_que_a_interface_sabe_renderizar() -> None:
+    """O formato da resposta virou contrato quando a interface passou a renderizá-lo.
+
+    A `MELH-001` colocou um renderizador de Markdown na `B.3`; esta instrução é
+    o outro lado dele. O que se prende aqui é o pedido estar no prompt e vir
+    depois do conteúdo do documento — o efeito na tela é do renderizador, e
+    asserir sobre o texto que o modelo gera continua fora de escopo.
+    """
+    prompt = build_answer_prompt(_chunks(), [], "onde fica a sede?")
+
+    assert "parágrafos curtos" in prompt
+    assert "Não use títulos, tabelas nem HTML" in prompt
+    assert prompt.index("parágrafos curtos") > prompt.index("<<<FIM DO TRECHO")

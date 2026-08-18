@@ -7,7 +7,8 @@ tipo: identidade visual
 area: frontend
 prioridade: média
 esforco: baixo
-status: bloqueado — falta o arquivo da logo
+status: implementado
+implementado_em: 2026-08-18
 fase_dona: B.2 (app-shell)
 ---
 
@@ -84,10 +85,37 @@ primeira impressão de uma demonstração.
 
 ## Critérios de aceite
 
-- [ ] Logo visível no cabeçalho, ao lado do wordmark, em ambos os temas, sem
+- [x] Logo visível no cabeçalho, ao lado do wordmark, em ambos os temas, sem
       perda de contraste.
-- [ ] A hierarquia deixa claro que o produto é o TalkDoc.
-- [ ] Texto alternativo presente e correto.
-- [ ] O cabeçalho continua com `h-14` e não quebra em 360 px de largura.
-- [ ] Favicon declarado no `index.html`.
-- [ ] `make check` verde.
+- [x] A hierarquia deixa claro que o produto é o TalkDoc.
+- [x] Texto alternativo presente e correto.
+- [x] O cabeçalho continua com `h-14` e não quebra em 360 px de largura.
+- [x] Favicon declarado no `index.html`.
+- [x] `make check` verde.
+
+## Resolução — 2026-08-18
+
+**O bloqueio saiu:** o owner entregou o `Svg Yaitec.svg` na raiz do projeto.
+
+**Mas o arquivo não é vetor.** São 538 kB de PNG de 1440 px embrulhado em SVG,
+sobre um retângulo navy chapado. Servido como veio, seria meio megabyte no
+cabeçalho e um quadrado escuro no tema claro — exatamente o problema que este
+documento antecipou ao pedir SVG "de preferência".
+
+**O que foi feito:** o desenho foi vetorizado a partir daquele arquivo —
+contornos traçados sobre o bitmap e simplificados a três formas fechadas, num
+total de 1 kB — e entrou como componente React em
+`frontend/src/components/YaitecMark.tsx`, pintado com `currentColor`. Atravessa
+os dois temas sem dois arquivos, e serve também de favicon, que o projeto não
+tinha. O original está preservado em
+[`anexos/003-logo/`](anexos/003-logo/svg-yaitec-original.svg).
+
+**A relação entre as marcas** ficou como este documento recomendou: TalkDoc à
+esquerda, fio de 1 px na cor `--border`, e o "Y" menor e em
+`text-muted-foreground`, subindo para o primeiro plano no hover. A logo é link
+para o site da Yaitec, com `target="_blank"` e `rel="noreferrer"`, e o nome
+acessível ("por Yaitec") vive no link — o `svg` é `aria-hidden`, para a marca
+não ser anunciada duas vezes.
+
+Verificado em navegador a 360 px: a linha do cabeçalho continua com 56 px
+(`h-14`) e a página não ganha rolagem horizontal.

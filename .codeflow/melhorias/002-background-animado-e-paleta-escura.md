@@ -7,7 +7,8 @@ tipo: identidade visual / motion
 area: frontend
 prioridade: média
 esforco: alto
-status: aberto — depende de decisão do owner sobre paleta
+status: implementado
+implementado_em: 2026-08-18
 fase_dona: B.1 (design-system) e B.2 (app-shell)
 anexos: anexos/002-gradient-waves/
 ---
@@ -120,15 +121,68 @@ ficar direto sobre o shader: ele fica sobre uma superfície (`--card`, ou o
 
 ## Critérios de aceite
 
-- [ ] Decisões 1, 2 e 3 registradas em `.codeflow/decisions/` antes do código.
-- [ ] Componente portado para TypeScript strict, sem `any`, `tsc` verde.
-- [ ] Com `prefers-reduced-motion: reduce`, nenhum frame além do primeiro é
+- [x] Decisões 1, 2 e 3 registradas em `.codeflow/decisions/` antes do código.
+- [x] Componente portado para TypeScript strict, sem `any`, `tsc` verde.
+- [x] Com `prefers-reduced-motion: reduce`, nenhum frame além do primeiro é
       renderizado — verificado por teste.
-- [ ] Sem WebGL2, a página renderiza o fundo estático e nada quebra.
-- [ ] Nenhum texto da interface fica diretamente sobre o shader sem superfície
+- [x] Sem WebGL2, a página renderiza o fundo estático e nada quebra.
+- [x] Nenhum texto da interface fica diretamente sobre o shader sem superfície
       intermediária; contraste medido nos dois temas.
-- [ ] O loop para quando a aba fica oculta (já vem no código de referência —
+- [x] O loop para quando a aba fica oculta (já vem no código de referência —
       confirmar que sobreviveu à port).
-- [ ] Cores do shader vêm de tokens, não de hex no componente (regra do
+- [x] Cores do shader vêm de tokens, não de hex no componente (regra do
       `index.css`).
-- [ ] `make check` verde e `npm audit --audit-level=high` limpo.
+- [x] `make check` verde e `npm audit --audit-level=high` limpo.
+
+## Resolução — 2026-08-18
+
+As três decisões foram tomadas com o owner na abertura do trabalho e estão
+consolidadas em
+[`decisions/2026-08-18-paleta-yaitec-e-fundos-das-telas.md`](../decisions/2026-08-18-paleta-yaitec-e-fundos-das-telas.md).
+O documento de decisões foi escrito no fechamento; as decisões precederam o
+código, que era o que este critério protegia.
+
+**Decisão 1 — paleta.** Nem (a), nem (b), nem (c) como estavam escritas: o owner
+pediu a paleta do site da yaitec.com. Ela foi extraída do CSS do site
+(`#7BA6D1`, `#12191F`, `#1D2730`, `#9BBFDF`, `#AACDF2`, `#FBF9F8`), convertida
+para `oklch` e escrita nos tokens que já existiam — nenhum token novo, nenhum
+renomeado. O efeito prático cobre o que (a) e (b) queriam: o fundo escuro desce
+para `oklch(0.16)`, um degrau **abaixo** do `#12191F` da marca, e o escuro
+virou o padrão. O âmbar do marca-texto deu lugar à diluição clara do azul da
+marca, e continua fazendo o mesmo trabalho — marcar a citação, a seleção de
+texto e o "Doc" do wordmark.
+
+Todos os pares de texto foram medidos antes de entrar: o pior é 6,9:1, e o anel
+de foco, que responde ao mínimo de 3:1 por ser traço fino, ficou em 4,4:1.
+
+**Decisão 2 — cores do shader.** Como este documento propôs: névoa no
+`--background`, corpo da onda no azul da marca, crista no marca-texto. Um teste
+prende as cores vindo dos tokens, e não de hex no componente.
+
+Consequência medida: o `fogDepth` subiu de 15 para 45. Na sintonia original a
+névoa era roxo vivo e dominava a tela; sendo ela o fundo da página, com 15 o
+campo inteiro se dissolvia no fundo e o efeito ficava invisível.
+
+**Decisão 3 — onde o fundo aparece.** O owner escolheu as ondas na tela de
+envio **e** uma segunda tela de fundo para o chat: o `ShapeGrid`, "porém
+estático". As duas entraram.
+
+O critério de "nenhum texto sobre o shader" foi resolvido por classe, não por
+caso: os dois fundos são recortados por uma máscara radial de `46rem` — quatro
+rem além da coluna de leitura —, e o fundo aparece emoldurando a coluna pelas
+margens. A alternativa era dar superfície a cada elemento solto, e ela falhava
+no caso concreto: o rótulo "COMO FUNCIONA" não tem card e não deveria ganhar um
+só por causa do fundo. A abertura da tela de envio ganhou superfície própria, e
+opaca — 90% com desfoque deixaria 10% de um campo que muda passando por baixo
+do maior texto da página.
+
+**Sobre a porta.** `GradientWaves` e `ShapeGrid` em TypeScript strict, sem
+`any`. Movimento reduzido desenha um frame e não entra no laço — o `ShapeGrid`
+nem tem laço para desligar. Sem WebGL2, o construtor cai no `try/catch` e o
+gradiente estático que já está no DOM continua sendo o fundo. Pausa por aba
+oculta e por `IntersectionObserver` sobreviveram, `dpr` segue limitado a 2, e o
+raymarching cai para 40 passos abaixo de 640 px.
+
+**Custo assumido.** `ogl` é a única dependência nova aqui (~30 kB gzip). O
+bundle foi para 616 kB minificado, 191 kB em gzip. Sem code-splitting: o fundo
+animado está na primeira tela, e adiá-lo não adiantaria o que ele adia.

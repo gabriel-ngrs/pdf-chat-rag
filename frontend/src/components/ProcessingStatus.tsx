@@ -8,8 +8,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { progressPercent, useDocumentStatus } from '@/hooks/useDocumentStatus'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { describeError } from '@/lib/errors'
 import type { DocumentDetail } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 type ProcessingStatusProps = {
   documentId: string
@@ -127,6 +129,7 @@ function useMonotonicPercent(doc: DocumentDetail | null): number | null {
 export function ProcessingStatus({ documentId, onReset, onReady }: ProcessingStatusProps) {
   const { document: doc, missing, loading } = useDocumentStatus(documentId)
   const percent = useMonotonicPercent(doc)
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     if (doc?.status === 'ready') {
@@ -141,11 +144,31 @@ export function ProcessingStatus({ documentId, onReset, onReady }: ProcessingSta
       <CardContent className="flex flex-col gap-4" aria-busy={loading}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">
+            {/* A passagem entre etapas era uma troca seca de texto. O
+                crossfade diz que houve progresso, e não que a tela recarregou.
+
+                Quem troca é o `<span>` de dentro, nunca o `<p role="status">`:
+                a live region precisa ser o mesmo elemento do primeiro render
+                ao último, senão a primeira mudança de etapa passa em silêncio
+                para quem usa leitor de tela. A `key` no filho é o que remonta
+                só o conteúdo e dispara a animação de novo. */}
             <p className="flex items-center gap-2 text-body font-medium" role="status">
-              {view.icon}
-              {view.title}
+              <span
+                key={view.title}
+                className={cn('flex items-center gap-2', !reducedMotion && 'animate-fade')}
+              >
+                {view.icon}
+                {view.title}
+              </span>
             </p>
-            <p className="text-muted-foreground text-caption break-words">{view.description}</p>
+            <p className="text-muted-foreground text-caption break-words">
+              <span
+                key={view.description}
+                className={cn('block', !reducedMotion && 'animate-fade')}
+              >
+                {view.description}
+              </span>
+            </p>
           </div>
           {doc?.status === 'ready' ? (
             <Badge variant="secondary">Pronto para conversar</Badge>

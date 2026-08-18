@@ -43,15 +43,44 @@ function montar(limits: AppConfig | null = LIMITS) {
   return { onAccepted }
 }
 
+/**
+ * Responde `prefers-reduced-motion` e `pointer` no jsdom, que não implementa
+ * `matchMedia`. É o que torna o critério de aceite da MELH-004 verificável.
+ */
+function stubMedia({ reduced = false, finePointer = true } = {}) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('prefers-reduced-motion')
+      ? reduced
+      : query.includes('pointer: fine')
+        ? finePointer
+        : false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
+}
+
+function cartao(): HTMLElement {
+  const card = document.querySelector<HTMLElement>('[data-slot="card"]')
+  if (!card) {
+    throw new Error('card de envio não encontrado')
+  }
+  return card
+}
+
 describe('UploadDropzone', () => {
   beforeEach(() => {
     uploadDocumentMock.mockReset()
     toastErrorMock.mockReset()
+    stubMedia()
   })
 
   // Sem `globals: true` o auto-cleanup da testing-library não é registrado, e o
   // DOM de um teste vazaria para o seguinte.
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
 
   it('começa com o botão de enviar desabilitado e a instrução visível', () => {
     montar()
@@ -175,5 +204,68 @@ describe('UploadDropzone', () => {
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledOnce())
     expect(toastErrorMock.mock.calls[0][0]).toBe('Limite de uso atingido')
     expect(onAccepted).not.toHaveBeenCalled()
+  })
+
+  it('acende o holofote onde o ponteiro está', async () => {
+    montar()
+    const card = cartao()
+
+    expect(card.className).toContain('pointer-spotlight')
+
+    fireEvent.pointerMove(card, { clientX: 120, clientY: 40 })
+
+    // A posição viaja por custom property, e não por posição de elemento:
+    // repintar um gradiente não invalida layout, mover um elemento a cada
+    // `pointermove` invalidaria.
+    await waitFor(() => expect(card.style.getPropertyValue('--spotlight-opacity')).toBe('1'))
+    expect(card.style.getPropertyValue('--spotlight-x')).toBe('120px')
+
+    fireEvent.pointerLeave(card)
+    expect(card.style.getPropertyValue('--spotlight-opacity')).toBe('0')
+  })
+
+  it('não acende holofote nenhum sob movimento reduzido', () => {
+    stubMedia({ reduced: true })
+    montar()
+    const card = cartao()
+
+    expect(card.className).not.toContain('pointer-spotlight')
+
+    fireEvent.pointerMove(card, { clientX: 120, clientY: 40 })
+
+    // Sem a classe o `::after` não existe, e sem listener a variável nunca é
+    // escrita: a animação não roda com duração zero, ela não existe.
+    expect(card.style.getPropertyValue('--spotlight-opacity')).toBe('')
+  })
+
+  it('não acende holofote nenhum em ponteiro grosso', () => {
+    stubMedia({ finePointer: false })
+    montar()
+    const card = cartao()
+
+    fireEvent.pointerMove(card, { clientX: 120, clientY: 40 })
+
+    // Em toque, o halo acenderia exatamente sob o dedo — no único lugar da
+    // tela que o dedo está tapando.
+    expect(card.style.getPropertyValue('--spotlight-opacity')).toBe('')
+  })
+
+  it('responde ao arraste por cor e escala, nunca por altura', () => {
+    montar()
+    const area = document.querySelector<HTMLElement>('label')
+    if (!area) {
+      throw new Error('área de soltar não encontrada')
+    }
+    const zona = area.parentElement
+    if (!zona) {
+      throw new Error('contêiner de arraste não encontrado')
+    }
+
+    fireEvent.dragOver(zona)
+
+    // `transform` e cor são o que o compositor resolve sem relayout. Animar
+    // altura aqui empurraria o card seguinte a cada arraste.
+    expect(area.className).toContain('scale-[1.01]')
+    expect(area.className).toContain('border-ring')
   })
 })

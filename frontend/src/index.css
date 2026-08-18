@@ -24,8 +24,14 @@
    público    → quem envia um PDF de trabalho e precisa confiar na resposta;
    tom        → sóbrio, técnico, documental. Ferramenta de leitura, não brinquedo;
    metáfora   → papel e tinta. O claro é papel quente; o escuro é tinta fria.
-                O âmbar é o marca-texto — e é literalmente o que vai marcar a
-                citação no chat da FEAT-0002.
+                O azul-aço da Yaitec é o marca-texto — e é literalmente o que
+                vai marcar a citação no chat da FEAT-0002.
+   paleta     → a do site da yaitec.com, adotada na MELH-002 e registrada em
+                `.codeflow/decisions/2026-08-17-paleta-yaitec-e-fundos.md`:
+                #FBF9F8 papel · #12191F e #1D2730 tinta · #7BA6D1 azul-aço da
+                marca · #9BBFDF e #AACDF2 as duas diluições dele. Os valores
+                abaixo estão em oklch porque é onde clarear e escurecer não
+                muda o matiz — os hex acima são a origem, não a fonte.
 
    Como usar:
    - Cor SEMPRE por token semântico (bg-background, text-muted-foreground…).
@@ -101,114 +107,159 @@
 
   /* Largura de leitura confortável: ~72 caracteres na tipografia acima. */
   --container-reading: 42rem;
+
+  /* Movimento (MELH-004). Dois degraus, pelo mesmo motivo de haver quatro
+     degraus de texto: um terceiro seria escolha sem critério.
+     `rise`  → entrada de conteúdo que acabou de chegar (resposta, chip, card);
+     `fade`  → troca de um conteúdo por outro no mesmo lugar (etapa de status).
+     Ambos animam só `opacity` e `transform`, que o compositor resolve sem
+     relayout — a conversa mede `scrollHeight` para se manter no fim, e uma
+     animação de altura durante o stream faria essa medida oscilar. */
+  --animate-rise: rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade: fade 160ms ease-out both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ── Tema claro: papel ────────────────────────────────────────────────────────
-   O fundo é levemente quente (hue 85) e os cards são brancos puros: é o que
-   levanta o conteúdo da página sem precisar de sombra. */
+   O fundo é o #FBF9F8 do site da Yaitec — papel levemente quente — e os cards
+   são brancos puros: é o que levanta o conteúdo da página sem precisar de
+   sombra. O azul-aço da marca entra como ação e como marca-texto; o texto
+   continua sendo tinta, porque num app onde o conteúdo é texto a cor de marca
+   no corpo competiria com o que se está lendo. */
 :root {
   --radius: 0.5rem;
 
-  --background: oklch(0.985 0.006 85);
-  --foreground: oklch(0.22 0.02 260);
+  --background: oklch(0.983 0.003 49);
+  --foreground: oklch(0.209 0.016 245);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.02 260);
+  --card-foreground: oklch(0.209 0.016 245);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.02 260);
+  --popover-foreground: oklch(0.209 0.016 245);
 
-  /* A ação primária é tinta, não uma cor de marca saturada: num app onde o
-     conteúdo é texto, o botão colorido competiria com o que se está lendo. */
-  --primary: oklch(0.28 0.035 258);
-  --primary-foreground: oklch(0.985 0.006 85);
-  --secondary: oklch(0.955 0.008 85);
-  --secondary-foreground: oklch(0.28 0.035 258);
-  --muted: oklch(0.955 0.008 85);
-  --muted-foreground: oklch(0.45 0.015 265);
-  --accent: oklch(0.94 0.028 82);
-  --accent-foreground: oklch(0.28 0.035 258);
+  /* #7BA6D1 — o azul dos botões do site. Croma baixo (0.079) de propósito: é
+     cor de marca sem ser cor saturada, e por isso pode carregar a ação sem
+     brigar com o texto ao lado. O texto sobre ele é tinta, não branco: branco
+     dá 2,6:1 e reprovaria no gate de contraste. */
+  --primary: oklch(0.71 0.079 249);
+  --primary-foreground: oklch(0.209 0.016 245);
+  --secondary: oklch(0.955 0.006 49);
+  --secondary-foreground: oklch(0.267 0.022 246);
+  --muted: oklch(0.955 0.006 49);
+  --muted-foreground: oklch(0.45 0.018 246);
+  --accent: oklch(0.93 0.03 250);
+  --accent-foreground: oklch(0.267 0.022 246);
 
+  /* Os três estados de sistema não são cor de marca: eles significam a mesma
+     coisa em qualquer produto, e amarrá-los à paleta apagaria o significado. */
   --destructive: oklch(0.47 0.19 27);
-  --destructive-foreground: oklch(0.985 0.006 85);
+  --destructive-foreground: oklch(0.983 0.003 49);
   --success: oklch(0.45 0.12 155);
-  --success-foreground: oklch(0.985 0.006 85);
+  --success-foreground: oklch(0.983 0.003 49);
   --warning: oklch(0.52 0.13 72);
-  --warning-foreground: oklch(0.985 0.006 85);
+  --warning-foreground: oklch(0.983 0.003 49);
 
-  /* Marca-texto. Superfície, nunca texto — âmbar claro não atinge 4,5:1. */
-  --highlight: oklch(0.86 0.13 84);
-  --highlight-foreground: oklch(0.24 0.03 260);
+  /* Marca-texto: o #AACDF2, a diluição mais clara do azul da marca. Superfície,
+     nunca texto — 10,7:1 com a tinta por cima, 2,4:1 se fosse traço. */
+  --highlight: oklch(0.835 0.064 250);
+  --highlight-foreground: oklch(0.209 0.016 245);
 
-  --border: oklch(0.9 0.008 85);
-  --input: oklch(0.89 0.008 85);
-  /* Anel de foco em âmbar queimado: 3:1 sobre o papel, e a única coisa da
-     interface que usa a cor de marca em traço fino. */
-  --ring: oklch(0.58 0.16 62);
+  --border: oklch(0.9 0.006 49);
+  --input: oklch(0.885 0.008 49);
+  /* Anel de foco: o azul da marca escurecido até 4,4:1 sobre o papel — o
+     mínimo para traço fino é 3:1, e o #7BA6D1 puro daria 2,4:1. */
+  --ring: oklch(0.56 0.1 249);
 
-  --chart-1: oklch(0.28 0.035 258);
-  --chart-2: oklch(0.58 0.16 62);
+  --chart-1: oklch(0.71 0.079 249);
+  --chart-2: oklch(0.56 0.1 249);
   --chart-3: oklch(0.45 0.12 155);
   --chart-4: oklch(0.52 0.13 72);
-  --chart-5: oklch(0.45 0.015 265);
+  --chart-5: oklch(0.45 0.018 246);
 
-  --sidebar: oklch(0.97 0.007 85);
-  --sidebar-foreground: oklch(0.22 0.02 260);
-  --sidebar-primary: oklch(0.28 0.035 258);
-  --sidebar-primary-foreground: oklch(0.985 0.006 85);
-  --sidebar-accent: oklch(0.94 0.028 82);
-  --sidebar-accent-foreground: oklch(0.28 0.035 258);
-  --sidebar-border: oklch(0.9 0.008 85);
-  --sidebar-ring: oklch(0.58 0.16 62);
+  --sidebar: oklch(0.968 0.004 49);
+  --sidebar-foreground: oklch(0.209 0.016 245);
+  --sidebar-primary: oklch(0.71 0.079 249);
+  --sidebar-primary-foreground: oklch(0.209 0.016 245);
+  --sidebar-accent: oklch(0.93 0.03 250);
+  --sidebar-accent-foreground: oklch(0.267 0.022 246);
+  --sidebar-border: oklch(0.9 0.006 49);
+  --sidebar-ring: oklch(0.56 0.1 249);
 }
 
 /* ── Tema escuro: tinta ───────────────────────────────────────────────────────
-   Não é o claro invertido mecanicamente: o fundo puxa para o azul frio e o
-   texto para o creme do papel, para a leitura longa não cansar. A ação primária
-   inverte para papel — em ambos os temas ela é o contraste máximo da tela. */
+   É o tema padrão desde a MELH-002, e não o claro invertido mecanicamente. A
+   rampa de superfícies são os três escuros do site da Yaitec, do fundo para
+   cima: o fundo fica um degrau ABAIXO do #12191F da marca (0.16 contra 0.209),
+   que é o que o pedido de "paleta mais escura" queria; o card é o #12191F; e o
+   #1D2730 é o degrau elevado. Três superfícies no mesmo matiz frio, separáveis
+   sem sombra. */
 .dark {
-  --background: oklch(0.17 0.012 265);
-  --foreground: oklch(0.94 0.008 85);
-  --card: oklch(0.21 0.014 265);
-  --card-foreground: oklch(0.94 0.008 85);
-  --popover: oklch(0.21 0.014 265);
-  --popover-foreground: oklch(0.94 0.008 85);
+  --background: oklch(0.16 0.018 245);
+  --foreground: oklch(0.94 0.006 250);
+  --card: oklch(0.209 0.016 245);
+  --card-foreground: oklch(0.94 0.006 250);
+  --popover: oklch(0.209 0.016 245);
+  --popover-foreground: oklch(0.94 0.006 250);
 
-  --primary: oklch(0.93 0.01 85);
-  --primary-foreground: oklch(0.2 0.02 265);
-  --secondary: oklch(0.26 0.015 265);
-  --secondary-foreground: oklch(0.94 0.008 85);
-  --muted: oklch(0.26 0.015 265);
-  --muted-foreground: oklch(0.72 0.012 85);
-  --accent: oklch(0.29 0.02 265);
-  --accent-foreground: oklch(0.94 0.008 85);
+  /* O azul da marca não muda entre os temas: é o único token que atravessa os
+     dois, e é o que faz a ação parecer a mesma coisa dos dois lados. */
+  --primary: oklch(0.71 0.079 249);
+  --primary-foreground: oklch(0.16 0.018 245);
+  --secondary: oklch(0.267 0.022 246);
+  --secondary-foreground: oklch(0.94 0.006 250);
+  --muted: oklch(0.267 0.022 246);
+  --muted-foreground: oklch(0.72 0.015 248);
+  --accent: oklch(0.3 0.025 247);
+  --accent-foreground: oklch(0.94 0.006 250);
 
   --destructive: oklch(0.7 0.17 25);
-  --destructive-foreground: oklch(0.17 0.012 265);
+  --destructive-foreground: oklch(0.16 0.018 245);
   --success: oklch(0.74 0.13 155);
-  --success-foreground: oklch(0.17 0.012 265);
+  --success-foreground: oklch(0.16 0.018 245);
   --warning: oklch(0.8 0.13 80);
-  --warning-foreground: oklch(0.17 0.012 265);
+  --warning-foreground: oklch(0.16 0.018 245);
 
-  --highlight: oklch(0.78 0.14 80);
-  --highlight-foreground: oklch(0.2 0.02 265);
+  /* No escuro o marca-texto é o #9BBFDF: um degrau mais fundo que o do claro,
+     porque sobre tinta a diluição mais clara estouraria. */
+  --highlight: oklch(0.789 0.06 246);
+  --highlight-foreground: oklch(0.209 0.016 245);
 
-  --border: oklch(0.31 0.012 265);
-  --input: oklch(0.34 0.012 265);
-  --ring: oklch(0.74 0.14 75);
+  --border: oklch(0.3 0.018 246);
+  --input: oklch(0.34 0.018 246);
+  --ring: oklch(0.71 0.079 249);
 
-  --chart-1: oklch(0.93 0.01 85);
-  --chart-2: oklch(0.74 0.14 75);
+  --chart-1: oklch(0.71 0.079 249);
+  --chart-2: oklch(0.789 0.06 246);
   --chart-3: oklch(0.74 0.13 155);
   --chart-4: oklch(0.8 0.13 80);
-  --chart-5: oklch(0.72 0.012 85);
+  --chart-5: oklch(0.72 0.015 248);
 
-  --sidebar: oklch(0.2 0.013 265);
-  --sidebar-foreground: oklch(0.94 0.008 85);
-  --sidebar-primary: oklch(0.93 0.01 85);
-  --sidebar-primary-foreground: oklch(0.2 0.02 265);
-  --sidebar-accent: oklch(0.29 0.02 265);
-  --sidebar-accent-foreground: oklch(0.94 0.008 85);
-  --sidebar-border: oklch(0.31 0.012 265);
-  --sidebar-ring: oklch(0.74 0.14 75);
+  --sidebar: oklch(0.185 0.017 245);
+  --sidebar-foreground: oklch(0.94 0.006 250);
+  --sidebar-primary: oklch(0.71 0.079 249);
+  --sidebar-primary-foreground: oklch(0.16 0.018 245);
+  --sidebar-accent: oklch(0.3 0.025 247);
+  --sidebar-accent-foreground: oklch(0.94 0.006 250);
+  --sidebar-border: oklch(0.3 0.018 246);
+  --sidebar-ring: oklch(0.71 0.079 249);
 }
 
 @layer base {
@@ -242,9 +293,55 @@
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      /* O atraso entra junto: numa entrada escalonada, zerar só a duração
+         deixaria o último item invisível pelo tempo do atraso — movimento
+         reduzido viraria conteúdo que aparece tarde. */
+      animation-delay: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+@layer components {
+  /* Holofote que segue o ponteiro (MELH-004).
+
+     A posição chega por duas custom properties escritas em JS. É o único jeito
+     barato: mudar `--spotlight-x`/`--spotlight-y` repinta o gradiente sem
+     invalidar layout, enquanto reposicionar um elemento de verdade a cada
+     `mousemove` custaria layout em toda a árvore.
+
+     O holofote fica ACIMA da superfície do card e ABAIXO do conteúdo — daí o
+     `z-index` nos filhos diretos. Por cima do texto ele lavaria a leitura, que
+     é exatamente o que a MELH-004 proíbe.
+
+     Quem liga isto é o componente, e só depois de perguntar por
+     `prefers-reduced-motion`: nenhuma regra de CSS alcança um listener de
+     ponteiro. Sem a variável de opacidade definida, o efeito não existe. */
+  .pointer-spotlight {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .pointer-spotlight > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .pointer-spotlight::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: var(--spotlight-opacity, 0);
+    transition: opacity 200ms ease-out;
+    background: radial-gradient(
+      16rem circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+      color-mix(in oklab, var(--highlight) 26%, transparent),
+      transparent 72%
+    );
   }
 }

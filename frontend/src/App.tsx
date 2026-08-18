@@ -8,9 +8,11 @@ import { ProcessingStatus } from '@/components/ProcessingStatus'
 import { UploadDropzone } from '@/components/UploadDropzone'
 import { Card, CardContent } from '@/components/ui/card'
 import { useNotices } from '@/hooks/useNotices'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { loadConfig } from '@/lib/config'
 import type { ConfigState } from '@/lib/config'
 import type { DocumentDetail, UploadAccepted } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 /** O documento em acompanhamento sobrevive a um recarregamento da página. */
 const DOCUMENT_STORAGE_KEY = 'talkdoc:document-id'
@@ -77,7 +79,10 @@ function HowItWorks() {
             {STEPS.map((step, index) => (
               <li
                 key={step.title}
-                className="border-border flex items-start gap-4 px-4 py-4 not-last:border-b sm:px-6"
+                // Hover por superfície e borda, e não por sombra: o sistema tem
+                // uma sombra só, e ela é de elemento flutuante. `transition-colors`
+                // não toca em geometria, então a lista não se mexe.
+                className="border-border hover:bg-accent/40 flex items-start gap-4 px-4 py-4 transition-colors duration-150 not-last:border-b sm:px-6"
               >
                 <span
                   className="text-muted-foreground tabular pt-0.5 font-mono text-caption"
@@ -101,6 +106,7 @@ function HowItWorks() {
 function TalkDoc() {
   const notify = useNotices()
   const config = useAppConfig()
+  const reducedMotion = useReducedMotion()
   const [documentId, setDocumentId] = useState<string | null>(null)
   const [readyDocument, setReadyDocument] = useState<DocumentDetail | null>(null)
 
@@ -132,16 +138,25 @@ function TalkDoc() {
 
   if (readyDocument) {
     return (
-      <AppShell>
+      <AppShell background="grid">
         <ChatView document={readyDocument} onReset={handleReset} />
       </AppShell>
     )
   }
 
   return (
-    <AppShell>
+    <AppShell background="waves">
       <div className="flex flex-col gap-12">
-        <section className="flex flex-col gap-4">
+        {/* A abertura ganhou superfície própria na MELH-002. Sobre o campo de
+            ondas, texto solto ficaria sobre uma cor que muda a cada frame — e
+            contraste medido uma vez ali não valeria para o frame seguinte. O
+            card é opaco por isso, e não por estilo. */}
+        <section
+          className={cn(
+            'border-border bg-card flex flex-col gap-4 rounded-xl border p-6 sm:p-8',
+            !reducedMotion && 'animate-rise',
+          )}
+        >
           <h1 className="font-display text-display text-balance">Converse com o seu PDF.</h1>
           <p className="text-muted-foreground max-w-prose">
             Envie um documento e pergunte o que quiser sobre ele. O TalkDoc responde apenas com o
@@ -168,7 +183,10 @@ export default function App() {
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="system"
+      // Escuro por padrão desde a MELH-002. O `index.html` aplica o mesmo
+      // padrão antes da primeira pintura — mudar um sem o outro traz o piscar
+      // de volta.
+      defaultTheme="dark"
       enableSystem
       storageKey="talkdoc:theme"
       disableTransitionOnChange

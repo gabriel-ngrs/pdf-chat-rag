@@ -7,7 +7,8 @@ tipo: legibilidade / correção de renderização
 area: frontend + prompt
 prioridade: alta
 esforco: médio
-status: aberto
+status: implementado
+implementado_em: 2026-08-18
 fase_dona: B.3 (chat-view) e A.2 (core-prompting)
 ---
 
@@ -151,13 +152,57 @@ para não reescrever o prompt duas vezes.
 
 ## Critérios de aceite
 
-- [ ] Uma resposta com negrito e lista aparece formatada, sem nenhum asterisco
+- [x] Uma resposta com negrito e lista aparece formatada, sem nenhum asterisco
       visível na tela.
-- [ ] HTML dentro da resposta do modelo é exibido como texto, nunca executado —
+- [x] HTML dentro da resposta do modelo é exibido como texto, nunca executado —
       com teste que prova isso.
-- [ ] Copiar uma resposta e colar em um editor de texto não traz
+- [x] Copiar uma resposta e colar em um editor de texto não traz
       "O TalkDoc respondeu:" nem "Você perguntou:".
-- [ ] O anúncio por leitor de tela continua funcionando (os testes de
+- [x] O anúncio por leitor de tela continua funcionando (os testes de
       acessibilidade de `MessageList.test.tsx` seguem verdes).
-- [ ] Durante o streaming, o texto não pisca nem reflui a cada token.
-- [ ] `make check` verde.
+- [x] Durante o streaming, o texto não pisca nem reflui a cada token.
+- [x] `make check` verde.
+
+## Resolução — 2026-08-18
+
+Os quatro caminhos foram seguidos, com a divisão de responsabilidade explícita:
+**quem garante que nenhum asterisco aparece na tela é o renderizador**, e a
+instrução no prompt só estreita a variedade que ele precisa cobrir.
+
+**(A) Renderizador.** `frontend/src/components/Markdown.tsx`, sobre
+`react-markdown` + `remark-gfm` (`npm audit --audit-level=high` limpo). Cada
+elemento mapeado aos tokens do design system, nenhum estilo vindo da
+biblioteca. Título é rebaixado a texto forte, `img` fica de fora — uma imagem
+na resposta seria o navegador buscando uma URL escolhida por quem escreveu o
+PDF —, e link sai com `target="_blank" rel="noreferrer"`.
+
+O ponto de segurança ganhou um plugin de seis linhas em vez de só a ausência do
+`rehype-raw`. Sem ele, o `react-markdown` **descarta** as marcas de HTML, e uma
+resposta que dissesse "use a tag `<script>`" apareceria mutilada, sem sinal de
+que algo sumiu. O plugin troca o tipo do nó de `html` para `text`: a marca
+aparece escrita na tela e nunca como elemento. É o que o teste
+`mostra HTML do documento como texto, e nunca como elemento` prende.
+
+**Streaming.** O texto chega cru enquanto a resposta se constrói e passa pelo
+Markdown quando ela fecha — o caminho que este documento sugeriu considerar.
+Markdown em construção é Markdown inválido na maior parte do tempo, e
+reprocessar a string a cada token faria o parágrafo refluir a cada frame, numa
+lista que mede `scrollHeight` para se manter no fim.
+
+**(B) Prompt.** `ANSWER_INSTRUCTIONS` ganhou a regra de formato: parágrafos
+curtos, lista só quando a resposta for enumeração, negrito só em rótulo de
+item, sem títulos, tabelas ou HTML. Coberta por
+`test_prompt_pede_formato_que_a_interface_sabe_renderizar`.
+
+**(C) Hierarquia.** `space-y-3` entre os blocos da resposta, `max-w-prose`
+mantido.
+
+**(D) Vazamento na cópia.** Os rótulos de leitor de tela saíram de dentro do
+texto copiável e ganharam `select-none`; a linha "Resposta", que é etiqueta de
+interface, saiu junto. Verificado em navegador de verdade selecionando a
+conversa inteira: a seleção devolve
+`"Do que trata este documento?\n\nO documento trata de conteúdo audiovisual.\n\npágina 1"`
+— sem rótulo, sem etiqueta e sem asterisco.
+
+O [BUG-005](../bugs/005-resposta-cita-trecho-n-que-nao-existe-na-interface.md)
+foi resolvido na mesma passada pelo prompt, como este documento pedia.

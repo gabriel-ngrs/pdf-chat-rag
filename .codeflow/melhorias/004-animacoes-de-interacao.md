@@ -7,7 +7,8 @@ tipo: motion / micro-interação
 area: frontend
 prioridade: média
 esforco: médio
-status: aberto
+status: implementado
+implementado_em: 2026-08-18
 fase_dona: B.1 (design-system), B.2 (app-shell), B.3 (chat-view)
 ---
 
@@ -110,12 +111,55 @@ movimento ficar em `transform`/`opacity`, que não alteram o layout.
 
 ## Critérios de aceite
 
-- [ ] Com `prefers-reduced-motion: reduce`, nenhuma das animações novas roda —
+- [x] Com `prefers-reduced-motion: reduce`, nenhuma das animações novas roda —
       verificado por teste, não só por inspeção.
-- [ ] Nenhuma animação nova usa propriedade que causa relayout.
-- [ ] O acompanhamento de scroll da conversa continua correto durante o stream
+- [x] Nenhuma animação nova usa propriedade que causa relayout.
+- [x] O acompanhamento de scroll da conversa continua correto durante o stream
       (testes de `MessageList.test.tsx` verdes).
-- [ ] Nenhuma dependência nova de animação, ou justificativa registrada em
+- [x] Nenhuma dependência nova de animação, ou justificativa registrada em
       `.codeflow/decisions/` se houver.
-- [ ] Nenhum cursor customizado.
-- [ ] `make check` verde.
+- [x] Nenhum cursor customizado.
+- [x] `make check` verde.
+
+## Resolução — 2026-08-18
+
+Dois degraus de movimento entraram no `index.css`, e só dois: `--animate-rise`
+para conteúdo que acabou de chegar e `--animate-fade` para troca de conteúdo no
+mesmo lugar. Dois pelo mesmo motivo de haver quatro degraus de texto — um
+terceiro seria escolha sem critério.
+
+**1. Entrada da resposta e dos chips.** Mensagem entra com `rise`; os chips de
+citação entram escalonados, 20 ms entre um e o seguinte. As três sugestões de
+partida da conversa usam a mesma ideia, com 40 ms.
+
+**2. Cards e dropzone.** A área de soltar responde ao arraste com borda que
+acende e escala de 1%, em 150 ms; os itens do "como funciona" ganham hover por
+superfície, nunca por sombra nova; e a passagem entre etapas do processamento
+virou crossfade. Nesse último, quem troca é um `<span>` com `key`, e nunca o
+`<p role="status">` — recriar a live region faria a primeira mudança de etapa
+passar em silêncio para quem usa leitor de tela.
+
+**3. Texto.** Só a abertura da tela e o estado inicial da conversa. A resposta
+**não** ganhou animação por caractere nem por palavra, como este documento
+pediu: o streaming já é a animação do texto.
+
+**4. Mouse.** Hover expressivo no que é clicável, e um holofote seguindo o
+ponteiro — num lugar só, o card de envio. O parallax de ponteiro ficou onde
+pertencia, no fundo animado da MELH-002. Nenhum cursor customizado.
+
+**O ponto que exigia cuidado.** A regra de movimento reduzido do `index.css` é
+CSS e não alcança um listener de `pointermove` nem a decisão de aplicar uma
+classe. Por isso tudo que se move por JS passa pelo hook
+`useReducedMotion`, e a decisão é a animação **não existir** em vez de existir
+com duração zero — o que a torna verificável por teste, que era o critério de
+aceite. O holofote tem uma segunda porta: em `pointer: coarse` ele não acende,
+porque acenderia sob o dedo, no único lugar que o dedo está tapando.
+
+O reset de movimento reduzido ganhou `animation-delay` junto com a duração:
+numa entrada escalonada, zerar só a duração deixaria o último item invisível
+pelo tempo do atraso.
+
+**Sem dependência nova.** `tw-animate-css` e transições do Tailwind cobriram
+tudo. O holofote se move em duas custom properties, não em posição de elemento:
+repintar um gradiente não invalida layout, mover um elemento a cada
+`pointermove` invalidaria.

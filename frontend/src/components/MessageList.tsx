@@ -3,9 +3,11 @@ import type { ReactNode } from 'react'
 import { SearchXIcon, TriangleAlertIcon } from 'lucide-react'
 
 import { CitationChip } from '@/components/CitationChip'
+import { Markdown } from '@/components/Markdown'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { StreamingAnswer } from '@/hooks/useChat'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { ChatMessage, Citation } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +18,15 @@ import { cn } from '@/lib/utils'
  * acompanhamento automático — e a resposta seguinte pareceria não chegar.
  */
 const NEAR_BOTTOM_PX = 48
+
+/**
+ * Defasagem entre a entrada de um chip de citação e a do seguinte, em ms.
+ *
+ * Vinte é o suficiente para o olho ler "estes vieram juntos" e curto demais
+ * para virar espera: cinco chips fecham a entrada em 80 ms de defasagem mais os
+ * 220 ms da animação. Acima disso o último chip pareceria ter chegado depois.
+ */
+const CHIP_STAGGER_MS = 20
 
 /**
  * A pessoa está no fim da conversa (ou perto o bastante)?
@@ -75,11 +86,20 @@ function useStickToBottom(watched: unknown) {
   return containerRef
 }
 
+/**
+ * A pergunta, como balão na margem.
+ *
+ * O rótulo de leitor de tela vive FORA do balão e com `select-none`, e as duas
+ * coisas são necessárias: fora do balão, selecionar só o texto não o pega; com
+ * `select-none`, arrastar a seleção por cima da mensagem inteira também não.
+ * Antes da MELH-001 ele era filho do balão, e quem copiava uma pergunta colava
+ * "Você perguntou:" grudado nela.
+ */
 function UserMessage({ content }: { content: string }) {
   return (
     <div className="flex justify-end">
+      <span className="sr-only select-none">Você perguntou:</span>
       <div className="bg-secondary text-secondary-foreground max-w-[85%] rounded-lg px-4 py-3 whitespace-pre-wrap">
-        <span className="sr-only">Você perguntou: </span>
         {content}
       </div>
     </div>
@@ -97,7 +117,7 @@ function UserMessage({ content }: { content: string }) {
  * como resposta legítima. Um cabeçalho "Citações" sobre o nada diria que algo
  * falhou.
  */
-function Citations({ citations }: { citations: Citation[] }) {
+function Citations({ citations, reducedMotion }: { citations: Citation[]; reducedMotion: boolean }) {
   if (citations.length === 0) {
     return null
   }
@@ -108,8 +128,16 @@ function Citations({ citations }: { citations: Citation[] }) {
 
   return (
     <ul aria-label="Trechos consultados para esta resposta" className="flex flex-wrap gap-2 pt-1">
-      {ordered.map((citation) => (
-        <li key={`${citation.page_number}-${citation.chunk_index}`}>
+      {ordered.map((citation, index) => (
+        <li
+          key={`${citation.page_number}-${citation.chunk_index}`}
+          // A entrada escalonada é o movimento que explica uma relação real:
+          // estes chips chegaram junto com aquela resposta. Sob movimento
+          // reduzido não há classe nem atraso — a regra do `index.css` alcança
+          // a duração, mas quem decide se a animação existe é este `if`.
+          className={reducedMotion ? undefined : 'animate-rise'}
+          style={reducedMotion ? undefined : { animationDelay: `${index * CHIP_STAGGER_MS}ms` }}
+        >
           <CitationChip citation={citation} />
         </li>
       ))}
@@ -135,6 +163,19 @@ type AssistantMessageProps = {
   truncated?: boolean
   /** Recusa é resposta legítima: marcação sutil, nunca aparência de erro. */
   refused?: boolean
+  /**
+   * A resposta ainda está chegando token a token.
+   *
+   * Enquanto está, o texto é impresso cru; o Markdown só entra quando a
+   * resposta fecha. O motivo é que Markdown em construção é Markdown
+   * **inválido** na maior parte do tempo — `**Estratég` antes do negrito
+   * fechar —, e reprocessar a string inteira a cada token faria o parágrafo
+   * refluir a cada frame. A lista mede `scrollHeight` para se manter no fim, e
+   * uma altura que oscila é uma lista que perde o fim.
+   */
+  streaming?: boolean
+  /** Vem de fora porque a lista já perguntou uma vez, para todas as mensagens. */
+  reducedMotion?: boolean
 }
 
 function AssistantMessage({
@@ -142,10 +183,15 @@ function AssistantMessage({
   citations,
   truncated = false,
   refused = false,
+  streaming = false,
+  reducedMotion = false,
 }: AssistantMessageProps) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-muted-foreground flex items-center gap-2 font-mono text-caption tracking-widest uppercase">
+      {/* `select-none` na linha inteira: "Resposta" é etiqueta de interface, e
+          o rótulo ao lado é para quem ouve. Nenhum dos dois é a resposta, e
+          nenhum dos dois deve entrar no `Ctrl+C` de quem copia uma. */}
+      <p className="text-muted-foreground flex items-center gap-2 font-mono text-caption tracking-widest uppercase select-none">
         <span aria-hidden="true">Resposta</span>
         <span className="sr-only">O TalkDoc respondeu:</span>
         {refused ? (
@@ -155,16 +201,20 @@ function AssistantMessage({
           </span>
         ) : null}
       </p>
-      <div className={cn('max-w-prose whitespace-pre-wrap', refused && 'text-muted-foreground')}>
-        {content}
-      </div>
+      {streaming ? (
+        <div className="max-w-prose whitespace-pre-wrap">{content}</div>
+      ) : (
+        <Markdown className={cn('max-w-prose', refused && 'text-muted-foreground')}>
+          {content}
+        </Markdown>
+      )}
       {truncated ? (
         <p className="text-warning flex items-center gap-1 text-caption">
           <TriangleAlertIcon className="size-3.5" aria-hidden="true" />
           Resposta interrompida antes do fim.
         </p>
       ) : null}
-      <Citations citations={citations} />
+      <Citations citations={citations} reducedMotion={reducedMotion} />
     </div>
   )
 }
@@ -211,6 +261,9 @@ export function MessageList({ messages, streaming = null, emptyState = null }: M
   // O que faz a lista crescer é uma mensagem nova ou mais um token: acompanhar
   // esses dois tamanhos evita reagir a render que não mudou nada na conversa.
   const containerRef = useStickToBottom(`${messages.length}:${streaming?.content.length ?? -1}`)
+  // Uma consulta à media query para a conversa inteira: cada mensagem abrindo a
+  // sua registraria um listener por item numa lista que só cresce.
+  const reducedMotion = useReducedMotion()
 
   return (
     <ScrollArea ref={containerRef} className="h-full">
@@ -223,7 +276,10 @@ export function MessageList({ messages, streaming = null, emptyState = null }: M
         aria-atomic="false"
       >
         {messages.map((message) => (
-          <li key={`${message.role}-${message.id}`}>
+          <li
+            key={`${message.role}-${message.id}`}
+            className={reducedMotion ? undefined : 'animate-rise'}
+          >
             {message.role === 'user' ? (
               <UserMessage content={message.content} />
             ) : (
@@ -232,6 +288,7 @@ export function MessageList({ messages, streaming = null, emptyState = null }: M
                 citations={message.citations}
                 truncated={message.truncated}
                 refused={isRefusal(message)}
+                reducedMotion={reducedMotion}
               />
             )}
           </li>
@@ -243,7 +300,12 @@ export function MessageList({ messages, streaming = null, emptyState = null }: M
           // mensagem pronta entra na lista acima.
           <li aria-live="off" aria-busy="true">
             {streaming.content ? (
-              <AssistantMessage content={streaming.content} citations={streaming.citations} />
+              <AssistantMessage
+                content={streaming.content}
+                citations={streaming.citations}
+                streaming
+                reducedMotion={reducedMotion}
+              />
             ) : (
               <ThinkingIndicator />
             )}
