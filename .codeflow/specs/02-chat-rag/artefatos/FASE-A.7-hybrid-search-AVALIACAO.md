@@ -67,7 +67,7 @@ Nenhum.
 - **AC-7 e FR-5 ficaram desatualizados, e a fase não registrou isso.** AC-7 diz
   "no máximo 5 chunks são considerados, **ordenados por score decrescente**". A
   metade "no máximo 5" continua valendo — conferi que
-  `reciprocal_rank_fusion(dense, lexical)[:limit]` corta (`repository.py:562`).
+  `reciprocal_rank_fusion(dense, lexical)[:limit]` corta (`repository.py:564`).
   A metade da ordenação **não**: a lista sai em ordem de fusão, com o score denso
   só como desempate. E tem de ser assim — reordenar por score denso apagaria a
   fusão, como o próprio código explica. É a mesma forma do caso FR-3 × AC-3 da
@@ -162,7 +162,7 @@ dependem da fusão. Quem prova a fiação é o teste que falhou.
 **Corte do top-k conferido no código, não no relatório:**
 
 ```text
-repository.py:562   return reciprocal_rank_fusion(dense, lexical)[:limit]
+repository.py:564   return reciprocal_rank_fusion(dense, lexical)[:limit]
 repository.py:560   dense = take_top_k(_to_chunks(rows), limit)
 ```
 
