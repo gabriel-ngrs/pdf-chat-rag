@@ -475,7 +475,7 @@ async def test_pergunta_invalida_e_recusada_com_422_antes_de_custar_qualquer_cha
         response = await perguntar(client, conversation_id, pergunta)
 
     assert response.status_code == 422, rotulo
-    assert response.json()["code"] == "arquivo_invalido"
+    assert response.json()["code"] == "entrada_invalida"
     assert response.json()["message"]
     assert chat_client.stream_calls == 0
     assert embedder.query_calls == []

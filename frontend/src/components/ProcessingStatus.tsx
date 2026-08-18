@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { CheckIcon, TriangleAlertIcon } from 'lucide-react'
 
@@ -118,6 +118,35 @@ function useMonotonicPercent(doc: DocumentDetail | null): number | null {
   return highest.current
 }
 
+function useEstimatedPercent(doc: DocumentDetail | null, percent: number | null): number | null {
+  const [estimated, setEstimated] = useState<number | null>(null)
+  const status = doc?.status
+  const chunksTotal = doc?.chunks_total
+
+  useEffect(() => {
+    if (
+      status !== 'processing' ||
+      chunksTotal == null ||
+      chunksTotal > 16 ||
+      percent !== 0
+    ) {
+      setEstimated(null)
+      return
+    }
+
+    const startedAt = Date.now()
+    const update = () => {
+      const elapsed = Date.now() - startedAt
+      setEstimated(Math.floor(95 * (1 - Math.exp(-elapsed / 700))))
+    }
+    update()
+    const timer = window.setInterval(update, 100)
+    return () => window.clearInterval(timer)
+  }, [chunksTotal, percent, status])
+
+  return estimated
+}
+
 /**
  * Acompanhamento do processamento.
  *
@@ -129,6 +158,7 @@ function useMonotonicPercent(doc: DocumentDetail | null): number | null {
 export function ProcessingStatus({ documentId, onReset, onReady }: ProcessingStatusProps) {
   const { document: doc, missing, loading } = useDocumentStatus(documentId)
   const percent = useMonotonicPercent(doc)
+  const estimatedPercent = useEstimatedPercent(doc, percent)
   const reducedMotion = useReducedMotion()
 
   useEffect(() => {
@@ -192,14 +222,20 @@ export function ProcessingStatus({ documentId, onReset, onReady }: ProcessingSta
           ) : (
             <div className="flex flex-col gap-2">
               <Progress
-                value={percent}
+                value={estimatedPercent ?? percent}
                 aria-label="Progresso da leitura do documento"
                 // `aria-valuenow` vem do primitivo. O `aria-valuetext` fica
                 // porque "8 de 12 trechos" diz mais a quem ouve do que "67%".
-                aria-valuetext={`${doc.chunks_processed} de ${doc.chunks_total} trechos`}
+                aria-valuetext={
+                  estimatedPercent === null
+                    ? `${doc.chunks_processed} de ${doc.chunks_total} trechos`
+                    : 'Progresso estimado enquanto a leitura é preparada'
+                }
               />
               <p className="text-muted-foreground tabular font-mono text-caption">
-                {doc.chunks_processed} de {doc.chunks_total} trechos · {percent}%
+                {estimatedPercent === null
+                  ? `${doc.chunks_processed} de ${doc.chunks_total} trechos · ${percent}%`
+                  : 'Preparando a leitura…'}
               </p>
             </div>
           )

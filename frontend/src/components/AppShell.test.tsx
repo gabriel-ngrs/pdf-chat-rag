@@ -56,4 +56,10 @@ describe('AppShell', () => {
     rerender(<AppShell background="grid">conteúdo</AppShell>)
     expect(container.querySelector('[aria-hidden="true"].fixed')).not.toBeNull()
   })
+
+  it('delimita a altura da casca para a conversa rolar dentro dela', () => {
+    const { container } = render(<AppShell>conteúdo</AppShell>)
+
+    expect(container.querySelector('.grid')?.className.split(' ')).toContain('h-dvh')
+  })
 })

@@ -26,6 +26,12 @@ def test_limite_de_upload_em_bytes() -> None:
     assert settings.max_upload_bytes == 25 * 1024 * 1024
 
 
+def test_timeout_de_condensacao_prioriza_o_fallback_rapido() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.condense_timeout_seconds == 2.0
+
+
 @pytest.mark.asyncio
 async def test_config_publica_os_tres_limites() -> None:
     app = create_app()

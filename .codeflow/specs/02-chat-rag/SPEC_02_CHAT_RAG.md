@@ -389,7 +389,7 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
 - **Passos:**
   1. `FakeChatClient` implementando `ChatClient`: streaming determinístico, condensação previsível, e modos configuráveis que levantam `429` **antes** e **depois** do primeiro token, além de um modo que registra o prompt recebido.
   2. `test_chat_api.py`: criar conversa → perguntar → tokens → citações → histórico; recusa verificando que `stream_answer` **não** foi chamado; pergunta de continuação verificando a query que chegou ao retrieval; fallback de condensação por timeout; erro pré e mid-stream; desconexão do cliente.
-  3. `test_chat_security.py`: (a) chunk com texto de injeção de prompt — verificar que fica dentro do bloco delimitado e que a instrução do sistema vem depois (AC-27); (b) nenhuma chave em log em qualquer caminho de erro do chat (AC-25); (c) `question` com aspas, `;` e `--` não afeta o SQL do retrieval; (d) pergunta vazia ou gigante é recusada com `arquivo_invalido`/`422`, não estoura.
+  3. `test_chat_security.py`: (a) chunk com texto de injeção de prompt — verificar que fica dentro do bloco delimitado e que a instrução do sistema vem depois (AC-27); (b) nenhuma chave em log em qualquer caminho de erro do chat (AC-25); (c) `question` com aspas, `;` e `--` não afeta o SQL do retrieval; (d) pergunta vazia ou gigante é recusada com `entrada_invalida`/`422`, não estoura.
   4. Verificar que a cobertura de `core/` continua ≥ 90% com os módulos novos (AC-28).
 - **Testes:** AC-1, AC-2, AC-5, AC-8, AC-10, AC-11, AC-12, AC-13, AC-15, AC-25, AC-27, AC-28.
 - **Escopo travado / violações BLOQUEANTES:** nenhuma chamada de rede real; nenhum `skip` para mascarar flakiness; **não asserir sobre texto gerado por LLM real**; não baixar o `--cov-fail-under`.

@@ -213,7 +213,7 @@ async def test_id_malformado_sai_no_envelope_de_validacao(
 
     assert response.status_code == 422
     assert set(response.json()) == {"code", "message"}
-    assert response.json()["code"] == "arquivo_invalido"
+    assert response.json()["code"] == "entrada_invalida"
 
 
 async def test_pdf_acima_do_limite_de_paginas_termina_failed(

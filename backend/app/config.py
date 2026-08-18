@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     # recebe: declará-los inteiros obrigaria o teste do prazo a esperar um
     # segundo inteiro para provar que ele existe.
     chat_timeout_seconds: float = 60.0
-    condense_timeout_seconds: float = 5.0
+    condense_timeout_seconds: float = 2.0
 
     postgres_user: str = "talkdoc"
     postgres_password: str = "talkdoc"

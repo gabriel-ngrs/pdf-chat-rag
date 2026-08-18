@@ -5,7 +5,7 @@ descoberto_em: 2026-08-18
 descoberto_por: segunda rodada do roteiro de ponta a ponta, automatizada com Playwright (bloco 6)
 severidade: média
 fase_dona: A.1 (foundation, dona de `errors.py`) — com efeito na B.2 (`lib/errors.ts`)
-status: aberto
+status: corrigido
 ---
 
 # BUG-007 — A recusa de pergunta longa fala de arquivo

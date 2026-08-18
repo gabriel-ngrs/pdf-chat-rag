@@ -39,9 +39,16 @@ class FileTooLargeError(AppError):
 
 
 class InvalidFileError(AppError):
-    """O arquivo não é um PDF, ou o payload da requisição é inválido."""
+    """O arquivo enviado não é um PDF válido."""
 
     code = "arquivo_invalido"
+    status_code = 422
+
+
+class InvalidInputError(AppError):
+    """O corpo ou os parâmetros da requisição não passam na validação."""
+
+    code = "entrada_invalida"
     status_code = 422
 
 
@@ -121,7 +128,7 @@ def error_body(code: str, message: str) -> dict[str, str]:
 _HTTP_ERROR_CODES = {
     404: NotFoundError.code,
     413: FileTooLargeError.code,
-    422: InvalidFileError.code,
+    422: InvalidInputError.code,
     429: RateLimitError.code,
 }
 
@@ -157,7 +164,7 @@ def register_error_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=422,
             content=error_body(
-                InvalidFileError.code,
+                InvalidInputError.code,
                 "Os dados enviados são inválidos. Confira o formulário e tente de novo.",
             ),
         )

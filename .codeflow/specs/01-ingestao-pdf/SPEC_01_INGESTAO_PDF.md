@@ -98,7 +98,7 @@ Itens 1–5 vêm de `.codeflow/constitution.md`, versionada neste repositório. 
 - **FR-15** — O sistema emite **log estruturado em JSON** com `timestamp`, `level`, `event`, `request_id` e o contexto do domínio (`document_id`, `chunk_count`, `duration_ms`). Cada etapa da ingestão emite um evento nomeado. Nenhum log contém chave de API, `DATABASE_URL` ou o conteúdo do PDF.
 - **FR-16** — A UI tem um **sistema de avisos** com três níveis (informação, sucesso, erro), um único componente responsável, e mensagem sempre acionável em pt-BR.
 - **FR-17** — A tela de upload permite selecionar ou arrastar um PDF, valida extensão e tamanho contra `GET /api/config` e mostra indicador de envio.
-- **FR-18** — A UI acompanha `GET /api/documents/{id}` e exibe o estado com progresso derivado de `chunks_processed / chunks_total`, até `ready` ou `failed`, sem recarregar.
+- **FR-18** — A UI acompanha `GET /api/documents/{id}` e exibe o estado com progresso derivado de `chunks_processed / chunks_total`, até `ready` ou `failed`, sem recarregar. Enquanto o total já existe mas o primeiro lote ainda não confirmou avanço, pode mostrar uma estimativa identificada como tal para a leitura não parecer travada.
 - **FR-19** — A interface é construída sobre um **design system** (shadcn/ui + tokens do projeto), com tema claro e escuro, tipografia e espaçamento definidos, e layout utilizável em tela estreita.
 
 ### Não-funcionais
@@ -186,7 +186,8 @@ Encontrados na revisão adversarial e **já corrigidos no repositório**. Nenhum
 | `code` | Status | Quando |
 |---|---|---|
 | `arquivo_grande` | 413 | `Content-Length` acima de `MAX_UPLOAD_MB` |
-| `arquivo_invalido` | 422 | assinatura não é `%PDF`, ou payload inválido |
+| `arquivo_invalido` | 422 | assinatura não é `%PDF` |
+| `entrada_invalida` | 422 | corpo ou parâmetro não passa na validação do framework |
 | `nao_encontrado` | 404 | documento inexistente |
 | `limite_de_uso` | 429 | quota do provedor |
 | `erro_interno` | 500 | qualquer outra |
@@ -296,7 +297,7 @@ Componentes previstos: `button`, `card`, `progress`, `scroll-area`, `separator`,
   3. **`logging_setup.py`** — configurar `structlog` conforme §4.4: processadores de timestamp ISO, nível, nome do evento, e renderer JSON. Expor `configure_logging()` chamado no lifespan e `get_logger()`. *Por quê structlog e não `logging` puro:* o binding de contexto (`log.bind(document_id=...)`) é o que faz a ingestão inteira aparecer num `grep` por `request_id` sem repetir o campo em cada chamada.
   4. **`api/middleware.py`** — middleware que gera `request_id` (UUID4), o injeta no contexto do structlog e o devolve no header `X-Request-Id`. *Por quê o header:* permite ao avaliador correlacionar o que viu na tela com a linha de log.
   5. **`core/models.py`** — **todas** as dataclasses puras que as fases seguintes usam: `PageText(page_number, text)`, `Chunk(chunk_index, page_number, content)`, `DocumentStatus` como `StrEnum`. *Por quê criar tudo agora:* na versão anterior deste plano, `A.2` e `A.3` disputavam este arquivo declarando-se independentes; criar completo aqui elimina a colisão.
-  6. **`errors.py`** — hierarquia `AppError(code, message, status)` com as subclasses de §4.3, mais handlers globais registrados no app: um para `AppError`, um para `RequestValidationError` (traduzindo para `arquivo_invalido`) e um para `Exception` (virando `erro_interno`, com o traceback no log e **não** na resposta).
+  6. **`errors.py`** — hierarquia `AppError(code, message, status)` com as subclasses de §4.3, mais handlers globais registrados no app: um para `AppError`, um para `RequestValidationError` (traduzindo para `entrada_invalida`) e um para `Exception` (virando `erro_interno`, com o traceback no log e **não** na resposta).
   7. **`adapters/db.py`** — pool `asyncpg` criado no lifespan **com retry e backoff por até ~30 s**. *Por quê:* o healthcheck pode passar poucos instantes antes de o Postgres aceitar conexão TCP; sem retry o uvicorn morre num `up` a frio.
   8. **Ainda no lifespan, duas verificações:** (a) comparar a dimensão real da coluna `chunks.embedding` (`SELECT atttypmod` em `pg_attribute`, ou `vector_dims`) com `EMBEDDING_DIM`, abortando com mensagem clara se divergir; (b) marcar `failed` todo documento preso em `pending`/`processing`, emitindo `document.orphan_swept`.
   9. **`main.py`** — app, lifespan, middleware, router montado com `prefix="/api"`, `GET /api/health` (com `SELECT 1`) e `GET /api/config`.

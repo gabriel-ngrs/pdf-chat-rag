@@ -7,6 +7,7 @@ import type { ErrorCode, NoticeSeverity } from '@/lib/errors'
 const CODIGOS_DA_SPEC = [
   'arquivo_grande',
   'arquivo_invalido',
+  'entrada_invalida',
   'nao_encontrado',
   'limite_de_uso',
   'erro_interno',
@@ -23,6 +24,7 @@ const CODIGOS_DA_SPEC = [
 const SEVERIDADE_ESPERADA: Record<ErrorCode, NoticeSeverity> = {
   arquivo_grande: 'error',
   arquivo_invalido: 'error',
+  entrada_invalida: 'error',
   nao_encontrado: 'error',
   limite_de_uso: 'error',
   erro_interno: 'error',
@@ -40,6 +42,13 @@ describe('describeError', () => {
 
     expect(action).toContain('diário')
     expect(action).not.toMatch(/cerca de um minuto/)
+  })
+
+  it('explica que uma pergunta longa precisa ser encurtada', () => {
+    const description = describeError('entrada_invalida')
+
+    expect(description.title).toMatch(/pergunta/i)
+    expect(description.action).toMatch(/2\.000 caracteres/)
   })
 
   it('descreve todos os códigos do envelope da spec', () => {

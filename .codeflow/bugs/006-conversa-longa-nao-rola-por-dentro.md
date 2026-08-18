@@ -5,7 +5,7 @@ descoberto_em: 2026-08-18
 descoberto_por: segunda rodada do roteiro de ponta a ponta, automatizada com Playwright (bloco 9)
 severidade: alta
 fase_dona: B.1 (design-system, dona do `AppShell`) — regressão introduzida em `df3ac95`
-status: aberto
+status: corrigido
 ---
 
 # BUG-006 — A conversa longa rola a página inteira, não a lista

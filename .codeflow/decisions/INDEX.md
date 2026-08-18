@@ -2,7 +2,7 @@
 versão: 1.0
 status: estável
 atualizado: 2026-08-18
-total_decisions: 5
+total_decisions: 6
 última_atualização: 2026-08-18
 ---
 
@@ -17,6 +17,7 @@ total_decisions: 5
 | 2026-08-17 | Quarta tentativa da fase `A.4`, restrita a uma constante              | execute-spec-phase | processo, execucao, gates, testes  | ativa  |
 | 2026-08-17 | Correções do lote `feat-0002-teste-ponta-a-ponta`                     | batch-bugfix | rag, retrieval, prompt, ui, entrega       | ativa  |
 | 2026-08-18 | Paleta da Yaitec, fundos das telas e o limite do movimento           | melhorias   | ui, design-system, motion, acessibilidade, dependencias, entrega | ativa  |
+| 2026-08-18 | Correções da segunda rodada do teste de ponta a ponta                    | batch-bugfix | ui, ingestao, chat, observabilidade, configuracao, entrega | ativa |
 
 ## Por tag
 
@@ -42,14 +43,19 @@ total_decisions: 5
 | prompt     | 2026-08-17 — Correções do lote `feat-0002-teste-ponta-a-ponta`        |
 | ui         | 2026-08-17 — Correções do lote `feat-0002-teste-ponta-a-ponta`        |
 |            | 2026-08-18 — Paleta da Yaitec, fundos das telas e o movimento          |
+|            | 2026-08-18 — Correções da segunda rodada do teste de ponta a ponta      |
 | design-system | 2026-08-18 — Paleta da Yaitec, fundos das telas e o movimento       |
 | motion     | 2026-08-18 — Paleta da Yaitec, fundos das telas e o movimento         |
 | acessibilidade | 2026-08-18 — Paleta da Yaitec, fundos das telas e o movimento     |
 | dependencias | 2026-08-18 — Paleta da Yaitec, fundos das telas e o movimento       |
+| ingestao   | 2026-08-18 — Correções da segunda rodada do teste de ponta a ponta      |
+| chat       | 2026-08-18 — Correções da segunda rodada do teste de ponta a ponta      |
+| observabilidade | 2026-08-18 — Correções da segunda rodada do teste de ponta a ponta |
+| configuracao | 2026-08-18 — Correções da segunda rodada do teste de ponta a ponta    |
 
 ## Estatísticas
 
-- Total: 5
-- Ativas: 5
+- Total: 6
+- Ativas: 6
 - Superseded: 0
 - Arquivadas: 0

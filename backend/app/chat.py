@@ -13,7 +13,7 @@ timeout de condensação, erro mid-stream e desconexão sem levantar servidor.
 
 import asyncio
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -77,7 +77,7 @@ async def stream_turn(
     chat_client: ChatClient,
     settings: Settings,
     is_disconnected: IsDisconnected,
-) -> AsyncIterator[ChatEvent]:
+) -> AsyncGenerator[ChatEvent, None]:
     """Executa o turno inteiro, emitindo os eventos na ordem do protocolo.
 
     A ordem das etapas não é arbitrária. A pergunta é persistida **antes** de
@@ -110,7 +110,7 @@ async def stream_turn(
             yield event
         return
 
-    async for event in _answer(
+    answer = _answer(
         conversation,
         question,
         context,
@@ -119,8 +119,12 @@ async def stream_turn(
         settings=settings,
         is_disconnected=is_disconnected,
         started=started,
-    ):
-        yield event
+    )
+    try:
+        async for event in answer:
+            yield event
+    finally:
+        await answer.aclose()
 
 
 async def _prepare(
@@ -268,7 +272,7 @@ async def _answer(
     settings: Settings,
     is_disconnected: IsDisconnected,
     started: float,
-) -> AsyncIterator[ChatEvent]:
+) -> AsyncGenerator[ChatEvent, None]:
     """Streama a resposta, persiste o que saiu e fecha com citações e `done`.
 
     `truncated` começa **verdadeiro** e só é desligado quando o laço chega ao
@@ -313,6 +317,13 @@ async def _answer(
         # é o que torna FR-12 determinístico: sair do laço por `break` não
         # encerra o gerador do adapter sozinho, e a conexão com o provedor
         # ficaria aberta por mais algumas voltas do loop.
+        logger.info(
+            "chat.generated",
+            conversation_id=str(conversation.id),
+            token_count=len(parts),
+            truncated=truncated,
+            duration_ms=_elapsed_ms(started),
+        )
         await _close_stream(stream)
         stored = await _persist_answer(
             conversation.id, repository, "".join(parts), citations, truncated
@@ -326,14 +337,6 @@ async def _answer(
             phase="pre_stream",
         )
         raise failure
-
-    logger.info(
-        "chat.generated",
-        conversation_id=str(conversation.id),
-        token_count=len(parts),
-        truncated=truncated,
-        duration_ms=_elapsed_ms(started),
-    )
 
     if failure is not None:
         logger.error(

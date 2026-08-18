@@ -579,6 +579,40 @@ async def test_repetir_pergunta_diferente_depois_da_falha_grava_as_duas(
 # ─── Desconexão do cliente ───────────────────────────────────────────────────
 
 
+async def test_cancelamento_do_gerador_registra_o_fecho_do_turno(
+    conversations: FakeConversationRepository,
+    embedder: FakeEmbeddingClient,
+    settings: Settings,
+    captured_logs: list[dict[str, Any]],
+) -> None:
+    """O cancelamento no `yield` ainda deixa um evento final rastreável."""
+    conversations.chunks = FUNDAMENTADOS
+    conversation_id = await conversations.create_conversation(uuid4(), None)
+    conversa = conversations.conversations[conversation_id]
+
+    async def is_disconnected() -> bool:
+        return False
+
+    turno = stream_turn(
+        conversa,
+        PERGUNTA,
+        repository=conversations,
+        embedder=embedder,
+        chat_client=FakeChatClient(pieces=("um ", "dois ")),
+        settings=settings,
+        is_disconnected=is_disconnected,
+    )
+
+    primeiro = await anext(turno)
+    await turno.aclose()
+
+    assert primeiro.name == "token"
+    geracoes = [item for item in captured_logs if item["event"] == "chat.generated"]
+    assert len(geracoes) == 1
+    assert geracoes[0]["conversation_id"] == str(conversation_id)
+    assert geracoes[0]["truncated"] is True
+
+
 async def test_desconexao_encerra_o_gerador_e_grava_a_resposta_parcial(
     conversations: FakeConversationRepository,
     embedder: FakeEmbeddingClient,

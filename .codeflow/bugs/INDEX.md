@@ -7,7 +7,7 @@ pré-condição registrada na spec.
 | rodada | quando | como | achados | estado |
 |---|---|---|---|---|
 | 1ª | 2026-08-17 | teste manual do owner | 001–005 | **corrigidos e verificados** |
-| 2ª | 2026-08-18 | roteiro automatizado com Playwright | 006–010 | **abertos** |
+| 2ª | 2026-08-18 | roteiro automatizado com Playwright | 006–010 | **corrigidos e verificados** |
 
 ---
 
@@ -61,7 +61,7 @@ A segunda rodada reexecutou os cenários dos cinco. Todos continuam corrigidos:
 
 ---
 
-## 2ª rodada — 2026-08-18 · aberta
+## 2ª rodada — 2026-08-18 · corrigida e verificada
 
 Roteiro de ponta a ponta executado com Playwright (Chromium headless, 1440×900)
 contra o stack em `docker compose` a partir de `down -v`. Cada item conferido em
@@ -70,11 +70,11 @@ Postgres. Relato completo em `RESULTADO-DO-TESTE.md`, na raiz.
 
 | # | Título | Severidade | Fase dona | Status |
 |---|--------|-----------|-----------|--------|
-| [006](006-conversa-longa-nao-rola-por-dentro.md) | Conversa longa para de rolar por dentro e empurra o campo de pergunta para fora da tela | **alta** | B.1 (regressão em `df3ac95`) | aberto |
-| [007](007-pergunta-longa-recebe-mensagem-de-pdf-invalido.md) | Pergunta acima de 2.000 caracteres volta como "arquivo não é um PDF válido" | média | A.1 + B.2 | aberto |
-| [008](008-barra-de-progresso-nao-avanca-no-pdf-de-exemplo.md) | Barra de progresso fica em 0% e some, no PDF da demonstração | média | A.4 (ingestão) | aberto |
-| [009](009-condensacao-estoura-o-timeout-e-custa-cinco-segundos.md) | Condensação estoura os 5 s e custa 5 segundos parados | baixa | A.2 | aberto |
-| [010](010-turno-interrompido-nao-deixa-evento-de-fecho-no-log.md) | Turno interrompido não deixa evento de fecho no log | baixa | A.4 (chat) | aberto |
+| [006](006-conversa-longa-nao-rola-por-dentro.md) | Conversa longa para de rolar por dentro e empurra o campo de pergunta para fora da tela | **alta** | B.1 (regressão em `df3ac95`) | corrigido |
+| [007](007-pergunta-longa-recebe-mensagem-de-pdf-invalido.md) | Pergunta acima de 2.000 caracteres volta como "arquivo não é um PDF válido" | média | A.1 + B.2 | corrigido |
+| [008](008-barra-de-progresso-nao-avanca-no-pdf-de-exemplo.md) | Barra de progresso fica em 0% e some, no PDF da demonstração | média | A.4 (ingestão) | corrigido |
+| [009](009-condensacao-estoura-o-timeout-e-custa-cinco-segundos.md) | Condensação estoura os 5 s e custa 5 segundos parados | baixa | A.2 | corrigido |
+| [010](010-turno-interrompido-nao-deixa-evento-de-fecho-no-log.md) | Turno interrompido não deixa evento de fecho no log | baixa | A.4 (chat) | corrigido |
 
 ### O que pesa
 

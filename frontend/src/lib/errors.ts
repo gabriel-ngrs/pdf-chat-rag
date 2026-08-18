@@ -26,6 +26,7 @@ export type ErrorDescription = {
 export const ERROR_CODES = [
   'arquivo_grande',
   'arquivo_invalido',
+  'entrada_invalida',
   'nao_encontrado',
   'limite_de_uso',
   'erro_interno',
@@ -47,6 +48,12 @@ const DESCRIPTIONS: Record<ErrorCode, ErrorDescription> = {
     title: 'Arquivo não é um PDF válido',
     message: 'O conteúdo enviado não abre como PDF.',
     action: 'Confira se o arquivo abre no seu leitor e envie de novo.',
+    severity: 'error',
+  },
+  entrada_invalida: {
+    title: 'Pergunta longa demais',
+    message: 'O servidor aceita perguntas de até 2.000 caracteres.',
+    action: 'Encurte a pergunta para até 2.000 caracteres e envie de novo.',
     severity: 'error',
   },
   nao_encontrado: {

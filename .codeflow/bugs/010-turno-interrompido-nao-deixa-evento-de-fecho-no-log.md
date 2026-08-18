@@ -5,7 +5,7 @@ descoberto_em: 2026-08-18
 descoberto_por: segunda rodada do roteiro de ponta a ponta, verificação dos logs (blocos 7 e 10)
 severidade: baixa
 fase_dona: A.4 (chat-endpoint, dona de `chat.py`)
-status: aberto
+status: corrigido
 ---
 
 # BUG-010 — O log mostra um turno que começa e nunca termina

@@ -5,7 +5,7 @@ descoberto_em: 2026-08-18
 descoberto_por: segunda rodada do roteiro de ponta a ponta, automatizada com Playwright (bloco 1)
 severidade: média
 fase_dona: A.4 (ingestion-pipeline) — configuração, não código
-status: aberto
+status: corrigido
 ---
 
 # BUG-008 — Progresso de 0% direto para o fim, no arquivo da demonstração

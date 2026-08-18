@@ -4,7 +4,7 @@ import httpx
 import pytest
 from fastapi import APIRouter
 
-from app.errors import FileTooLargeError, NotFoundError
+from app.errors import FileTooLargeError, InvalidInputError, NotFoundError
 from app.main import create_app
 
 
@@ -50,7 +50,7 @@ async def test_erro_de_validacao_do_framework_sai_no_envelope() -> None:
 
     assert response.status_code == 422
     assert set(response.json()) == {"code", "message"}
-    assert response.json()["code"] == "arquivo_invalido"
+    assert response.json()["code"] == "entrada_invalida"
 
 
 @pytest.mark.asyncio
@@ -67,6 +67,7 @@ async def test_erro_inesperado_nao_vaza_detalhe_interno() -> None:
 def test_cada_erro_de_dominio_tem_codigo_e_status_proprios() -> None:
     assert (NotFoundError.code, NotFoundError.status_code) == ("nao_encontrado", 404)
     assert (FileTooLargeError.code, FileTooLargeError.status_code) == ("arquivo_grande", 413)
+    assert (InvalidInputError.code, InvalidInputError.status_code) == ("entrada_invalida", 422)
 
 
 # ─── Regressão da avaliação da A.1 (I-1) ─────────────────────────────────────

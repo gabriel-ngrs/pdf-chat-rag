@@ -135,7 +135,7 @@ export function AppShell({ children, contentWidth = 'reading', background }: App
     <TooltipProvider>
       {background ? <AppBackground kind={background} /> : null}
 
-      <div className="grid min-h-dvh grid-rows-[auto_1fr_auto]">
+      <div className="grid h-dvh grid-rows-[auto_1fr_auto]">
         <a
           href="#main-content"
           className="bg-primary text-primary-foreground focus-visible:ring-ring sr-only rounded-md px-3 py-2 focus-visible:not-sr-only focus-visible:absolute focus-visible:top-2 focus-visible:left-2 focus-visible:z-50 focus-visible:ring-2"

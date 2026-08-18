@@ -5,7 +5,7 @@ descoberto_em: 2026-08-18
 descoberto_por: segunda rodada do roteiro de ponta a ponta, automatizada com Playwright (bloco 5)
 severidade: baixa
 fase_dona: A.2 (core-prompting, dona de `core/condensation.py`)
-status: aberto
+status: corrigido
 ---
 
 # BUG-009 — Cinco segundos de silêncio antes de uma resposta de uma linha
