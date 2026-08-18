@@ -37,6 +37,11 @@ lista dos chunks **recuperados acima do limiar** — que é um conjunto maior.
 
 Com `RETRIEVAL_TOP_K=5` e um documento pequeno, quase toda pergunta traz os cinco.
 
+**Agravante:** como o documento tem três páginas e vêm cinco chunks, os rótulos
+repetem — `página 1 · página 2 · página 2 · página 3 · página 3`. Dois chips
+dizem a mesma coisa e o usuário não tem como saber qual sustenta a afirmação.
+Ver também o [BUG-005](005-resposta-cita-trecho-n-que-nao-existe-na-interface.md).
+
 ## Por que passou pelos testes e pelas avaliações
 
 `test_chat_api.py::test_citacoes_trazem_pagina_trecho_indice_e_score` verifica a
