@@ -1,3 +1,5 @@
+import { useTheme } from 'next-themes'
+
 import { GradientWaves } from '@/components/backgrounds/GradientWaves'
 import { ShapeGrid } from '@/components/backgrounds/ShapeGrid'
 import { useTokenColors } from '@/hooks/useTokenColors'
@@ -19,10 +21,20 @@ export type BackgroundKind = 'waves' | 'grid'
  * névoa é o fundo da página, o corpo da onda é o azul da Yaitec, e a crista
  * brilha na cor do marca-texto.
  */
-const WAVE_TOKENS = ['--background', '--primary', '--highlight'] as const
+const WAVE_TOKENS = ['--wave-horizon', '--primary', '--highlight'] as const
 
 /** A malha da conversa é desenhada na mesma cor das bordas do sistema. */
 const GRID_TOKENS = ['--border'] as const
+
+/**
+ * Profundidade da névoa por tema.
+ *
+ * Não é ajuste fino: é o que decide quanto da tela o campo de ondas chega a
+ * pintar. Sobre tinta, 45 basta — o campo emerge do fundo e o horizonte se
+ * dissolve. Sobre papel, o mesmo valor deixava o terço de cima intocado e o
+ * fundo virava uma faixa azul no rodapé.
+ */
+const FOG_DEPTH = { dark: 45, light: 95 } as const
 
 /**
  * O fundo mora onde o texto não mora.
@@ -59,6 +71,7 @@ const READING_COLUMN_MASK =
  * mesmo quando o canvas está.
  */
 export function AppBackground({ kind }: { kind: BackgroundKind }) {
+  const { resolvedTheme } = useTheme()
   const waveColors = useTokenColors(kind === 'waves' ? WAVE_TOKENS : [])
   const gridColors = useTokenColors(kind === 'grid' ? GRID_TOKENS : [])
 
@@ -80,11 +93,12 @@ export function AppBackground({ kind }: { kind: BackgroundKind }) {
                leitura, mais o degrau real entre `--card` e `--background`. Com
                os dois no lugar, a intensidade pode subir sem que o fundo volte
                a desenhar borda de card. */
-            <div className="absolute inset-0 opacity-80 dark:opacity-90">
+            <div className="absolute inset-0 opacity-100">
               <GradientWaves
                 horizonColor={waveColors[0]}
                 waveColor={waveColors[1]}
                 crestColor={waveColors[2]}
+                fogDepth={resolvedTheme === 'light' ? FOG_DEPTH.light : FOG_DEPTH.dark}
               />
             </div>
           ) : null}
@@ -93,7 +107,7 @@ export function AppBackground({ kind }: { kind: BackgroundKind }) {
               direção do fundo da página, para o efeito parecer parte da tela em
               vez de um vídeo colado atrás dela. Mais denso no claro, onde o
               papel tem menos margem antes de o fundo virar figura. */}
-          <div className="bg-background/20 absolute inset-0" />
+          <div className="bg-background/8 dark:bg-background/20 absolute inset-0" />
         </div>
       ) : null}
 

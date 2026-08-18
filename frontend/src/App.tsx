@@ -43,7 +43,7 @@ const STEPS = [
   },
   {
     title: 'Pergunte',
-    description: 'A resposta cita a página — ou diz que não achou.',
+    description: 'A resposta cita a página, ou diz que não achou.',
     Icon: MessageCircleQuestionIcon,
   },
 ]
@@ -104,26 +104,25 @@ function HowItWorks() {
                 // Hover por superfície e borda, e não por sombra: o sistema tem
                 // uma sombra só, e ela é de elemento flutuante. `transition-colors`
                 // não toca em geometria, então a lista não se mexe.
-                className="border-border hover:bg-accent/40 relative flex items-center gap-3 px-4 py-3 transition-colors duration-150 not-last:border-b sm:flex-col sm:gap-1.5 sm:px-4 sm:text-center sm:not-last:border-r sm:not-last:border-b-0"
+                className="border-border hover:bg-accent/40 flex items-center gap-3 px-4 py-3 transition-colors duration-150 not-last:border-b sm:flex-col sm:gap-1.5 sm:px-4 sm:text-center sm:not-last:border-r sm:not-last:border-b-0"
               >
-                {/* O número mora no canto do card e o ícone fica centrado,
-                    como no mockup — grudado no ícone, o badge lia como parte
-                    do desenho em vez de ordem do passo. */}
-                <span
-                  aria-hidden="true"
-                  className="bg-primary text-primary-foreground tabular absolute top-2 left-2 flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] leading-none font-medium"
-                >
-                  {index + 1}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="border-border text-primary flex size-9 shrink-0 items-center justify-center rounded-full border"
-                >
-                  <step.Icon className="size-4" />
+                {/* Ícone e número formam uma peça só, e ela fica no mesmo eixo
+                    vertical do título e do texto. O número já morou no canto do
+                    card: media 0,5 px de desvio como todo o resto, mas era a
+                    única coisa fora do eixo, e um conjunto centrado com um
+                    elemento solto no canto lê como desalinhado mesmo quando não
+                    está. */}
+                <span className="relative shrink-0" aria-hidden="true">
+                  <span className="border-border text-primary flex size-9 items-center justify-center rounded-full border">
+                    <step.Icon className="size-4" />
+                  </span>
+                  <span className="bg-primary text-primary-foreground tabular ring-card absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full font-mono text-[0.5625rem] leading-none font-medium ring-2">
+                    {index + 1}
+                  </span>
                 </span>
                 <div className="flex flex-col gap-0.5">
                   <h3 className="text-body font-medium">{step.title}</h3>
-                  <p className="text-muted-foreground text-caption text-pretty">
+                  <p className="text-muted-foreground text-caption text-balance">
                     {step.description}
                   </p>
                 </div>

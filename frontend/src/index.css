@@ -86,6 +86,12 @@
      fundo — no escuro isso escurece o botão e funciona, no claro isso o clareia
      e derruba o texto branco para 2,6:1. Hover é estado, e estado é token. */
   --color-primary-hover: var(--primary-hover);
+  /* Névoa do campo de ondas (`AppBackground`). Existe como token próprio
+     porque no escuro ela É o fundo da página — o campo se dissolve na tinta e
+     some no horizonte, que é o efeito certo — e no claro ela não pode ser: com
+     a névoa cor-de-papel, dois terços da tela ficavam sem nada, e o fundo
+     inteiro se resumia a uma faixa azul no rodapé. */
+  --color-wave-horizon: var(--wave-horizon);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -234,6 +240,9 @@
      Dá 3,4:1 contra o branco do card, onde os dois controles vivem. */
   --input: oklch(0.63 0.011 55);
   --ring: oklch(0.55 0.11 250);
+  /* Névoa com azul de verdade: sobre papel quente ela precisa ser vista, não
+     dissolvida. */
+  --wave-horizon: oklch(0.88 0.045 252);
 
   --chart-1: oklch(0.55 0.11 250);
   --chart-2: oklch(0.71 0.079 249);
@@ -296,6 +305,9 @@
   --border: oklch(0.3 0.026 254);
   --input: oklch(0.34 0.026 254);
   --ring: oklch(0.71 0.079 249);
+  /* No escuro a névoa é o próprio fundo: o campo mergulha na tinta e o
+     horizonte desaparece, que é exatamente o que se quer ali. */
+  --wave-horizon: oklch(0.155 0.028 252);
 
   --chart-1: oklch(0.71 0.079 249);
   --chart-2: oklch(0.789 0.06 246);

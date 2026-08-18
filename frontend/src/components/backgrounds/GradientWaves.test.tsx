@@ -66,6 +66,7 @@ const COLORS = {
   horizonColor: [0.1, 0.1, 0.12] as const,
   waveColor: [0.48, 0.65, 0.82] as const,
   crestColor: [0.67, 0.8, 0.95] as const,
+  fogDepth: 45,
 }
 
 describe('GradientWaves', () => {

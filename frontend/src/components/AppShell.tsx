@@ -92,7 +92,7 @@ function Lockup() {
         href="https://yaitec.com"
         target="_blank"
         rel="noreferrer"
-        aria-label="por Yaitec — abrir o site em nova aba"
+        aria-label="por Yaitec, abre o site em nova aba"
         className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
       >
         <YaitecMark className="size-5" />

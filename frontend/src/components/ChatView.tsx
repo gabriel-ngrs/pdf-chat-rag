@@ -144,7 +144,7 @@ function ConversationStart({ onSelect }: { onSelect: (question: string) => void 
   return (
     <div className={cn('flex flex-col gap-3 pb-6', !reducedMotion && 'animate-rise')}>
       <p className="text-muted-foreground max-w-prose text-caption">
-        Pergunte o que quiser sobre o documento. Toda resposta vem com a página de onde saiu — ou
+        Pergunte o que quiser sobre o documento. Toda resposta vem com a página de onde saiu, ou
         com um “não encontrei isso aqui”.
       </p>
       <ul className="flex flex-wrap gap-2">

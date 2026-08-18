@@ -53,7 +53,6 @@ const TUNING = {
   tilt: 1.11,
   zoom: 1,
   height: 5.5,
-  fogDepth: 45,
   brightness: 1,
   opacity: 1,
   grainIntensity: 0.05,
@@ -179,6 +178,20 @@ type GradientWavesProps = {
   waveColor: Rgb
   /** Crista — o ponto mais alto, e o que carrega a cor da marca. */
   crestColor: Rgb
+  /**
+   * Até onde a névoa deixa o campo aparecer.
+   *
+   * É o que decide quanto da tela o fundo ocupa, e por isso é prop e não
+   * constante: o alfa de cada fragmento é `fogDepth / distância`, então perto
+   * do topo — onde o raio vai para o horizonte e a distância explode — o alfa
+   * cai a zero e o campo simplesmente não é pintado. Aumentar opacidade não
+   * alcança esse pedaço; aumentar a profundidade, sim.
+   *
+   * Sobre tinta, 45 já é o bastante: o campo emerge do fundo e o horizonte
+   * some, que é o efeito desejado. Sobre papel, o mesmo valor deixava dois
+   * terços da tela em branco.
+   */
+  fogDepth: number
   className?: string
 }
 
@@ -186,6 +199,7 @@ export function GradientWaves({
   horizonColor,
   waveColor,
   crestColor,
+  fogDepth,
   className,
 }: GradientWavesProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -238,7 +252,7 @@ export function GradientWaves({
         uTilt: { value: TUNING.tilt },
         uZoom: { value: TUNING.zoom },
         uHeight: { value: TUNING.height },
-        uFogDepth: { value: TUNING.fogDepth },
+        uFogDepth: { value: fogDepth },
         uSteps: { value: steps },
         uBrightness: { value: TUNING.brightness },
         uOpacity: { value: TUNING.opacity },
@@ -360,7 +374,7 @@ export function GradientWaves({
       container.removeChild(canvas)
       gl.getExtension('WEBGL_lose_context')?.loseContext()
     }
-  }, [horizonColor, waveColor, crestColor])
+  }, [horizonColor, waveColor, crestColor, fogDepth])
 
   return <div ref={containerRef} className={cn('relative size-full overflow-hidden', className)} />
 }
