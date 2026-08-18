@@ -144,7 +144,10 @@ export function AppShell({ children, contentWidth = 'reading', background }: App
           </div>
         </header>
 
-        <main id="main-content" className={cn(column, 'py-10 sm:py-14')}>
+        {/* `min-h-0` deixa o conteúdo encolher dentro da linha `1fr` do grid,
+            que é o que permite uma tela pedir `h-full` e ocupar exatamente o
+            que sobra — sem ninguém precisar saber de cor quanto a casca mede. */}
+        <main id="main-content" className={cn(column, 'min-h-0 py-6 sm:py-8')}>
           {children}
         </main>
 

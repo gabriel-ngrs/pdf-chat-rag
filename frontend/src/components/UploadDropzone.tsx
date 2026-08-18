@@ -79,7 +79,7 @@ export function UploadDropzone({ limits, onAccepted }: UploadDropzoneProps) {
 
   return (
     <Card ref={spotlight.ref} className={spotlight.className}>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-3">
         <div
           onDragOver={(event) => {
             event.preventDefault()
@@ -105,7 +105,7 @@ export function UploadDropzone({ limits, onAccepted }: UploadDropzoneProps) {
               // retângulo tracejado é o controle, e com `--border` ele saía a
               // 1,3:1 contra o branco do card — a principal affordance da tela
               // de entrada quase sem contorno.
-              'border-input flex cursor-pointer flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center transition-[color,background-color,border-color,transform] duration-150 ease-out',
+              'border-input flex cursor-pointer flex-col items-center gap-2.5 rounded-lg border border-dashed px-6 py-7 text-center transition-[color,background-color,border-color,transform] duration-150 ease-out',
               'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-3',
               draggingOver && 'border-ring bg-accent scale-[1.01]',
               sending && 'pointer-events-none opacity-60',

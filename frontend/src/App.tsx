@@ -17,19 +17,30 @@ import { cn } from '@/lib/utils'
 /** O documento em acompanhamento sobrevive a um recarregamento da página. */
 const DOCUMENT_STORAGE_KEY = 'talkdoc:document-id'
 
+/**
+ * Os três passos, em uma linha de três colunas.
+ *
+ * Empilhados eles custavam 292 px — o maior bloco da tela de entrada, para
+ * dizer o que a interface logo abaixo já demonstra. A descrição encolheu junto
+ * com a largura: em coluna de ~200 px, a frase de antes ocupava cinco linhas.
+ *
+ * O que foi cortado é o que o rodapé já diz com as mesmas palavras ("fica nesta
+ * sessão do navegador", "toda resposta cita a página"). O que ficou é o que não
+ * está em nenhum outro lugar da tela: que a leitura leva alguns segundos, e que
+ * "não achei" é uma resposta possível.
+ */
 const STEPS = [
   {
     title: 'Envie o PDF',
-    description: 'Nada sai da sua sessão neste navegador.',
+    description: 'Fica só nesta sessão do navegador.',
   },
   {
-    title: 'Acompanhe a leitura',
-    description:
-      'O documento é lido página a página e transformado em trechos consultáveis. Isso leva alguns segundos.',
+    title: 'Aguarde a leitura',
+    description: 'Alguns segundos para virar trechos consultáveis.',
   },
   {
     title: 'Pergunte',
-    description: 'A resposta vem com a página de onde foi tirada — ou com um "não encontrei".',
+    description: 'A resposta cita a página — ou diz que não achou.',
   },
 ]
 
@@ -66,7 +77,7 @@ function useAppConfig(): ConfigState {
 
 function HowItWorks() {
   return (
-    <section className="flex flex-col gap-4" aria-labelledby="como-funciona">
+    <section className="flex flex-col gap-3" aria-labelledby="como-funciona">
       <h2
         id="como-funciona"
         className="text-muted-foreground font-mono text-caption tracking-widest uppercase"
@@ -75,14 +86,17 @@ function HowItWorks() {
       </h2>
       <Card className="py-0">
         <CardContent className="px-0">
-          <ol>
+          {/* Empilhado abaixo de `sm`, onde três colunas dariam ~110 px cada e
+              a descrição quebraria a cada duas palavras. O divisor acompanha:
+              horizontal quando é lista, vertical quando é linha. */}
+          <ol className="grid sm:grid-cols-3">
             {STEPS.map((step, index) => (
               <li
                 key={step.title}
                 // Hover por superfície e borda, e não por sombra: o sistema tem
                 // uma sombra só, e ela é de elemento flutuante. `transition-colors`
                 // não toca em geometria, então a lista não se mexe.
-                className="border-border hover:bg-accent/40 flex items-start gap-4 px-4 py-4 transition-colors duration-150 not-last:border-b sm:px-6"
+                className="border-border hover:bg-accent/40 flex items-start gap-3 px-4 py-3.5 transition-colors duration-150 not-last:border-b sm:px-5 sm:not-last:border-r sm:not-last:border-b-0"
               >
                 <span
                   className="text-muted-foreground tabular pt-0.5 font-mono text-caption"
@@ -90,7 +104,7 @@ function HowItWorks() {
                 >
                   {String(index + 1).padStart(2, '0')}
                 </span>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-0.5">
                   <h3 className="text-body font-medium">{step.title}</h3>
                   <p className="text-muted-foreground text-caption">{step.description}</p>
                 </div>
@@ -146,14 +160,14 @@ function TalkDoc() {
 
   return (
     <AppShell background="waves">
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-6 sm:gap-8">
         {/* A abertura ganhou superfície própria na MELH-002. Sobre o campo de
             ondas, texto solto ficaria sobre uma cor que muda a cada frame — e
             contraste medido uma vez ali não valeria para o frame seguinte. O
             card é opaco por isso, e não por estilo. */}
         <section
           className={cn(
-            'border-border bg-card flex flex-col gap-4 rounded-xl border p-6 sm:p-8',
+            'border-border bg-card flex flex-col gap-3 rounded-xl border p-5 sm:p-6',
             !reducedMotion && 'animate-rise',
           )}
         >

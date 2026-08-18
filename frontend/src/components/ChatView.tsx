@@ -219,10 +219,13 @@ export function ChatView({ document, onReset }: ChatViewProps) {
   }, [failure, notify, ask])
 
   return (
-    // 14rem é o que a casca ocupa fora do conteúdo (cabeçalho, respiro vertical
-    // do `main` e rodapé). É valor calculado, não escolhido: sem ele a lista
-    // cresceria para além da tela e o campo de pergunta iria junto.
-    <div className="flex h-[calc(100dvh-14rem)] min-h-96 flex-col gap-4">
+    // `h-full` em vez do `calc(100dvh - 14rem)` que estava aqui. Aquele 14rem
+    // era a soma medida do cabeçalho, do respiro do `main` e do rodapé — um
+    // número correto no dia em que foi escrito e errado no dia seguinte, porque
+    // mudar o respiro do `main` (que é do `AppShell`) descolava a conta sem
+    // avisar ninguém. O `main` é a linha `1fr` do grid da casca, então pedir a
+    // altura dele resolve a mesma coisa e continua certo quando a casca muda.
+    <div className="flex h-full min-h-96 flex-col gap-4">
       <DocumentHeader document={document} onReset={onReset} />
 
       <div className="min-h-0 flex-1">
