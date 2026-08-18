@@ -35,3 +35,29 @@ CREATE INDEX ON conversations (document_id);
 -- O histórico é sempre lido por conversa e em ordem cronológica; o índice
 -- composto resolve filtro e ordenação de uma vez só.
 CREATE INDEX ON messages (conversation_id, created_at);
+
+-- ─── Busca lexical, para a fusão híbrida ─────────────────────────────────────
+--
+-- A busca densa **borra termo exato**: um e-mail, um telefone ou um nome
+-- próprio ficam a milésimos de distância de qualquer outro trecho do mesmo
+-- assunto — foi medido no eval da fase A.5, onde a página do e-mail de contato
+-- ganhou a primeira posição por 0,001. Quem procura "contato@yaitec.com" não
+-- quer o trecho semanticamente parecido; quer aquele token.
+--
+-- A coluna é `GENERATED ALWAYS AS ... STORED` e não um gatilho: o Postgres
+-- mantém o vetor em dia sozinho, e não existe caminho de escrita que possa
+-- esquecer de atualizá-lo. Fica em `chunks`, criada em `001`, por `ALTER TABLE`
+-- — que aqui é seguro porque este arquivo roda uma vez só, em banco vazio,
+-- logo depois de `001`, e a coluna nasce junto com a tabela na prática.
+--
+-- A config `portuguese` vem de fábrica na imagem `pgvector/pgvector:pg16`: ela
+-- aplica stemming e remove stopwords do português, o que é o que faz
+-- "serviços" casar com "serviço" sem casar com "e" ou "de".
+ALTER TABLE chunks
+    ADD COLUMN tsv tsvector
+    GENERATED ALWAYS AS (to_tsvector('portuguese', content)) STORED;
+
+-- GIN e não GiST: o índice é lido muito mais do que escrito (uma ingestão por
+-- documento, uma busca por pergunta), que é exatamente o regime em que o GIN
+-- ganha.
+CREATE INDEX ON chunks USING gin (tsv);

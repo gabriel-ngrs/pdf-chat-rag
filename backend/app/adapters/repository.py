@@ -16,7 +16,7 @@ from uuid import UUID
 
 from app.adapters.db import Database
 from app.core.models import Chunk, Citation, DocumentStatus, Message, MessageRole, RetrievedChunk
-from app.core.retrieval import similarity_from_distance
+from app.core.retrieval import reciprocal_rank_fusion, similarity_from_distance, take_top_k
 from app.errors import InternalError
 
 _CREATE_SQL = """
@@ -142,6 +142,29 @@ _SEARCH_CHUNKS_SQL = """
 # GUC não aceita placeholder, e nada aqui vem de entrada externa.
 _ITERATIVE_SCAN_SQL = "SET LOCAL hnsw.iterative_scan = relaxed_order"
 
+# A busca lexical devolve a **distância de cosseno junto**, e não só o rank
+# textual. Sem isso, um chunk que só a via lexical encontrou chegaria à fusão
+# sem score de similaridade, e o limiar de fundamentação — que é medido em
+# cosseno e calibrado contra uma distribuição de cossenos (fase A.5) — não teria
+# o que comparar. Calcular a distância nas mesmas linhas que já foram lidas
+# custa uma operação por linha e mantém a regra do limiar intacta.
+#
+# `plainto_tsquery` e não `to_tsquery`: a pergunta vem digitada por gente, e o
+# `to_tsquery` exige sintaxe de operadores — um `?` ou um espaço no lugar errado
+# viraria erro de sintaxe do Postgres em vez de busca.
+#
+# `ts_rank_cd` e não `ts_rank`: o `_cd` leva em conta a **proximidade** entre os
+# termos encontrados, o que num chunk curto separa "e-mail de contato" de duas
+# palavras que aparecem em pontas opostas do trecho.
+_SEARCH_CHUNKS_LEXICAL_SQL = """
+    SELECT chunk_index, page_number, content, embedding <=> $3::vector AS distance
+      FROM chunks
+     WHERE document_id = $1
+       AND tsv @@ plainto_tsquery('portuguese', $2)
+     ORDER BY ts_rank_cd(tsv, plainto_tsquery('portuguese', $2)) DESC
+     LIMIT $4
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class DocumentRecord:
@@ -231,7 +254,7 @@ class ConversationRepository(Protocol):
     async def list_messages(self, conversation_id: UUID) -> list[Message]: ...
 
     async def search_chunks(
-        self, document_id: UUID, embedding: list[float], limit: int
+        self, document_id: UUID, embedding: list[float], limit: int, query: str | None = None
     ) -> list[RetrievedChunk]: ...
 
 
@@ -498,9 +521,20 @@ class PostgresConversationRepository:
         return [_to_message(row) for row in rows]
 
     async def search_chunks(
-        self, document_id: UUID, embedding: list[float], limit: int
+        self, document_id: UUID, embedding: list[float], limit: int, query: str | None = None
     ) -> list[RetrievedChunk]:
-        """Recupera os `limit` chunks mais próximos da pergunta, só deste documento.
+        """Recupera os `limit` chunks que melhor respondem à pergunta, deste documento.
+
+        Com `query`, a busca é **híbrida**: a densa e a lexical rodam e são
+        fundidas por RRF. Sem ela, só a densa — e é esse default que permite ao
+        eval medir os dois modos pelo mesmo caminho de código, isolando o efeito
+        da fusão de qualquer outra variável.
+
+        A fusão **não substitui** a busca densa; ela acrescenta uma segunda via
+        para o que a densa borra. Num corpus pequeno a similaridade de cosseno
+        não distingue bem termo exato — e-mail, telefone, nome próprio —, e foi
+        medido na fase A.5 que a página do e-mail de contato ganhava a primeira
+        posição por 0,001.
 
         O `document_id` não é parâmetro opcional nem filtro aplicado depois: ele
         entra no `WHERE` da própria busca, para que um chunk de outro PDF não
@@ -523,15 +557,46 @@ class PostgresConversationRepository:
             rows = await connection.fetch(
                 _SEARCH_CHUNKS_SQL, document_id, vector_literal(embedding), limit
             )
-        return [
-            RetrievedChunk(
-                chunk_index=row["chunk_index"],
-                page_number=row["page_number"],
-                content=row["content"],
-                score=similarity_from_distance(float(row["distance"])),
-            )
-            for row in rows
-        ]
+        dense = take_top_k(_to_chunks(rows), limit)
+        if query is None:
+            return dense
+        lexical = await self.search_chunks_lexical(document_id, query, limit, embedding)
+        return reciprocal_rank_fusion(dense, lexical)[:limit]
+
+    async def search_chunks_lexical(
+        self, document_id: UUID, query: str, limit: int, embedding: list[float]
+    ) -> list[RetrievedChunk]:
+        """Recupera por termo exato, ordenando por `ts_rank_cd`, só deste documento.
+
+        Existe para o tipo de pergunta que a busca densa erra por construção:
+        "qual o e-mail de contato?" tem resposta num token literal, e o vetor de
+        um trecho que **contém** aquele token é quase idêntico ao de um trecho
+        que fala do mesmo assunto sem ele.
+
+        Devolve **também** a similaridade de cosseno de cada linha, e não só o
+        rank textual. O motivo está na constante do SQL: a fusão precisa
+        entregar chunks com score denso para que o limiar de fundamentação
+        continue comparando cossenos com cossenos.
+
+        Pergunta que não casa com termo nenhum devolve lista vazia, e a fusão
+        simplesmente fica com a densa — nenhum caminho especial é preciso.
+        """
+        rows = await self._database.pool.fetch(
+            _SEARCH_CHUNKS_LEXICAL_SQL, document_id, query, vector_literal(embedding), limit
+        )
+        return _to_chunks(rows)
+
+
+def _to_chunks(rows: list[Any]) -> list[RetrievedChunk]:
+    return [
+        RetrievedChunk(
+            chunk_index=row["chunk_index"],
+            page_number=row["page_number"],
+            content=row["content"],
+            score=similarity_from_distance(float(row["distance"])),
+        )
+        for row in rows
+    ]
 
 
 def _to_message(row: Any) -> Message:

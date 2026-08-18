@@ -418,6 +418,7 @@ async def run_retrievals(
     embedder: EmbeddingClient,
     document_id: UUID,
     limit: int,
+    hybrid: bool = False,
 ) -> list[ItemResult]:
     """Embeda cada query uma vez e busca os chunks correspondentes.
 
@@ -437,7 +438,15 @@ async def run_retrievals(
             # trecho que na API seria um travamento.
             vector = await asyncio.to_thread(embedder.embed_query, text)
             vectors[text] = vector
-        return tuple(await repository.search_chunks(document_id, vector, limit))
+        # `query` só é passada no modo híbrido: sem ela o repositório faz a
+        # busca densa pura, que é a baseline. É o mesmo caminho de código nos
+        # dois modos — o que isola o efeito da fusão de qualquer outra
+        # variável, inclusive de uma reingestão diferente.
+        return tuple(
+            await repository.search_chunks(
+                document_id, vector, limit, text if hybrid else None
+            )
+        )
 
     results: list[ItemResult] = []
     for item in items:
@@ -792,6 +801,12 @@ def parse_args(argv: Sequence[str], settings: Settings) -> argparse.Namespace:
         help="Quantos chunks considerar por pergunta (default: RETRIEVAL_TOP_K).",
     )
     parser.add_argument(
+        "--hybrid",
+        action="store_true",
+        help="Funde a busca densa com a lexical por RRF (fase A.7). Sem esta flag, "
+        "a busca é só densa — que é a baseline contra a qual o delta é medido.",
+    )
+    parser.add_argument(
         "--dataset",
         type=Path,
         default=DEFAULT_DATASET,
@@ -824,6 +839,7 @@ async def run(argv: Sequence[str]) -> int:
     settings = load_settings()
     args = parse_args(argv, settings)
     document_id = UUID(str(args.document_id))
+    hybrid = bool(args.hybrid)
     top_k = int(args.top_k)
     threshold = float(args.threshold)
     items = load_dataset(Path(args.dataset))
@@ -845,7 +861,7 @@ async def run(argv: Sequence[str]) -> int:
         # `RETRIEVAL_TOP_K` menor que 3 — a métrica do gate não pode depender de
         # uma variável de ambiente que alguém baixou por outro motivo.
         results = await run_retrievals(
-            items, repository, embedder, document_id, max(top_k, GATE_RECALL_K)
+            items, repository, embedder, document_id, max(top_k, GATE_RECALL_K), hybrid
         )
     finally:
         await database.close()
