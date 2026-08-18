@@ -15,8 +15,10 @@ schema_version: 1.0
 - `decisions/INDEX.md` — índice navegável de decisões. Filtrar por tag relevante antes de carregar decisions individuais.
 - `specs/` — specs de feature e relatórios de fase, gerados por `/create-spec` e pelos workflows de execução.
 - `melhorias/INDEX.md` — pedidos de melhoria do owner (legibilidade, identidade visual, motion). Numerados, um documento por melhoria.
-- `bugs/INDEX.md` — índice dos defeitos encontrados no teste de ponta a ponta. Os cinco estão
-  corrigidos e verificados; o índice guarda o relato de cada um, que é onde a causa raiz está escrita.
+- `bugs/INDEX.md` — índice dos defeitos encontrados nas duas rodadas do teste de ponta a ponta.
+  Os cinco da 1ª rodada (`001`–`005`) estão corrigidos e verificados; os cinco da 2ª (`006`–`010`,
+  roteiro automatizado com Playwright) estão **abertos**. O índice guarda o relato de cada um, que
+  é onde a causa raiz está escrita.
 - `bug-batches/<slug>.md` — ledger de um lote de bugs: status por bug, o que reproduz cada um, o fix
   ancorado em `arquivo:linha` e o veredito do `/double-check`. Gerado por `/batch-bugfix`.
 

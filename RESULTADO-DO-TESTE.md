@@ -317,13 +317,21 @@ Uma lacuna, pequena mas real:
 
 Nada disso se conserta dentro da `B.5`. Como está registrado na spec:
 
+Os cinco estão registrados em `.codeflow/bugs/`, com causa raiz, reprodução e
+correção sugerida em cada um. Índice em `.codeflow/bugs/INDEX.md`.
+
 | # | O quê | Onde | Peso |
 |---|---|---|---|
-| 1 | Conversa longa não rola por dentro; campo de pergunta sai da tela | `AppShell.tsx:138` | **alto** — aparece em qualquer demonstração que passe de ~8 mensagens |
-| 2 | `422` de pergunta longa vira mensagem sobre PDF | `errors.py:122` + `lib/errors.ts` | médio |
-| 3 | Barra de progresso não avança no PDF de exemplo | `EMBEDDING_BATCH_SIZE` / `ingestion.py:141` | médio — é o arquivo da demo |
-| 4 | Turno interrompido sem evento de fecho no log | `chat.py:296-317` | baixo |
-| 5 | Chips de citação quase constantes (TOP_K=5 sobre 10 chunks) | retrieval / limiar | baixo — é decisão de produto, não defeito |
+| [BUG-006](.codeflow/bugs/006-conversa-longa-nao-rola-por-dentro.md) | Conversa longa não rola por dentro; campo de pergunta sai da tela | `AppShell.tsx:138` | **alto** — aparece em qualquer demonstração que passe de ~8 mensagens |
+| [BUG-007](.codeflow/bugs/007-pergunta-longa-recebe-mensagem-de-pdf-invalido.md) | `422` de pergunta longa vira mensagem sobre PDF | `errors.py:122` + `lib/errors.ts` | médio |
+| [BUG-008](.codeflow/bugs/008-barra-de-progresso-nao-avanca-no-pdf-de-exemplo.md) | Barra de progresso não avança no PDF de exemplo | `EMBEDDING_BATCH_SIZE` / `ingestion.py:141` | médio — é o arquivo da demo |
+| [BUG-009](.codeflow/bugs/009-condensacao-estoura-o-timeout-e-custa-cinco-segundos.md) | Condensação estoura os 5 s e custa 5 segundos parados | `CONDENSE_TIMEOUT_SECONDS` | baixo |
+| [BUG-010](.codeflow/bugs/010-turno-interrompido-nao-deixa-evento-de-fecho-no-log.md) | Turno interrompido sem evento de fecho no log | `chat.py:296-317` | baixo |
 
-Os itens 1 e 2 são `/bugfix`. O 3 e o 5 são rework da fase dona (ou decisão
-consciente registrada no README). O 4 é observabilidade e pode esperar.
+O BUG-006 e o BUG-007 são `/bugfix`. O 008 e o 009 são configuração mais decisão
+do owner. O 010 é observabilidade e pode esperar — mas vale antes da entrega,
+porque o log é parte do que um avaliador olha.
+
+**Os chips de citação quase constantes não viraram bug**: são o resíduo aceito do
+`BUG-003`, cujo caminho escolhido foi renomear para "trechos consultados" em vez
+de filtrar pelos usados. Fica como frase no README, não como fix.
