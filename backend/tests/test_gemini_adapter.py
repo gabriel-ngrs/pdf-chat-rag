@@ -51,6 +51,17 @@ FAKE_KEY = "AIzaSyD-fake-key-para-teste-0123456789"
 # cliente deveria aplicar, e bem abaixo da paciência de quem roda a suíte.
 GUARDA_SEGUNDOS = 5.0
 
+# Prazo curto usado para provocar o estouro — folgado de propósito.
+#
+# Com 0,05 s o teste ficava intermitente, e o motivo não era corrida na
+# asserção: numa máquina carregada o orçamento acabava **antes da primeira
+# leitura**, o `wait_for` cancelava sem nunca iniciar o corpo do gerador, e um
+# gerador que não começou não tem `finally` para rodar — `closed` ficava falso
+# por comportamento correto. Medido: 17 falhas em 30 com a CPU ocupada e 0 em 40
+# ociosa; com 0,5 s, 0 em 25 sob a mesma carga. Meio segundo é o que separa
+# "o provedor emudeceu" de "a máquina engasgou".
+PRAZO_CURTO_SEGUNDOS = 0.5
+
 
 class FakeModels:
     """Transporte falso: registra cada chamada e devolve vetores previsíveis.
@@ -676,7 +687,9 @@ async def test_provedor_que_emudece_no_meio_do_stream_estoura_o_prazo_do_turno()
         # A rede de segurança de fora existe para o modo de falha: sem o prazo
         # dentro do laço, este teste **travaria para sempre** em vez de falhar,
         # e uma suíte pendurada é pior que uma suíte vermelha.
-        await asyncio.wait_for(coletar(build_chat_client(models, timeout=0.05)), GUARDA_SEGUNDOS)
+        await asyncio.wait_for(
+            coletar(build_chat_client(models, timeout=PRAZO_CURTO_SEGUNDOS)), GUARDA_SEGUNDOS
+        )
 
     assert models.models_pedidos == ["modelo-de-teste"], "o stream nem chegou a ser aberto"
     assert models.closed is True, "o iterador do provedor ficou aberto após o estouro"
