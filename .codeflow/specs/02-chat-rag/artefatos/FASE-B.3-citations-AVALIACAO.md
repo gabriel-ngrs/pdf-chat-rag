@@ -2,64 +2,69 @@
 spec: 02-chat-rag
 fase: B.3
 slug_fase: citations
-tentativa: 1
-veredito: REPROVADO
-score: 9.4
+tentativa: 2
+veredito: APROVADO
+score: 9.7
 threshold: 8.5
-range_avaliado: 199ce9f..3d10f34
+range_avaliado: 199ce9f..e696ab7
 ---
 
-# FASE B.3 — Avaliação independente
+# FASE B.3 — Avaliação independente (tentativa 2)
 
 ## 1. Veredito e score
 
-**Veredito:** REPROVADO · **Score:** 9.4 / threshold 8.5
+**Veredito:** APROVADO · **Score:** 9.7 / threshold 8.5
 
-O melhor score do track: zero desvio de arquivo, escopo travado inteiro provado
-por teste, e a única dúvida que o próprio executor levantou (contraste do chip
-marcado) eu **medi e ela passa com folga** — 10,68:1 no tema claro e 8,92:1 no
-escuro, contra os 4,5:1 exigidos.
+O gate desta fase é o mais caro de falsificar e o mais fácil de conferir: a
+página que o chip declara tem de ser a página de onde o trecho saiu. **Refiz a
+verificação eu mesma, com uma consulta ao banco do compose que junta cada
+citação ao chunk de origem — cinco de cinco batem.** Zero BLOQUEANTES, zero
+IMPORTANTES.
 
-Reprova por **um BLOQUEANTE**: o critério de conclusão — *"citações reais de uma
-pergunta sobre o `Exemplo-YAITEC.pdf` exibidas"* — não foi cumprido.
+> **Nota sobre `range_avaliado`:** o EXECUCAO declara `199ce9f..3d10f34`, a ponta
+> da tentativa 1. Auditei o span real. Ver S-1 na `B.1`.
 
 ## 2. Scorecard
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 3 | AC-18 provado (`CitationChip.test.tsx:19` — `userEvent.tab()` põe o foco no chip, `{Enter}` abre o diálogo com página e trecho); AC-19 parte da B.3 (`MessageList.test.tsx:83` — sem citação, nem chip nem lista rotulada). Escopo travado: snippet não recortado no cliente (teste com 241 chars, `CitationChip.test.tsx:33`), nada fabricado (`CitationChip.tsx:34-67` só lê o que recebe), cor fora de token → grep 0. **Gate com citação real não cumprido** (§3) |
-| 2 | Arquitetura e direção de dependências | 3 | 5 | Componente de apresentação puro, sem estado próprio nem I/O; `MessageList` compõe, não conhece o chip por dentro |
-| 3 | Segurança / LGPD | 3 | 5 | Só renderiza o que veio no evento; o React escapa o `snippet`, que é conteúdo de PDF de terceiro (`CitationChip.tsx:59`); nenhum segredo no diff |
-| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `Badge` e `Dialog` do design system sobre Radix — foco, `Esc` e devolução de foco não foram reimplementados; tipo `Citation` é o da B.1; zero dependência nova |
-| 5 | Padrões de domínio/aplicação | 2 | 5 | Similaridade com vírgula decimal, como se escreve em pt-BR (`CitationChip.tsx:16`); `aria-label` descritivo em pt-BR; identificadores em inglês |
-| 6 | Local e nomes dos arquivos | 2 | 5 | Exatamente a lista da §5: `CitationChip.tsx` novo, `MessageList.tsx` alterado. **Zero desvio** — a única fase do track nessa situação |
-| 7 | Qualidade de código | 2 | 5 | 68 linhas, uma responsabilidade, ordenação estável sem mutar a entrada (`MessageList.tsx:87-90`, `[...citations].sort`) |
-| 8 | Testes e cobertura | 2 | 5 | 6 testes novos cobrindo teclado, integridade do trecho, discrição do score e ausência da área; asserções sobre comportamento, não sobre implementação |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 4 | Gate fechado e reconferido por mim (§3): 5 citações reais, página correta em todas, `snippet` entre 227 e 238 chars exibido inteiro, `Tab`→`Enter`→`Esc` com devolução de foco. Escopo travado: nada recortado no cliente, nada fabricado (agora nem `chunk_index`/`score` têm default), cor fora de token → 0. Desconto por A-1 (§5): dois chips da mesma página têm nome acessível idêntico |
+| 2 | Arquitetura e direção de dependências | 3 | 5 | Componente de apresentação puro, sem estado nem I/O; `MessageList` compõe |
+| 3 | Segurança / LGPD | 3 | 5 | Só renderiza o que veio no evento; o React escapa o `snippet`, que é conteúdo de PDF de terceiro; grep de segredo → 0 |
+| 4 | Reusar/espelhar, não duplicar | 3 | 5 | `Badge` e `Dialog` do design system sobre Radix — foco, `Esc` e devolução de foco não foram reimplementados, e o gate provou que funcionam |
+| 5 | Padrões de domínio/aplicação | 2 | 5 | Similaridade com vírgula decimal (`similaridade 0,74` na captura); rótulos em pt-BR, identificadores em inglês |
+| 6 | Local e nomes dos arquivos | 2 | 5 | Exatamente a lista da §5; **zero desvio** — segue a única fase do track nessa situação |
+| 7 | Qualidade de código | 2 | 5 | 68 linhas, uma responsabilidade, ordenação estável sem mutar a entrada |
+| 8 | Testes e cobertura | 2 | 5 | 6 testes offline sobre comportamento, mais o gate real que cobre o que teste offline não alcança (a página de verdade) |
 | 9 | Migration safety | 2 | — | Não se aplica |
 
-Média ponderada: 94/20 = 4,7 → **9.4/10**.
+Média ponderada: 97/20 = 4,85 → **9.7/10**.
 
 ## 3. Achados BLOQUEANTES
 
-### B-1. Critério de conclusão da fase não cumprido — citação real do `Exemplo-YAITEC.pdf`
+Nenhum. O B-1 da tentativa 1 está fechado.
 
-**Onde:** `SPEC_02_CHAT_RAG.md` §5, Fase B.3, *Critério de conclusão (gate)*;
-`FASE-B.3-citations-EXECUCAO.md:126` marca PENDENTE.
+**Minha verificação independente.** Peguei a última resposta fundamentada do
+banco do compose (`messages.id = 60`, 5 citações) e juntei cada citação ao chunk
+que ela declara, conferindo *(a)* se a página da citação é a página real do
+chunk e *(b)* se o começo do `snippet` está mesmo dentro do `content` daquele
+chunk:
 
-O gate pede citações **reais** exibidas, expansíveis e navegáveis por teclado.
-As três propriedades estão provadas contra dados de teste; o que falta é o dado
-real. E aqui a exigência tem substância própria: é o gate que revela se o
-`snippet` de 240 caracteres recortado pelo servidor cabe no diálogo sem quebrar
-o layout, e se o número de página bate com o PDF aberto ao lado — que é a
-demonstração inteira do eixo de fundamentação.
+```text
+cit_chunk | cit_page | chunk_page_real | trecho_esta_na_pagina
+----------+----------+-----------------+-----------------------
+ 0        | 1        |               1 | t
+ 3        | 1        |               1 | t
+ 5        | 2        |               2 | t
+ 6        | 2        |               2 | t
+ 8        | 3        |               3 | t
+```
 
-**Correção sugerida (sem mudar código):**
-1. `make up` na `dev` atual, ingerir o `Exemplo-YAITEC.pdf`.
-2. Perguntar algo que o documento responde; abrir cada chip.
-3. Conferir **contra o PDF** que a página do chip contém o trecho mostrado —
-   é a checagem que nenhum teste offline consegue fazer.
-4. Percorrer os chips por `Tab`, abrir por `Enter`, fechar por `Esc`.
-5. Registrar no EXECUCAO (tentativa 2) e reavaliar em chat zerado.
+Cinco de cinco. E o recorte do servidor cabe no teto: comprimentos 227, 231,
+233, 236 e 238 caracteres, todos ≤ 240, com `score` em `[0,1]` decrescente
+(0,768 · 0,757 · 0,737 · 0,731 · 0,730). A captura `gate-b/14-dialogo-citacao.png`
+mostra o diálogo aberto com página, trecho inteiro, `similaridade 0,74` discreta
+no rodapé e o anel de foco visível no botão de fechar.
 
 ## 4. Achados IMPORTANTES
 
@@ -67,82 +72,64 @@ Nenhum.
 
 ## 5. Sugestões
 
-- **Dúvida do EXECUCAO §9.2 resolvida a favor do que está lá:** o par
-  `--highlight` / `--highlight-foreground` dá **10,68:1** (claro) e **8,92:1**
-  (escuro). Passa AA e AAA. Não há o que remediar — o comentário no
-  `index.css:137` ("superfície, nunca texto") continua valendo e a fase o
-  respeitou, usando a cor como fundo do chip marcado.
-- **Dúvida do EXECUCAO §9.1 (dois chips "página 4"):** manter como está. A
-  decisão de não deduplicar é a correta para um app cujo eixo é fundamentação —
-  esconder um trecho usado mostraria menos prova do que houve. Se algum dia
-  incomodar, o rótulo do `aria-label` é o lugar de desempatar, não o texto
-  visível.
-- **Sanidade do dado exibido:** o `score` chega ao diálogo sem validação de
-  faixa; um `score` ausente vira `0` lá atrás (`sse.ts:33`) e aparece como
-  "similaridade 0,00". Ver a sugestão correspondente na avaliação da `B.2` — o
-  conserto é no parser, não aqui.
+- **A-1 — Dois chips da mesma página têm o mesmo nome acessível.** Na resposta
+  do gate saíram `ver trecho da página 1`, `ver trecho da página 2`,
+  `ver trecho da página 2`, `ver trecho da página 3`, `ver trecho da página 3`.
+  Quem navega por leitor de tela ouve o mesmo nome duas vezes seguidas para
+  botões que abrem trechos diferentes, sem nada que os distinga. Não reprova —
+  não há critério WCAG que proíba nomes repetidos —, mas é o tipo de detalhe que
+  o eixo de acessibilidade da spec (NFR-10) cobra. É uma linha no `aria-label`
+  de `CitationChip.tsx:43`, por exemplo acrescentando a ordem do trecho na
+  página. Mantenho a recomendação de **não** deduplicar os chips: esconder um
+  trecho realmente usado mostraria menos fundamentação do que houve.
+- **Ver S-1 e S-2 na avaliação da `B.1`** (frontmatter fora do schema; linha
+  "Não se aplica — primeira execução." sobrando em
+  `FASE-B.3-citations-EXECUCAO.md:157`).
 
 ## 6. Comandos rodados + saídas reais
 
 ```text
-$ bash ~/.codeflow/framework/core/scripts/run-structural.sh .codeflow/specs/02-chat-rag/SPEC_02_CHAT_RAG.md
-✓ §5 estruturalmente válida
-EXIT=0
-
-$ git merge-base --is-ancestor 3d10f34 HEAD && echo ANCESTOR-OK
-ANCESTOR-OK      # idem 199ce9f
-
-$ git diff --stat 199ce9f..3d10f34 -- . ':(exclude).codeflow/specs/*/artefatos/*'
- frontend/src/components/CitationChip.test.tsx | 58 ++++++++++++++
- frontend/src/components/CitationChip.tsx      | 68 +++++++++++++++++
- frontend/src/components/MessageList.test.tsx  | 34 ++++++++++
- frontend/src/components/MessageList.tsx       | 38 +++++++--
- 4 files changed, 194 insertions(+), 4 deletions(-)
-# → exatamente os arquivos da §5, mais os testes
-
 $ make check
 Contracts: 4 kept, 0 broken.
-===================== 248 passed, 17 deselected in 11.93s ======================
+===================== 263 passed, 19 deselected in 14.35s ======================
  Test Files  10 passed (10)
-      Tests  75 passed (75)
+      Tests  84 passed (84)
 
 $ make security
-No known vulnerabilities found
-found 0 vulnerabilities
-SECURITY_EXIT=0
+No known vulnerabilities found | found 0 vulnerabilities | SEC_EXIT=0
 
-# escopo travado da B.3 — nenhuma cor crua nos arquivos da fase
-$ grep -nE "#[0-9a-fA-F]{3,6}|(text|bg|border)-(gray|slate|zinc|neutral|stone|red|blue|green|purple)-[0-9]" \
+# escopo travado: nenhuma cor crua nos arquivos da fase
+$ grep -nE "#[0-9a-fA-F]{3,6}|(text|bg|border)-(gray|slate|zinc|…)-[0-9]" \
     frontend/src/components/CitationChip.tsx frontend/src/components/MessageList.tsx
 (nenhuma linha)
 
-# contraste do chip marcado (OKLCH → sRGB → luminância relativa → WCAG)
-LIGHT highlight-foreground sobre highlight   10.68:1   ✅ AA e AAA
-DARK  highlight-foreground sobre highlight    8.92:1   ✅ AA e AAA
+# o gate, reconferido por mim no banco do compose
+$ docker exec …db-1 psql -c "
+    select (c->>'chunk_index'), (c->>'page_number'), ch.page_number,
+           position(left(c->>'snippet',60) in ch.content) > 0
+    from messages m join jsonb_array_elements(m.citations) c on true
+    join chunks ch on ch.chunk_index = (c->>'chunk_index')::int
+    where m.id = 60"
+0|1|1|t   3|1|1|t   5|2|2|t   6|2|2|t   8|3|3|t
+
+$ docker exec …db-1 psql -c "… length(snippet), score … where m.id=60"
+238/0.768 · 227/0.757 · 233/0.737 · 236/0.731 · 231/0.730
 
 $ git status --short
-(vazio — árvore limpa ao final)
+(só um arquivo do Track A, de chat paralelo; nada meu)
 ```
 
 ## 7. Itens da fase / DoD não atendidos
 
-- **Gate da §5:** citações reais do `Exemplo-YAITEC.pdf` exibidas — não cumprido
-  (B-1). Expansão e navegação por teclado estão provadas offline; falta o dado
-  real e a conferência página-a-página contra o PDF.
-- **DoD §9 da spec:** "`B.3 citations` — citações exibidas, expansíveis e
-  navegáveis por teclado" ⏳ (as duas últimas propriedades, sim; a primeira com
-  dado real, não).
-- **Elegibilidade (§2.11.4):** depende da `B.2`, que não está concluída. Mesma
-  raiz do B-1 da `B.1`.
+Nenhum. O item aberto na tentativa 1 — "citações reais do `Exemplo-YAITEC.pdf`
+exibidas, expansíveis e navegáveis por teclado" — está fechado nas três partes,
+e a primeira eu reconferi por conta própria.
 
 ## 8. Divergências entre o relatório e o código real
 
-Nenhuma. Verifiquei todas as afirmações do EXECUCAO:
-
-- "chips ordenados por página, empate por `chunk_index`" — confere
-  (`MessageList.tsx:87-90`), provado em `MessageList.test.tsx:62`.
-- "similaridade só dentro do diálogo" — confere (`CitationChip.tsx:62-64`),
-  com asserção de ausência no chip (`CitationChip.test.tsx:45`).
-- "desvios: nenhum" — confere pelo `git diff --stat` acima.
-- "trecho exibido como veio do servidor" — confere: não há `slice`, `substring`
-  nem truncamento em `CitationChip.tsx`.
+- **A de S-1** (`range` desatualizado).
+- **Nenhuma outra.** A tabela do §10 do relatório (5 citações, páginas 2/2/1/3/1,
+  227–238 chars) é de um turno diferente do que eu inspecionei no banco, e as
+  duas medições contam a mesma história: página correta em todas, recorte dentro
+  do teto. A afirmação "conferência automatizada trecho→página" se sustenta —
+  refiz a conferência por outro caminho e cheguei ao mesmo resultado.
