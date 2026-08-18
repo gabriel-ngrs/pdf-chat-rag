@@ -291,3 +291,86 @@ o `.env` não é versionado, e o eval mede o que estiver nele.
   — que só **cita** "agentes SQL" numa lista — passou na frente da página 1, que é
   onde o serviço está de fato descrito. É exatamente o sintoma que a fase A.7 (busca
   híbrida com fusão RRF) existe para tratar.
+
+---
+
+## Fase `A.7` — busca híbrida com fusão RRF: antes e depois
+
+**Resumo:** no dataset de avaliação o delta é **zero** — as seis métricas e as
+tabelas por pergunta saem byte a byte idênticas. Em consulta por **termo
+literal**, que o dataset não contém, a fusão conserta o que a busca densa perde.
+As duas coisas são resultado, e as duas estão registradas aqui.
+
+### Como as duas medições foram feitas
+
+A baseline foi **remedida**, e não copiada da rodada da `A.5`. O motivo é que a
+`A.7` altera o schema (`tsv` gerada e índice GIN em `chunks`) e exige `make down`
+com reingestão: comparar o "depois" contra números medidos sobre um
+`document_id` que deixou de existir misturaria duas variáveis — a fusão e uma
+ingestão diferente.
+
+A sequência foi: `make down` → schema novo → reingestão do `Exemplo-YAITEC.pdf`
+(`document_id` `89774e1c-009d-47c5-80e4-ba6c7324f3d3`, 10 chunks, 3 páginas) →
+`make eval` **sem** `--hybrid` (baseline) → fusão ligada → `make eval`
+**com** `--hybrid`. Mesmo corpus, mesmo dataset, mesmo limiar, **mesmo caminho
+de código**: a flag decide só se a via lexical entra na fusão.
+
+```
+EVAL_DOCUMENT_ID=89774e1c-… uv run python -m eval.run_eval --threshold 0.625
+EVAL_DOCUMENT_ID=89774e1c-… uv run python -m eval.run_eval --threshold 0.625 --hybrid
+```
+
+### O delta no dataset: zero
+
+| métrica | densa (baseline) | híbrida | delta |
+|---|---|---|---|
+| `recall@1` (positivas) | 0.917 | 0.917 | **0.000** |
+| `recall@3` (positivas) | 1.000 | 1.000 | **0.000** |
+| `MRR` (positivas) | 0.958 | 0.958 | **0.000** |
+| taxa de recusa correta (negativas) | 1.000 | 1.000 | 0.000 |
+| taxa de falsa recusa (positivas) | 0.000 | 0.000 | 0.000 |
+
+`diff` das tabelas por pergunta das duas execuções: **vazio**. Nenhuma posição
+mudou em nenhum dos 16 itens.
+
+**Por que zero, e não negativo.** As 16 perguntas do dataset são perguntas em
+linguagem natural ("quais são os valores da YAITEC?"), e as palavras de conteúdo
+delas — YAITEC, contato, valores — aparecem em quase todos os chunks de um
+documento institucional de três páginas. A via lexical, nesse regime, devolve
+mais ou menos o mesmo conjunto que a densa, e o RRF confirma a ordem que já
+existia. O teto também é apertado: `recall@3` já era 1,000 e o `MRR` 0,958, com
+uma única positiva fora da primeira posição.
+
+### O caso que o dataset não exercita, e onde a fusão morde
+
+O motivo declarado da fase é o termo exato. Medido no mesmo documento, com a API
+real, comparando os dois modos da mesma busca:
+
+| consulta | posição do trecho que contém o termo — densa | híbrida |
+|---|---|---|
+| `contato@yaitec.com` | **ausente do top-3** | **2ª** |
+| `UFPB` | 2ª | **1ª** |
+| `StartStak` | 1ª | 1ª (a densa já acertava) |
+
+A primeira linha é o achado: perguntando pelo **endereço literal**, a busca
+densa não traz o trecho que o contém em lugar nenhum do top-3 — ela traz três
+trechos que *falam de contato*. É o mesmo sintoma que a `A.5` já tinha medido de
+outro ângulo, quando a página do e-mail ganhou a primeira posição por 0,001: a
+similaridade de cosseno não distingue "menciona o assunto" de "contém o dado".
+
+### Conclusão e o que isso significa para o dataset
+
+A fusão foi **mantida**. O critério da spec manda reverter se o delta for
+negativo; ele é zero, e o mecanismo tem ganho medido fora do dataset. O custo é
+uma segunda consulta ao banco por turno, no mesmo pool e sem chamada de rede
+extra.
+
+Fica registrada uma limitação do dataset, que é o achado mais útil desta fase
+para quem vier depois: **as 16 perguntas não incluem nenhuma consulta por termo
+literal**, e por isso as métricas da `A.5` não conseguiam ver o problema que a
+`A.7` existe para resolver — nem podem medir a solução. Acrescentar duas
+perguntas literais (o e-mail e uma sigla) mudaria isso, e mudaria o `recall@1`
+da baseline para baixo, que é o que tornaria o delta visível. Não foi feito
+aqui de propósito: mexer no dataset **no meio** de uma medição de antes e depois
+é exatamente o que a `A.5` proíbe ("não ajustar o dataset para inflar a
+métrica").

@@ -18,6 +18,10 @@ ELLIPSIS = "…"
 
 _SCORE_DECIMALS = 3
 
+# Constante do artigo original do RRF, e default de fato desde então. O porquê
+# de ser um número grande está documentado em `reciprocal_rank_fusion`.
+RRF_K = 60
+
 
 def similarity_from_distance(distance: float) -> float:
     """Converte a distância de cosseno do pgvector em similaridade em `[0,1]`.
@@ -90,3 +94,50 @@ def build_snippet(content: str, max_len: int = SNIPPET_MAX_LENGTH) -> str:
     window = normalized[: max_len - len(ELLIPSIS)]
     cut = window.rfind(" ")
     return (window[:cut] if cut > 0 else window).rstrip() + ELLIPSIS
+
+
+def reciprocal_rank_fusion(
+    dense: list[RetrievedChunk], lexical: list[RetrievedChunk], k: int = RRF_K
+) -> list[RetrievedChunk]:
+    """Funde duas listas ordenadas somando `1 / (k + posição)` de cada uma.
+
+    A fórmula é a do Reciprocal Rank Fusion: um documento vale
+    `Σ 1/(k + rank_i)` sobre as listas em que aparece, com `rank` começando em
+    1. O que ela tem de bom aqui é o que ela **não** exige: os dois rankings não
+    precisam ter escalas comparáveis. A similaridade de cosseno vive numa faixa
+    alta e comprimida (0,66 a 0,81 neste corpus) e o `ts_rank_cd` vive noutra
+    completamente diferente — somar ou normalizar os dois seria inventar uma
+    equivalência que não existe. Posição, ao contrário, é a mesma coisa nos dois.
+
+    `k = 60` é o valor do artigo original (Cormack et al., 2009) e continua
+    sendo o default de fato. Ele é grande de propósito: com `k` pequeno a
+    primeira posição domina a soma e a fusão vira "obedeça a lista que falou
+    mais alto"; com 60, a diferença entre a 1ª e a 2ª posição (0,0164 contra
+    0,0161) é pequena o bastante para que **aparecer nas duas listas** pese mais
+    que ser o primeiro de uma só. É exatamente esse o comportamento que se quer:
+    o trecho que a busca densa e a lexical concordam em trazer sobe.
+
+    Cada chunk sai com o **score denso** que ele já tinha, não com o valor da
+    fusão. O limiar de fundamentação é medido em similaridade de cosseno e
+    calibrado contra uma distribuição de similaridades (`A.5`); trocar o campo
+    por um número de outra escala faria o limiar comparar coisas diferentes e
+    apagaria a calibração. A fusão decide **a ordem**; o limiar continua
+    decidindo **se responde**.
+
+    Chunks são identificados por `chunk_index`, que é único no documento — a
+    busca é sempre filtrada por um documento só.
+    """
+    pontos: dict[int, float] = {}
+    por_indice: dict[int, RetrievedChunk] = {}
+    for lista in (dense, lexical):
+        for posicao, chunk in enumerate(lista, start=1):
+            pontos[chunk.chunk_index] = pontos.get(chunk.chunk_index, 0.0) + 1.0 / (k + posicao)
+            # O primeiro a chegar vence: a lista densa vem primeiro e é a que
+            # traz o score de cosseno já calculado para aquele chunk.
+            por_indice.setdefault(chunk.chunk_index, chunk)
+    ordenados = sorted(
+        por_indice.values(),
+        key=lambda chunk: (pontos[chunk.chunk_index], chunk.score),
+        reverse=True,
+    )
+    return ordenados

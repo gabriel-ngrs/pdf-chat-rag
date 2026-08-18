@@ -386,6 +386,7 @@ class SearchCall:
     document_id: UUID
     embedding: list[float]
     limit: int
+    query: str | None = None
 
 
 class FakeConversationRepository:
@@ -465,16 +466,22 @@ class FakeConversationRepository:
         return list(self.messages.get(conversation_id, []))
 
     async def search_chunks(
-        self, document_id: UUID, embedding: list[float], limit: int
+        self, document_id: UUID, embedding: list[float], limit: int, query: str | None = None
     ) -> list[RetrievedChunk]:
         """Devolve os `limit` chunks configurados, do mais similar para o menos.
 
-        A ordenação é refeita aqui porque é o que o `ORDER BY` do SQL real faz —
-        um dublê que devolvesse na ordem em que o teste montou a lista deixaria
-        passar um `take_top_k` que dependesse da ordem de chegada.
+        A ordenação e o corte acontecem aqui porque é o que o repositório real
+        faz — ele devolve a lista já ordenada e limitada, densa ou fundida, e
+        quem chama não reordena. Um dublê que devolvesse a lista crua deixaria
+        passar um chamador que dependesse de reordenar depois.
+
+        A `query` é registrada mas não muda o resultado: exercitar a fusão exige
+        Postgres, e ela vive nos testes marcados `db`. O que importa provar aqui
+        é que a pergunta **chega** ao retrieval, que é o que a busca híbrida
+        precisa para existir.
         """
         await self._enter("search_chunks")
-        self.searches.append(SearchCall(document_id, list(embedding), limit))
+        self.searches.append(SearchCall(document_id, list(embedding), limit, query))
         ranked = sorted(self.chunks, key=lambda chunk: chunk.score, reverse=True)
         return ranked[:limit]
 

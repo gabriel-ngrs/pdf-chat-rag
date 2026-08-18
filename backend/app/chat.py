@@ -24,7 +24,7 @@ from app.config import Settings
 from app.core.condensation import build_condensation_prompt, fallback_query, should_condense
 from app.core.models import Citation, Message, MessageRole, RetrievedChunk
 from app.core.prompt import REFUSAL_MESSAGE, build_answer_prompt, select_history_window
-from app.core.retrieval import build_snippet, filter_by_threshold, has_grounding, take_top_k
+from app.core.retrieval import build_snippet, filter_by_threshold, has_grounding
 from app.errors import AppError
 from app.logging_setup import get_logger
 
@@ -157,13 +157,14 @@ async def _prepare(
 
         started = time.perf_counter()
         embedding = await asyncio.to_thread(embedder.embed_query, query)
+        # A `query` vai junto porque a busca é híbrida: a mesma pergunta que
+        # virou vetor também vira consulta lexical, e o repositório funde as
+        # duas por RRF (fase A.7). O corte de top-k é feito lá, sobre a lista
+        # já fundida — reordenar aqui por score denso apagaria a fusão.
         candidates = await repository.search_chunks(
-            conversation.document_id, embedding, settings.retrieval_top_k
+            conversation.document_id, embedding, settings.retrieval_top_k, query
         )
-        above = take_top_k(
-            filter_by_threshold(candidates, settings.similarity_threshold),
-            settings.retrieval_top_k,
-        )
+        above = filter_by_threshold(candidates, settings.similarity_threshold)
         top_score = _top_score(candidates)
         logger.info(
             "chat.retrieved",
