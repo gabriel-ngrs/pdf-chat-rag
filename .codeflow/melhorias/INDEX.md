@@ -9,7 +9,8 @@ schema_version: 1.0
 
 Pedidos de melhoria levantados pelo owner depois do teste de ponta a ponta.
 Diferente de `bugs/`, aqui não há defeito: são coisas que funcionam e podem
-ficar melhores — legibilidade, identidade visual e movimento.
+ficar melhores — legibilidade, identidade visual, movimento e, a partir da
+**MELH-005**, fluxo de uso.
 
 Cada melhoria é um documento numerado. O número é a ordem de chegada, não a
 ordem de execução.
@@ -22,8 +23,9 @@ ordem de execução.
 | [MELH-002](002-background-animado-e-paleta-escura.md) | Background animado (WebGL) e paleta mais escura | frontend | média | alto | implementado (2026-08-18) |
 | [MELH-003](003-logo-da-yaitec-no-cabecalho.md) | Logo da Yaitec ao lado da marca TalkDoc | frontend | média | baixo | implementado (2026-08-18) |
 | [MELH-004](004-animacoes-de-interacao.md) | Animações de mouse, cards e textos | frontend | média | médio | implementado (2026-08-18) |
+| [MELH-005](005-envio-de-varios-documentos-de-uma-vez.md) | Arrastar e soltar vários documentos de uma vez | frontend + backend + dados | média | médio (A) / alto (B) | aberto — análise de custo entregue |
 
-**As quatro estão fechadas.** As decisões que faltavam foram tomadas com o owner
+**As quatro primeiras estão fechadas.** As decisões que faltavam foram tomadas com o owner
 na abertura do trabalho e estão em
 [`decisions/2026-08-18-paleta-yaitec-e-fundos-das-telas.md`](../decisions/2026-08-18-paleta-yaitec-e-fundos-das-telas.md).
 
@@ -37,6 +39,13 @@ vezes.
 1. **MELH-001** — renderizador de Markdown e o vazamento dos rótulos na cópia.
 2. **MELH-002** e **MELH-003** — paleta da Yaitec, os dois fundos, e a logo.
 3. **MELH-004** — o movimento, por último, sobre a paleta já assentada.
+
+A **MELH-005** chegou depois desse bloco, durante o teste do sistema, e é de
+outra natureza: não é acabamento, é funcionalidade. Ela está **aberta** e o que
+existe é a análise de custo — o documento mede dois escopos (envio em lote com
+uma conversa por documento; conversa sobre vários documentos ao mesmo tempo) e
+recomenda o primeiro. A execução depende da escolha do owner e, no escopo maior,
+de spec própria: ele mexe em banco, retrieval e citação.
 
 ## Como as dependências se resolveram
 
@@ -99,4 +108,4 @@ Arquivos novos que passam a ser referência para o que vier depois:
 
 ## Versão do schema e última atualização
 
-Schema 1.0 | Última atualização: 2026-08-17 | Origem: pedido do owner após o teste de ponta a ponta
+Schema 1.0 | Última atualização: 2026-08-18 | Origem: pedido do owner após o teste de ponta a ponta
