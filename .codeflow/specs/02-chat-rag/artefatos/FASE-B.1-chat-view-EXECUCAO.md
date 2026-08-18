@@ -2,12 +2,12 @@
 spec: 02-chat-rag
 fase: B.1
 slug_fase: chat-view
-status: executado
+status: rework
 tentativa: 2
 reprovacoes: 1
 sha_inicial: dd621eb
-sha_final: 28159b6
-range: dd621eb..28159b6
+sha_final: e696ab7
+range: dd621eb..e696ab7
 ---
 
 # FASE B.1 — Relatório de execução
@@ -203,7 +203,6 @@ que continua aberto (topo deste relatório). As três sugestões foram aplicadas
   da fase sem inflar abstração — a regra é provável sem layout, que o jsdom não
   calcula.
 
-Não se aplica — primeira execução.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 

@@ -2,12 +2,12 @@
 spec: 02-chat-rag
 fase: B.2
 slug_fase: streaming
-status: executado
+status: rework
 tentativa: 2
 reprovacoes: 1
 sha_inicial: d1536f0
-sha_final: e0d40d9
-range: d1536f0..e0d40d9
+sha_final: e696ab7
+range: d1536f0..e696ab7
 ---
 
 # FASE B.2 — Relatório de execução
@@ -177,7 +177,6 @@ que continua aberto (topo deste relatório). As três sugestões foram aplicadas
 - **Trocar `conversationId` não abortava o stream** (`hooks/useChat.ts`): o
   efeito de limpeza passou a depender do `conversationId`.
 
-Não se aplica — primeira execução.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 

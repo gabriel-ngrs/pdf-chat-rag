@@ -2,12 +2,12 @@
 spec: 02-chat-rag
 fase: B.4
 slug_fase: notices-persistence
-status: executado
+status: rework
 tentativa: 2
 reprovacoes: 1
 sha_inicial: 8a1e191
-sha_final: 74afd80
-range: 8a1e191..74afd80
+sha_final: e696ab7
+range: 8a1e191..e696ab7
 ---
 
 # FASE B.4 — Relatório de execução
@@ -232,8 +232,8 @@ que falta é só reproduzir o código no gate, e ele é reproduzível.
 cobertura de `core/` em 99,55%, e 84 no frontend (eram 75; +9 entre a asserção
 que faltava, o contrapeso do cancelamento, a mescla do histórico, o estado vazio
 da conversa falhada, `isNearBottom` e os dois do parser). `make security` sem
-achado. Os quatro gates da §5 do track continuam pendentes e fecham na mesma
-passada contra o `docker compose`, com a `A.4` já na `dev`.
+achado. Os quatro gates da §5 do track foram executados em seguida, na mesma
+passada contra o `docker compose` com a `A.4` já na `dev` — evidências na §10.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 

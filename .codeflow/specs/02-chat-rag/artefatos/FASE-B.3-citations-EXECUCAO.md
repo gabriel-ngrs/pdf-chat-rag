@@ -2,12 +2,12 @@
 spec: 02-chat-rag
 fase: B.3
 slug_fase: citations
-status: executado
+status: rework
 tentativa: 2
 reprovacoes: 1
 sha_inicial: 199ce9f
-sha_final: 3d10f34
-range: 199ce9f..3d10f34
+sha_final: e696ab7
+range: 199ce9f..e696ab7
 ---
 
 # FASE B.3 — Relatório de execução
@@ -154,7 +154,6 @@ está. A terceira observação — `score` chegando ao diálogo sem validação 
 — foi corrigida onde nasce, no parser da `B.2`: citação sem `score` ou sem
 `chunk_index` passou a ser descartada em vez de completada com zero.
 
-Não se aplica — primeira execução.
 
 ## 9. Itens em aberto / dúvidas para o avaliador
 
