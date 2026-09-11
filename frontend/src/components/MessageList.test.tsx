@@ -55,7 +55,7 @@ describe('MessageList', () => {
     render(
       <MessageList
         messages={[
-          message({ id: 1, role: 'user', content: 'quais serviços a YAITEC oferece?' }),
+          message({ id: 1, role: 'user', content: 'como o consentimento deve ser obtido?' }),
           message({ id: 2, role: 'assistant', content: 'Consultoria e engenharia de dados.' }),
           message({ id: 3, role: 'user', content: 'e quanto a isso?' }),
         ]}
@@ -64,7 +64,7 @@ describe('MessageList', () => {
 
     const itens = screen.getAllByRole('listitem').map((item) => item.textContent)
     expect(itens).toHaveLength(3)
-    expect(itens[0]).toContain('quais serviços a YAITEC oferece?')
+    expect(itens[0]).toContain('como o consentimento deve ser obtido?')
     expect(itens[1]).toContain('Consultoria e engenharia de dados.')
     expect(itens[2]).toContain('e quanto a isso?')
   })
@@ -89,7 +89,7 @@ describe('MessageList', () => {
           message({
             id: 1,
             role: 'assistant',
-            content: 'A YAITEC oferece consultoria.',
+            content: 'O consentimento deve ser livre e informado.',
             citations: [
               { page_number: 7, snippet: 'depois', chunk_index: 12, score: 0.71 },
               { page_number: 2, snippet: 'antes', chunk_index: 3, score: 0.88 },
@@ -248,7 +248,7 @@ describe('MessageList', () => {
           message({
             id: 1,
             role: 'assistant',
-            content: 'A YAITEC oferece consultoria.',
+            content: 'O consentimento deve ser livre e informado.',
             citations: [
               { page_number: 2, snippet: 'antes', chunk_index: 3, score: 0.88 },
               { page_number: 7, snippet: 'depois', chunk_index: 12, score: 0.71 },
@@ -311,7 +311,7 @@ describe('MessageList', () => {
           message({
             id: 1,
             role: 'assistant',
-            content: 'A YAITEC oferece consultoria.',
+            content: 'O consentimento deve ser livre e informado.',
             citations: [{ page_number: 2, snippet: 'antes', chunk_index: 3, score: 0.88 }],
           }),
         ]}

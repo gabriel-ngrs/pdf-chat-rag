@@ -20,7 +20,7 @@ const useDocumentStatusMock = vi.mocked(useDocumentStatus)
 function documento(): DocumentDetail {
   return {
     id: 'doc-1',
-    filename: 'Exemplo-YAITEC.pdf',
+    filename: 'lgpd-capitulos-1-2.pdf',
     status: 'processing',
     page_count: 3,
     chunks_total: 10,

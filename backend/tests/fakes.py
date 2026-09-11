@@ -280,12 +280,12 @@ class StubGenaiClient:
 # ─── Dublês do chat ──────────────────────────────────────────────────────────
 
 DEFAULT_ANSWER_PIECES: tuple[str, ...] = (
-    "A YAITEC ",
-    "atende empresas ",
-    "com projetos de software (página 2).",
+    "O consentimento ",
+    "deve ser fornecido por escrito ",
+    "ou por outro meio que demonstre a manifestação de vontade (página 6).",
 )
 
-DEFAULT_CONDENSED_QUERY = "quais servicos a YAITEC oferece para empresas?"
+DEFAULT_CONDENSED_QUERY = "como o consentimento do titular deve ser obtido pelo controlador?"
 
 
 def matches_embedding(embedding: list[float], text: str, dim: int = DEFAULT_DIM) -> bool:

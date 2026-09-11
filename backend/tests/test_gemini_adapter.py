@@ -628,10 +628,10 @@ async def test_stream_fecha_o_iterador_do_provedor_ao_terminar() -> None:
 
 
 async def test_generate_devolve_o_texto_podado_com_o_teto_da_condensacao() -> None:
-    models = FakeAsyncModels(text="  Quais serviços a YAITEC oferece?  ")
+    models = FakeAsyncModels(text="  Quais são os princípios do tratamento?  ")
     client = build_chat_client(models)
 
-    assert await client.generate("prompt", timeout=5) == "Quais serviços a YAITEC oferece?"
+    assert await client.generate("prompt", timeout=5) == "Quais são os princípios do tratamento?"
     assert models.configs[0].max_output_tokens == CONDENSATION_MAX_OUTPUT_TOKENS
 
 

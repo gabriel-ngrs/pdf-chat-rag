@@ -30,16 +30,16 @@ describe('parseChatStream', () => {
   it('lê os quatro eventos do protocolo', async () => {
     const events = await collect(
       streamOf([
-        'event: token\ndata: {"text":"A YAITEC "}\n\n',
-        'event: token\ndata: {"text":"oferece consultoria."}\n\n',
+        'event: token\ndata: {"text":"O consentimento "}\n\n',
+        'event: token\ndata: {"text":"deve ser livre e informado."}\n\n',
         'event: citations\ndata: {"citations":[{"page_number":4,"snippet":"trecho","chunk_index":7,"score":0.83}]}\n\n',
         'event: done\ndata: {"message_id":12,"truncated":false}\n\n',
       ]),
     )
 
     expect(events).toEqual([
-      { type: 'token', text: 'A YAITEC ' },
-      { type: 'token', text: 'oferece consultoria.' },
+      { type: 'token', text: 'O consentimento ' },
+      { type: 'token', text: 'deve ser livre e informado.' },
       {
         type: 'citations',
         citations: [{ page_number: 4, snippet: 'trecho', chunk_index: 7, score: 0.83 }],

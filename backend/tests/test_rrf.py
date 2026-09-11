@@ -23,7 +23,7 @@ _DELETE_SQL = "DELETE FROM documents WHERE session_id = $1"
 # O termo exato que a busca densa borra: um endereço de e-mail não tem vizinho
 # semântico útil, e o vetor do trecho que o contém é quase idêntico ao de
 # qualquer outro trecho do mesmo assunto.
-EMAIL = "contato@yaitec.com"
+EMAIL = "encarregado@exemplo.gov.br"
 
 
 def _vetor_pergunta() -> list[float]:
@@ -191,10 +191,10 @@ async def documento(
     # retrato do problema real, onde o endereço literal não tem vizinho
     # semântico e o assunto tem vários.
     trechos = [
-        "A YAITEC atende clientes no Brasil e no exterior, com contato direto.",
+        "O controlador atende titulares no Brasil e no exterior, com contato direto.",
         "O time responde dúvidas de atendimento e contato comercial todo dia.",
         "Canais de contato e atendimento ao cliente funcionam em horário comercial.",
-        f"YAITEC Solutions · www.yaitec.com · {EMAIL} · João Pessoa, PB",
+        f"Encarregado pelo tratamento de dados · {EMAIL} · Brasília, DF",
         "O contato com o time de suporte acontece pelo canal de atendimento.",
     ]
     document_id = await documents.create("contato.pdf", uuid4().hex, session_id)

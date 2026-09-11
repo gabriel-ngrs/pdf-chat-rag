@@ -491,7 +491,7 @@ def format_report(
     colar estes números no README, e o avaliador não vai rodar `make eval`.
     """
     lines: list[str] = []
-    lines.append("## Eval de retrieval — `Exemplo-YAITEC.pdf`")
+    lines.append("## Eval de retrieval — `lgpd-capitulos-1-2.pdf`")
     lines.append("")
     lines.append(f"- `document_id`: `{document_id}`")
     lines.append(f"- chunks no banco: **{chunk_count}**")

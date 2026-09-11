@@ -9,7 +9,7 @@ from app.core.condensation import (
 )
 from app.core.models import Message, MessageRole
 
-PERGUNTA_INICIAL = "quais serviços a YAITEC oferece?"
+PERGUNTA_INICIAL = "quais são os princípios do tratamento de dados?"
 
 
 def _message(role: MessageRole, content: str, message_id: int = 1) -> Message:

@@ -31,9 +31,9 @@ EMBEDDING_DIM = 768
 _DELETE_SQL = "DELETE FROM documents WHERE session_id = $1"
 
 TRECHOS_DO_DOCUMENTO_A = [
-    "A YAITEC Solutions é uma startup brasileira de inteligência artificial.",
-    "O time se reúne uma vez por semana num coworking em João Pessoa.",
-    "Entre os clientes estão ATC Analytics, ChatADV, Langflow e PagBank.",
+    "A Lei nº 13.709 dispõe sobre o tratamento de dados pessoais.",
+    "O consentimento deve ser fornecido para finalidades determinadas.",
+    "São dados sensíveis os que revelam origem racial, convicção religiosa ou dado biométrico.",
 ]
 
 TRECHOS_DO_DOCUMENTO_B = [
@@ -114,11 +114,11 @@ def test_top_k_zero_desliga_o_retrieval() -> None:
 
 
 def test_snippet_curto_passa_inteiro() -> None:
-    assert build_snippet("A YAITEC atua com dados.") == "A YAITEC atua com dados."
+    assert build_snippet("A Lei trata de dados pessoais.") == "A Lei trata de dados pessoais."
 
 
 def test_snippet_colapsa_quebras_de_linha_da_extracao() -> None:
-    assert build_snippet("A YAITEC\n  atua\ncom dados.") == "A YAITEC atua com dados."
+    assert build_snippet("A Lei\n  trata\nde dados pessoais.") == "A Lei trata de dados pessoais."
 
 
 def test_snippet_longo_cabe_no_limite_e_termina_em_reticencias() -> None:

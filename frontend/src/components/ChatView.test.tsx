@@ -45,7 +45,7 @@ vi.stubGlobal('ResizeObserver', ResizeObserverStub)
 
 const DOCUMENT: DocumentDetail = {
   id: 'doc-1',
-  filename: 'Exemplo-YAITEC.pdf',
+  filename: 'lgpd-capitulos-1-2.pdf',
   status: 'ready',
   page_count: 4,
   chunks_total: 10,
@@ -222,28 +222,28 @@ describe('ChatView', () => {
     render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
     await waitFor(() => expect(campo().disabled).toBe(false))
 
-    await perguntar('quais serviços a YAITEC oferece?')
+    await perguntar('como o consentimento deve ser obtido?')
 
     expect(await screen.findByText('Pensando na resposta.')).toBeTruthy()
     expect(openChatStreamMock).toHaveBeenCalledWith(
       'conv-1',
-      'quais serviços a YAITEC oferece?',
+      'como o consentimento deve ser obtido?',
       expect.any(AbortSignal),
     )
 
-    canal.push({ type: 'token', text: 'A YAITEC ' })
-    expect(await screen.findByText('A YAITEC')).toBeTruthy()
+    canal.push({ type: 'token', text: 'O consentimento ' })
+    expect(await screen.findByText('O consentimento')).toBeTruthy()
     // O "pensando" some no primeiro token, não no fim da resposta.
     expect(screen.queryByText('Pensando na resposta.')).toBeNull()
 
-    canal.push({ type: 'token', text: 'oferece consultoria.' })
-    expect(await screen.findByText('A YAITEC oferece consultoria.')).toBeTruthy()
+    canal.push({ type: 'token', text: 'deve ser livre e informado.' })
+    expect(await screen.findByText('O consentimento deve ser livre e informado.')).toBeTruthy()
 
     canal.push({ type: 'done', messageId: 12, truncated: false })
     canal.close()
 
     await waitFor(() => expect(campo().disabled).toBe(false))
-    expect(screen.getByText('A YAITEC oferece consultoria.')).toBeTruthy()
+    expect(screen.getByText('O consentimento deve ser livre e informado.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Parar resposta/ })).toBeNull()
   })
 
@@ -308,11 +308,11 @@ describe('ChatView', () => {
     render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
     await waitFor(() => expect(campo().disabled).toBe(false))
 
-    await perguntar('qual o e-mail de contato?')
+    await perguntar('quem é o encarregado?')
 
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalled())
     // A pergunta digitada não se perde: ela volta para o campo.
-    await waitFor(() => expect(campo().value).toBe('qual o e-mail de contato?'))
+    await waitFor(() => expect(campo().value).toBe('quem é o encarregado?'))
 
     const aviso = toastErrorMock.mock.calls[0]?.[1] as
       | { action?: { label: string; onClick: () => void } }
@@ -331,22 +331,22 @@ describe('ChatView', () => {
     await waitFor(() =>
       expect(openChatStreamMock).toHaveBeenCalledWith(
         'conv-1',
-        'qual o e-mail de contato?',
+        'quem é o encarregado?',
         expect.any(AbortSignal),
       ),
     )
     // Repetido o envio, o campo volta a ficar limpo.
     await waitFor(() => expect(campo().value).toBe(''))
 
-    canal.push({ type: 'token', text: 'contato@yaitec.com' })
+    canal.push({ type: 'token', text: 'O encarregado é indicado pelo controlador.' })
     canal.push({ type: 'citations', citations: [] })
     canal.push({ type: 'done', messageId: 21, truncated: false })
     canal.close()
 
     // O resultado da repetição é o que a fase promete: **uma** pergunta e
     // **uma** resposta — não dois balões idênticos sem nada entre eles.
-    await screen.findByText('contato@yaitec.com')
-    expect(screen.getAllByText('qual o e-mail de contato?')).toHaveLength(1)
+    await screen.findByText('O encarregado é indicado pelo controlador.')
+    expect(screen.getAllByText('quem é o encarregado?')).toHaveLength(1)
     expect(conversa().getAllByRole('listitem')).toHaveLength(2)
   })
 
@@ -389,7 +389,7 @@ describe('ChatView', () => {
               {
                 id: 2,
                 role: 'assistant',
-                content: 'Da apresentação da YAITEC.',
+                content: 'Da Lei nº 13.709, de 2018.',
                 citations: [],
                 truncated: false,
                 created_at: '2026-08-17T12:00:05Z',
@@ -401,13 +401,13 @@ describe('ChatView', () => {
 
     render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
     await waitFor(() => expect(campo().disabled).toBe(false))
-    await perguntar('e quais são os serviços?')
+    await perguntar('e quais são os princípios?')
 
     entregarHistorico()
 
-    expect(await screen.findByText('Da apresentação da YAITEC.')).toBeTruthy()
+    expect(await screen.findByText('Da Lei nº 13.709, de 2018.')).toBeTruthy()
     expect(screen.getByText('do que trata o documento?')).toBeTruthy()
-    expect(screen.getByText('e quais são os serviços?')).toBeTruthy()
+    expect(screen.getByText('e quais são os princípios?')).toBeTruthy()
     canal.close()
   })
 
@@ -452,7 +452,7 @@ describe('ChatView', () => {
       {
         id: 1,
         role: 'user',
-        content: 'quais serviços a YAITEC oferece?',
+        content: 'como o consentimento deve ser obtido?',
         citations: [],
         truncated: false,
         created_at: '2026-08-17T12:00:00Z',
@@ -470,7 +470,7 @@ describe('ChatView', () => {
     render(<ChatView document={DOCUMENT} onReset={vi.fn()} />)
 
     expect(await screen.findByText('Consultoria e engenharia de dados.')).toBeTruthy()
-    expect(screen.getByText('quais serviços a YAITEC oferece?')).toBeTruthy()
+    expect(screen.getByText('como o consentimento deve ser obtido?')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'ver trecho consultado da página 3' })).toBeTruthy()
     expect(listMessagesMock).toHaveBeenCalledWith('conv-guardada')
     expect(createConversationMock).not.toHaveBeenCalled()
@@ -497,7 +497,7 @@ describe('ChatView', () => {
     const onReset = vi.fn()
     render(<ChatView document={DOCUMENT} onReset={onReset} />)
 
-    expect(screen.getByText(/Exemplo-YAITEC\.pdf/)).toBeTruthy()
+    expect(screen.getByText(/lgpd-capitulos-1-2\.pdf/)).toBeTruthy()
 
     await userEvent.click(screen.getByRole('button', { name: 'Enviar outro documento' }))
     expect(onReset).toHaveBeenCalledTimes(1)

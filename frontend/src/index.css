@@ -11,11 +11,11 @@
    de páginas, id de documento. Compartilha o esqueleto do Plex, então não
    parece parafusada.
 
-   O Instrument Serif saiu com o mockup de 2026-08-18. Ele carregava o tom
-   documental ("o produto é sobre ler papel, não sobre conversar com um robô"),
-   e essa leitura foi trocada, por decisão do owner, pela do mockup: um app de
-   produto, marca em sans bold e "Doc" em azul. O que distingue este produto
-   passa a ser o azul da Yaitec e o rigor da citação, não a família. */
+   O Instrument Serif saiu na revisão de marca de 2026-08-18. Ele carregava o
+   tom documental ("o produto é sobre ler papel, não sobre conversar com um
+   robô"), e essa leitura foi trocada pela de um app de produto: marca em sans
+   bold e "Doc" em azul. O que distingue este produto passa a ser o azul-aço e
+   o rigor da citação, não a família tipográfica. */
 @import '@fontsource-variable/ibm-plex-sans/wght.css';
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
@@ -29,10 +29,10 @@
    público    → quem envia um PDF de trabalho e precisa confiar na resposta;
    tom        → sóbrio, técnico, documental. Ferramenta de leitura, não brinquedo;
    metáfora   → papel e tinta. O claro é papel quente; o escuro é tinta fria.
-                O azul-aço da Yaitec é o marca-texto — e é literalmente o que
-                vai marcar a citação no chat da FEAT-0002.
-   paleta     → a do site da yaitec.com, adotada na MELH-002 e registrada em
-                `.codeflow/decisions/2026-08-17-paleta-yaitec-e-fundos.md`:
+                O azul-aço é o marca-texto — e é literalmente o que vai marcar
+                a citação no chat da FEAT-0002.
+   paleta     → adotada na MELH-002 e registrada em
+                `.codeflow/decisions/2026-08-18-paleta-e-fundos-das-telas.md`:
                 #FBF9F8 papel · #12191F e #1D2730 tinta · #7BA6D1 azul-aço da
                 marca · #9BBFDF e #AACDF2 as duas diluições dele. Os valores
                 abaixo estão em oklch porque é onde clarear e escurecer não
@@ -291,7 +291,7 @@
 
 /* ── Tema escuro: tinta ───────────────────────────────────────────────────────
    É o tema padrão desde a MELH-002, e não o claro invertido mecanicamente. A
-   rampa de superfícies são os três escuros do site da Yaitec, do fundo para
+   rampa de superfícies são os três escuros da paleta, do fundo para
    cima: o fundo fica um degrau ABAIXO do #12191F da marca (0.16 contra 0.209),
    que é o que o pedido de "paleta mais escura" queria; o card é o #12191F; e o
    #1D2730 é o degrau elevado. Três superfícies no mesmo matiz frio, separáveis

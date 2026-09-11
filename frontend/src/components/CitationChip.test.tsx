@@ -8,7 +8,7 @@ import type { Citation } from '@/lib/types'
 
 const CITATION: Citation = {
   page_number: 4,
-  snippet: 'A YAITEC atua com engenharia de dados e inteligência artificial aplicada.',
+  snippet: 'O tratamento de dados pessoais somente poderá ser realizado mediante o fornecimento de consentimento pelo titular.',
   chunk_index: 7,
   score: 0.834,
 }
