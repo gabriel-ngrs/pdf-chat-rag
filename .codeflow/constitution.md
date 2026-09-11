@@ -43,7 +43,7 @@ No frontend, `frontend/src/` separa `components/` (apresentação), `hooks/` (es
 - Segredos vivem apenas em variáveis de ambiente. `GEMINI_API_KEY` nunca aparece em código, em log ou em arquivo versionado; `.env` está no `.gitignore` e `.env.example` traz a chave vazia.
 - Mensagens de erro voltadas ao usuário final, textos da UI e o `README.md` são em pt-BR.
 - `mypy` roda em modo strict sobre `backend/app`, e `tsc` em modo strict sobre `frontend/src`. Nenhum gate é afrouxado para fazer código passar.
-- A partir de um clone limpo, `cp .env.example .env` (com a chave preenchida) seguido de `docker compose up --build` sobe a aplicação inteira. Requisito de entrega do desafio, não conveniência.
+- A partir de um clone limpo, `cp .env.example .env` (com a chave preenchida) seguido de `docker compose up --build` sobe a aplicação inteira. Requisito de entrega do escopo, não conveniência.
 
 ## Áreas de alto risco
 
@@ -59,4 +59,4 @@ Itens adicionais ao Definition of Done padrão (constitution universal):
 - `make check` retornou zero (ruff + mypy strict + tsc + pytest).
 - Toda função nova em `backend/app/core/` tem teste unitário que roda sem rede e sem banco.
 - Mudança que afete a experiência de upload ou de chat foi verificada com `docker compose up --build` a partir do estado limpo.
-- Decisão de arquitetura nova ou alterada foi refletida na seção `## Arquitetura` do `README.md` — é entregável explícito do desafio.
+- Decisão de arquitetura nova ou alterada foi refletida na seção `## Arquitetura` do `README.md` — é entregável explícito do escopo.

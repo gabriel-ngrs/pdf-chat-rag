@@ -14,9 +14,9 @@ relaciona-com: []
 
 ## Contexto
 
-As três specs (`FEAT-0001` ingestão, `FEAT-0002` chat com RAG, `FEAT-0003` biblioteca) foram submetidas a cinco revisores adversariais em paralelo: um crítico por spec, um de coerência cruzada e um simulando o avaliador da empresa. Os revisores encontraram seis defeitos de infraestrutura no esqueleto do `/bootstrap` — vários verificados empiricamente, rodando nginx, `pg_isready` e `uv` — capazes de derrubar o `docker compose up` do avaliador, que é o único critério binário do desafio.
+As três specs (`FEAT-0001` ingestão, `FEAT-0002` chat com RAG, `FEAT-0003` biblioteca) foram submetidas a cinco revisores adversariais em paralelo: um crítico por spec, um de coerência cruzada e um simulando um revisor externo. Os revisores encontraram seis defeitos de infraestrutura no esqueleto do `/bootstrap` — vários verificados empiricamente, rodando nginx, `pg_isready` e `uv` — capazes de derrubar o `docker compose up` de quem clona, que é o único critério binário do escopo.
 
-Quatro revisores independentes apontaram o mesmo bug de roteamento no nginx; três apontaram que o README, entregável literal do enunciado, não tinha dono em nenhuma das 27 fases planejadas. O orçamento também não fechava: 27 fases com gate próprio, para 30h corridas num desafio estimado em 8h.
+Quatro revisores independentes apontaram o mesmo bug de roteamento no nginx; três apontaram que o README, entregável literal do enunciado, não tinha dono em nenhuma das 27 fases planejadas. O orçamento também não fechava: 27 fases com gate próprio, para 30h corridas num escopo estimado em 8h.
 
 Estas decisões consolidam os cortes e fixam os contratos que estavam em aberto.
 
@@ -54,7 +54,7 @@ Estas decisões consolidam os cortes e fixam os contratos que estavam em aberto.
 
 ### 5. Cortar a checagem de autorização por sessão, mantendo a coluna
 
-**Por quê:** o desafio não tem autenticação nem multiusuário. Sem biblioteca e sem rota de listagem — ambas cortadas com a decisão 1 —, vazar o estado de um documento por UUID é irrelevante, e a rota destrutiva que tornava isso grave saiu junto. Manter a checagem arrastaria uma dimensão de autorização por endpoint, com testes, sem pontuar.
+**Por quê:** o escopo não tem autenticação nem multiusuário. Sem biblioteca e sem rota de listagem — ambas cortadas com a decisão 1 —, vazar o estado de um documento por UUID é irrelevante, e a rota destrutiva que tornava isso grave saiu junto. Manter a checagem arrastaria uma dimensão de autorização por endpoint, com testes, sem ganho.
 
 **Alternativa rejeitada:** filtrar por `session_id` em toda rota, como exigia a `FEAT-0003`. Rejeitada junto com a spec que a motivava.
 

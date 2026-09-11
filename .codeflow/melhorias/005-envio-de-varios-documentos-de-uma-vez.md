@@ -28,7 +28,7 @@ continua sendo sobre um documento só. É uma mudança de fluxo de envio.
 **Escopo B — conversa sobre vários ao mesmo tempo.** A pergunta é respondida com
 trechos de qualquer um dos documentos enviados, e a citação precisa dizer de
 qual arquivo veio. É uma mudança no modelo de dados, no retrieval, no prompt e
-na citação — ou seja, no eixo que o desafio mais pesa.
+na citação — ou seja, no eixo central do escopo.
 
 O resto deste documento mede as duas. **Elas não são degraus da mesma escada:**
 o escopo A não é "metade do B". O A pode ser entregue sozinho e continuar
@@ -62,7 +62,7 @@ E o envio, especificamente:
 Vale registrar que isso não é acidente: a `FEAT-0003` (biblioteca de
 documentos) foi **cortada de propósito** em
 [`decisions/2026-08-17-revisao-adversarial-das-specs.md`](../decisions/2026-08-17-revisao-adversarial-das-specs.md),
-decisão 1. Os motivos de lá continuam valendo em parte (o enunciado do desafio
+decisão 1. Os motivos de lá continuam valendo em parte (o enunciado
 pede "envia um PDF", singular) e em parte não (dois dos bugs que a cortaram —
 excluir documento em `processing` e trocar de documento com SSE em andamento —
 são de exclusão e troca, que não são o que este pedido traz).

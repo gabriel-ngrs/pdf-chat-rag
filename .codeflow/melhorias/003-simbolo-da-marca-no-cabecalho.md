@@ -59,7 +59,7 @@ tem dois temas, e uma logo de tinta preta some no tema escuro.
 ## O que fazer quando o arquivo chegar
 
 **Relação entre as marcas.** Precisa ficar claro o que o cliente é aqui: dona do
-produto, cliente, ou autor do desafio. Isso decide a forma:
+produto, cliente, ou autor do enunciado. Isso decide a forma:
 
 - se for **dona/autora**, o padrão é `TalkDoc` à esquerda, separador vertical
   fino, logo do cliente menor à direita, com texto acessível "por cliente";

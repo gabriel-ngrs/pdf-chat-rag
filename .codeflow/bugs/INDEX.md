@@ -38,7 +38,7 @@ pergunta que o documento responde. A continuação não condensada chegava ao
 retrieval como frase vazia e pontuava `0,527`; perguntas curtas sem a âncora
 "o nome da empresa" pontuavam entre `0,53` e `0,62`. O corte estava em `0,625`.
 
-A recusa é o mecanismo que o desafio avalia com mais peso. Falsa recusa é o pior
+A recusa é o mecanismo central do escopo. Falsa recusa é o pior
 modo de falha: o sistema tem a informação, foi perguntado com clareza, e diz que
 não sabe.
 

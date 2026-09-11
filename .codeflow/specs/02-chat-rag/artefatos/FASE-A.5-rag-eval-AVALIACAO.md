@@ -60,7 +60,7 @@ Nenhum.
   variável `EVAL_DOCUMENT_ID` é a saída certa dado que a fase não podia tocar o
   Makefile — mas a `B.5` precisa deixar escrito no README, em uma linha, que a
   invocação é `EVAL_DOCUMENT_ID=<uuid> make eval`. Sem isso o avaliador do
-  desafio tenta `make eval`, vê `usage:` e conclui que está quebrado.
+  escopo tenta `make eval`, vê `usage:` e conclui que está quebrado.
 - **`backend/app/config.py:45` foi alterado fora da lista de arquivos da fase.**
   Mudar o default de código junto com o `.env.example` é a decisão certa (senão um
   deploy sem `.env` roda com o palpite antigo), e §4.7 lista `config.py` como

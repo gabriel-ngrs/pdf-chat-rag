@@ -35,7 +35,7 @@ quality_gate:
 | | |
 |---|---|
 | **O quê** | A pessoa conversa com o documento processado: pergunta, recebe resposta em streaming fundamentada nos trechos recuperados, com citação de página, e o chat entende perguntas de continuação. |
-| **Por quê** | É o requisito 2 do desafio e o eixo mais pesado da avaliação: chunking, embeddings, retrieval, montagem do prompt e fundamentação. |
+| **Por quê** | É o requisito 2 do escopo e o eixo mais pesado do trabalho: chunking, embeddings, retrieval, montagem do prompt e fundamentação. |
 | **Backend-Infra** | Tabelas de conversa e mensagem; condensação com heurística e fallback; busca por cosseno com limiar; SSE nativo do FastAPI; eval com métricas que podem falhar; logs por turno. |
 | **Frontend** | Chat sobre o design system, streaming incremental, chips de citação, avisos por código, retomada após recarregar. |
 | **Entrega** | Fase final com gate próprio: README completo, `demo.sh`, vídeo, ensaio de clone limpo e **convite ao colaborador do cliente**. |
@@ -55,7 +55,7 @@ quality_gate:
 
 ## 1. Problema e contexto
 
-Com o documento ingerido pela `FEAT-0001`, o banco tem chunks vetorizados e citáveis por página. Falta a parte que o desafio avalia com mais peso: transformar uma pergunta em linguagem natural numa resposta que **comprovadamente veio do documento**.
+Com o documento ingerido pela `FEAT-0001`, o banco tem chunks vetorizados e citáveis por página. Falta a parte central do escopo: transformar uma pergunta em linguagem natural numa resposta que **comprovadamente veio do documento**.
 
 Duas frases do enunciado carregam quase toda a dificuldade.
 
@@ -339,7 +339,7 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
 - **id:** `A.4`
 - **slug:** `chat-endpoint`
 - **Objetivo:** amarrar o pipeline numa rota SSE que responde incrementalmente, registra o turno em log, persiste com honestidade e falha com clareza.
-- **Por que esta fase existe:** é onde o requisito 2 do desafio passa a existir. E é a fase com mais armadilhas: buffering que mata o streaming, erro que chega antes de o stream abrir, cliente que desconecta, resposta parcial que precisa ser preservada sem mentir que está completa.
+- **Por que esta fase existe:** é onde o requisito 2 do escopo passa a existir. E é a fase com mais armadilhas: buffering que mata o streaming, erro que chega antes de o stream abrir, cliente que desconecta, resposta parcial que precisa ser preservada sem mentir que está completa.
 - **Depende de:** `A.1`, `A.2`, `A.3`
 - **Contexto que o agente precisa:** use `fastapi.sse.EventSourceResponse` (verificado disponível em 0.141.1) — ele já cuida de `Content-Type`, `Cache-Control`, `X-Accel-Buffering` e keep-alive; escrever o frame à mão é retrabalho com risco de divergir do parser do cliente. **Não adicione `GZipMiddleware`**: compressão quebra SSE. O `429` do Gemini chega majoritariamente na **primeira** chamada, isto é, antes de qualquer byte sair — por isso a distinção pré/mid-stream de FR-11 não é caso de borda, é o caso comum. `embed_query` **já existe** desde `FEAT-0001 A.3`: consuma, não reimplemente.
 - **Arquivos novos:** `backend/app/api/conversations.py`, `backend/app/chat.py`. **Arquivos alterados:** `backend/app/{main,api/schemas,config}.py`, `backend/app/adapters/gemini.py`.
@@ -545,7 +545,7 @@ Rollback é `git revert` da fase. Mudança de schema exige `make down` antes do 
 
 ## 8. Open Questions
 
-- **OQ-2 — Escopo do retrieval.** **RESOLVIDO (2026-08-17):** sempre filtrado pelo `document_id` da conversa. *Justificativa:* o desafio pede "conversa sobre o PDF", singular; filtrar deixa a citação inequívoca e a fundamentação limpa, e é o caminho de menos trabalho. *Rejeitado:* busca em toda a biblioteca; toggle híbrido.
+- **OQ-2 — Escopo do retrieval.** **RESOLVIDO (2026-08-17):** sempre filtrado pelo `document_id` da conversa. *Justificativa:* o escopo pede "conversa sobre o PDF", singular; filtrar deixa a citação inequívoca e a fundamentação limpa, e é o caminho de menos trabalho. *Rejeitado:* busca em toda a biblioteca; toggle híbrido.
 - **OQ-3 — Memória da conversa.** **RESOLVIDO (2026-08-17):** janela de 6 mensagens mais condensação **condicional**. *Justificativa:* sem condensar, a memória existe no prompt e não no retrieval, e perguntas de continuação não recuperam nada. A condicionalidade veio da revisão: "condensar só quando há histórico" não controla custo, porque sempre há histórico a partir da segunda pergunta. *Rejeitado:* histórico integral no prompt; condensação incondicional.
 - **OQ-6 — Transporte do streaming.** **RESOLVIDO (2026-08-17):** SSE sobre `POST` com `fastapi.sse.EventSourceResponse`, consumido por `fetch` + `ReadableStream`. *Justificativa:* fluxo unidirecional; a classe nativa entrega headers e keep-alive que precisaríamos escrever à mão. *Rejeitado:* `StreamingResponse` manual; WebSocket; resposta única. *Nota:* `EventSource` não suporta `POST` nem headers.
 - **OQ-10 — Valor de `SIMILARITY_THRESHOLD`.** **RESOLVIDO quanto ao método (2026-08-17); o número sai da `A.5`.** *Justificativa:* o plano anterior — calibrar pelo `recall@k` — era circular, porque recall melhora monotonicamente quanto mais baixo o limiar. O método correto é o contraste entre as distribuições de similaridade de positivas e negativas, com falsa recusa como contrapeso. *Rejeitado:* calibrar só por recall.

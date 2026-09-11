@@ -17,7 +17,7 @@ relaciona-com: [2026-08-17-revisao-adversarial-das-specs]
 A `FEAT-0002` tem dois tracks. O Track B (`B.1` a `B.4`, interface do chat)
 declara `Depende de: A.4` — o endpoint de chat com streaming. As quatro fases do
 Track B foram executadas num worktree paralelo **antes** de a `A.4` existir, por
-instrução verbal, para caber no orçamento de horas do desafio.
+instrução verbal, para caber no orçamento de horas do projeto.
 
 `ARTIFACTS_SPEC` §2.11.4 trata dependência declarada como gate duro: só fase
 `APROVADO` libera as dependentes, e um override precisa de decision arquitetural

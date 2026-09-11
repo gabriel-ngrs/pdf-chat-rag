@@ -14,7 +14,7 @@ range: a3a775c..8cc9eb14ab19faed861817a6e74ef2871b901c52
 
 ## 1. Resumo do que foi feito
 
-O requisito 1 do desafio passa a existir de fato: `POST /api/documents` aceita o
+O requisito 1 do escopo passa a existir de fato: `POST /api/documents` aceita o
 PDF e responde `202` em milissegundos, e o pipeline de background leva o
 documento por `pending → processing → ready`, com progresso consultável. A
 divisão do que se valida onde é a decisão central — na requisição ficam só as

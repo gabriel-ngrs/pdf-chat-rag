@@ -62,7 +62,7 @@ A folga não é vazia; ela é ocupada pela forma como gente de verdade pergunta.
 
 ## Por que isto é grave
 
-A recusa é o mecanismo que o desafio avalia com mais peso, e a falsa recusa é o
+A recusa é o mecanismo central do escopo, e a falsa recusa é o
 pior modo de falha: o sistema tem a informação, foi perguntado de forma clara, e
 diz que não sabe. Numa demonstração, some com a credibilidade do produto.
 

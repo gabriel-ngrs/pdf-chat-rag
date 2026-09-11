@@ -56,7 +56,7 @@ $ curl -s -X POST http://localhost:5173/api/conversations \
 ```
 
 O documento existe no banco do compose com `status: ready` e 3 páginas, e a
-rota é a do nginx — o mesmo caminho que o avaliador do desafio vai usar.
+rota é a do nginx — o mesmo caminho que quem for usar o produto vai usar.
 As capturas dos dois temas são reais e mostram a mesma composição (cabeçalho,
 balão da pergunta, rótulo "RESPOSTA", chips, campo), legível nos dois.
 
@@ -83,7 +83,7 @@ Nenhum.
   aparecem `### **1. Quem é a empresa**` e `* **Descrição e Foco:**` literais: o
   modelo devolve markdown e a tela renderiza como texto (`whitespace-pre-wrap`).
   A spec não pede renderização de markdown, então não é desvio — mas é o que
-  o avaliador do desafio vai ver na demonstração.
+  quem abrir o produto vai ver.
 
 ## 6. Comandos rodados + saídas reais
 
