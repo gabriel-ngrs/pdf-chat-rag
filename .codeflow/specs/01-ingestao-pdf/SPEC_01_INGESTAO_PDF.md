@@ -31,7 +31,7 @@ quality_gate:
 | | |
 |---|---|
 | **O quê** | A pessoa envia um PDF; o backend extrai o texto página a página, quebra em chunks que nunca cruzam fronteira de página, gera embeddings e persiste no pgvector, com o estado visível e registrado em log estruturado. |
-| **Por quê** | É o requisito 1 do desafio e a fundação de tudo: sem chunks embedados e citáveis por página, não existe RAG fundamentado. E é aqui que nascem a arquitetura, os gates e o design system que a `FEAT-0002` vai consumir. |
+| **Por quê** | É o requisito 1 do escopo e a fundação de tudo: sem chunks embedados e citáveis por página, não existe RAG fundamentado. E é aqui que nascem a arquitetura, os gates e o design system que a `FEAT-0002` vai consumir. |
 | **Backend-Infra** | Schema com `vector(768)` e índice HNSW de cosseno; logging JSON com `request_id`; envelope de erro único; upload assíncrono com máquina de estados; adapter Gemini com lote, backoff, `task_type` e normalização L2. |
 | **Frontend** | Design system sobre shadcn/ui, sistema de avisos ao usuário, tela de upload com limites lidos da API e acompanhamento do processamento. |
 | **Qualidade** | `make check` agrega lint, typecheck, **teste de arquitetura** (`import-linter`) e suíte offline; `make security` roda bandit, pip-audit e npm audit. |
@@ -51,7 +51,7 @@ quality_gate:
 
 ## 1. Problema e contexto
 
-O desafio da YAITEC pede um app onde a pessoa envia um PDF e conversa com ele, com respostas fundamentadas citando trecho ou página. Antes de qualquer conversa, o documento precisa virar dado consultável por similaridade.
+O escopo pede um app onde a pessoa envia um PDF e conversa com ele, com respostas fundamentadas citando trecho ou página. Antes de qualquer conversa, o documento precisa virar dado consultável por similaridade.
 
 **O detalhe que decide a nota está na extração.** Se o PDF virar um texto único e só depois for cortado, o número da página se perde e citar vira adivinhação. Extrair por página e **nunca deixar um chunk cruzar a fronteira** faz a citação ser exata por construção — e o avaliador vai conferir contra um PDF de 3 páginas que ele mesmo enviou.
 
@@ -313,7 +313,7 @@ Componentes previstos: `button`, `card`, `progress`, `scroll-area`, `separator`,
 - **Objetivo:** transformar bytes de PDF em chunks citáveis, com a página correta e sem cruzar fronteira.
 - **Por que esta fase existe:** é aqui que a citação nasce. Todo o eixo de fundamentação da `FEAT-0002` depende de o `page_number` de um chunk ser verdadeiro — e a única forma de garantir isso sem heurística é o chunk nunca conter texto de duas páginas.
 - **Depende de:** `A.1`
-- **Contexto que o agente precisa:** `core/models.py` já tem `PageText` e `Chunk` — use, não redefina. As exceções de domínio já existem em `errors.py` — acrescente as específicas de PDF ali, não crie hierarquia nova. `pypdf` é síncrono e CPU-bound: esta fase **não** chama `asyncio.to_thread`, mas documenta na docstring que o chamador deve fazê-lo (quem chama é a `A.4`). O PDF de exemplo do desafio tem 3 páginas e ~1.220 caracteres por página, então com `CHUNK_SIZE=500` cada página vira 2 a 3 chunks — é esse número que faz o `RETRIEVAL_TOP_K=5` da `FEAT-0002` selecionar de fato em vez de devolver o documento inteiro.
+- **Contexto que o agente precisa:** `core/models.py` já tem `PageText` e `Chunk` — use, não redefina. As exceções de domínio já existem em `errors.py` — acrescente as específicas de PDF ali, não crie hierarquia nova. `pypdf` é síncrono e CPU-bound: esta fase **não** chama `asyncio.to_thread`, mas documenta na docstring que o chamador deve fazê-lo (quem chama é a `A.4`). O PDF de exemplo tem 3 páginas e ~1.220 caracteres por página, então com `CHUNK_SIZE=500` cada página vira 2 a 3 chunks — é esse número que faz o `RETRIEVAL_TOP_K=5` da `FEAT-0002` selecionar de fato em vez de devolver o documento inteiro.
 - **Arquivos novos:** `backend/app/adapters/pdf.py`, `backend/app/core/chunking.py`, `backend/tests/{test_pdf_extraction,test_chunking}.py`, `backend/tests/factories.py`. **Arquivos alterados:** `backend/app/errors.py`.
 - **Passos:**
   1. **`factories.py`** — helper que gera PDFs mínimos em memória para os testes (texto conhecido, N páginas, e um caso sem camada de texto). *Por quê em código:* commitar PDF binário como fixture polui o repositório e esconde o que está sendo testado.
@@ -352,7 +352,7 @@ Componentes previstos: `button`, `card`, `progress`, `scroll-area`, `separator`,
 - **id:** `A.4`
 - **slug:** `ingestion-pipeline`
 - **Objetivo:** amarrar upload, extração, chunking, embeddings e persistência numa máquina de estados consultável e bem logada.
-- **Por que esta fase existe:** é onde o requisito 1 do desafio passa a existir de fato, e onde "tratamento do upload e de erros" — nomeado no eixo de Engenharia — é avaliado. A separação entre o que é validado na requisição e o que é validado em background é a decisão central: tudo que exige parse do PDF é caro demais para a requisição.
+- **Por que esta fase existe:** é onde o requisito 1 do escopo passa a existir de fato, e onde "tratamento do upload e de erros" — nomeado no eixo de Engenharia — é resolvido. A separação entre o que é validado na requisição e o que é validado em background é a decisão central: tudo que exige parse do PDF é caro demais para a requisição.
 - **Depende de:** `A.2`, `A.3`
 - **Contexto que o agente precisa:** `MAX_UPLOAD_MB` não pode ser aplicado depois de `await file.read()` — nesse ponto o arquivo já está inteiro na memória. Por isso a checagem é de `Content-Length` **antes** de ler, mais leitura em pedaços com corte rígido. O `BackgroundTasks` do Starlette roda dentro do `AsyncExitStack` do request e **não** é morto em tarefas de minutos (verificado na revisão), mas passe `bytes` e não o `UploadFile`, para não depender desse detalhe. O `request_id` do middleware precisa ser propagado para dentro da task — capture-o antes de agendar.
 - **Arquivos novos:** `backend/app/adapters/repository.py`, `backend/app/ingestion.py`, `backend/app/api/documents.py`. **Arquivos alterados:** `backend/app/main.py`, `backend/app/api/schemas.py`.
@@ -366,7 +366,7 @@ Componentes previstos: `button`, `card`, `progress`, `scroll-area`, `separator`,
   7. Gravar `session_id` do header `X-Session-Id` (sem usá-lo para autorização).
 - **Testes:** upload responde rápido em `pending` (AC-1); limites da requisição recusados no envelope certo (AC-2, AC-3); violações de parse terminam `failed` (AC-4, AC-5); progresso monotônico (AC-12); falha permanente vira `failed` sem vazar chave (AC-13); reenvio idêntico não reprocessa (AC-15); dois uploads simultâneos serializam (AC-28); os eventos de log aparecem com o mesmo `request_id` (AC-18).
 - **Escopo travado / violações BLOQUEANTES:** nenhuma chamada ao Gemini fora do adapter da `A.3`; nenhum SQL concatenado; **não deixar documento preso em `processing`**; não parsear o PDF duas vezes; não bloquear o event loop com `pypdf`; não implementar retrieval nem chat; não gravar o conteúdo do PDF em log.
-- **Critério de conclusão (gate):** upload real do `Exemplo-YAITEC.pdf` chega a `ready` com chunks embedados; o índice HNSW é o de cosseno (AC-11); um `docker compose logs backend | grep <request_id>` mostra a ingestão inteira; `make check` zero.
+- **Critério de conclusão (gate):** upload real do `documento-de-exemplo.pdf` chega a `ready` com chunks embedados; o índice HNSW é o de cosseno (AC-11); um `docker compose logs backend | grep <request_id>` mostra a ingestão inteira; `make check` zero.
 
 ### Fase A.5 — Suíte de testes da ingestão *(tamanho M; ≈2h)*
 
@@ -536,7 +536,7 @@ fechado:
 - [✓] `A.1 foundation` — compose sobe a frio duas vezes; `/api/health` `200` através do nginx com `X-Request-Id`; envelope de erro aplicado; `make arch` passa. *(APROVADO 9,5 · tentativa 2)*
 - [✓] `A.2 pdf-chunking` — chunking por página, determinístico, offline, cobertura ≥ 90%. *(APROVADO 9,8 · tentativa 2)*
 - [✓] `A.3 gemini-embeddings` — verificação contra a API real registrada; lote, backoff, `task_type` e L2 testados com fake. *(APROVADO 9,8 · tentativa 2)*
-- [✓] `A.4 ingestion-pipeline` — `Exemplo-YAITEC.pdf` chega a `ready`; ingestão rastreável por `request_id` no log. *(APROVADO 9,8 · tentativa 2)*
+- [✓] `A.4 ingestion-pipeline` — `documento-de-exemplo.pdf` chega a `ready`; ingestão rastreável por `request_id` no log. *(APROVADO 9,8 · tentativa 2)*
 - [✓] `A.5 ingestion-tests` — `make test` verde sem chave e sem banco, cobertura de `core/` ≥ 90%; `make test-db` verde. *(APROVADO 9,8 · tentativa 1)*
 - [✓] `A.6 quality-gates` — `make arch` reprova violação injetada; `make security` sem achado alto. *(APROVADO 9,7 · tentativa 1)*
 - [✓] `B.1 design-system` — casca nos dois temas, responsiva a 375 px, navegável por teclado. *(APROVADO · tentativa 1)*

@@ -40,7 +40,7 @@ timeout máximo de condensação de 5 s para 2 s (BUG-009).
   4386 e `clientHeight` 603; página em 900 px e formulário com base em 823 px.
 - **B7:** `POST` com pergunta de 3.000 caracteres respondeu `422` com
   `code: entrada_invalida`; a descrição da interface cobre o limite de 2.000.
-- **B8:** upload real do `Exemplo-YAITEC.pdf` mostrou os valores estimados 0%,
+- **B8:** upload real do `documento-de-exemplo.pdf` mostrou os valores estimados 0%,
   67% e 86% antes de o documento ficar pronto.
 - **B9:** o default de condensação é 2 s, confirmado pelo teste de regressão.
 - **B10:** fechar o gerador após o primeiro token gera `chat.generated` com

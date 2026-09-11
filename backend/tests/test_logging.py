@@ -262,7 +262,7 @@ async def test_a_chave_nao_aparece_na_linha_de_log_renderizada(
     nome: str,
     fabricar: Callable[[], Exception],
 ) -> None:
-    """AC-19 sobre a saída de verdade, que é onde o `grep` do avaliador roda.
+    """AC-19 sobre a saída de verdade, que é onde um `grep` por chave rodaria.
 
     O `capture_logs` do teste acima enxerga o event dict antes da renderização e
     por isso é cego a traceback; este vê a linha completa, incluindo o

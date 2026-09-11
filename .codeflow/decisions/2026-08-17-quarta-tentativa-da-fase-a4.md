@@ -67,7 +67,7 @@ Correção validada sob a mesma carga que produz as falhas:
 1. **O owner autoriza uma quarta tentativa da `A.4`**, sabendo que ela passa do
    teto de §2.11.4. A alternativa considerada e rejeitada foi aceitar a fase com
    o achado como dívida no README: o custo real seria um `make check`
-   intermitentemente vermelho na frente de quem avalia o desafio, que é o pior
+   intermitentemente vermelho na frente de quem clona o projeto, que é o pior
    cenário possível de uma entrega que se vende por "roda de primeira".
 
 2. **O escopo do rework é uma constante**: o orçamento do teste

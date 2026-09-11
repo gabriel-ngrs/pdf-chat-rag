@@ -16,9 +16,9 @@ export type BackgroundKind = 'waves' | 'grid'
 /**
  * As três cores do shader, e de onde vêm.
  *
- * A referência do owner trazia roxo e rosa fixos. Aqui elas saem dos tokens,
+ * A referência de origem trazia roxo e rosa fixos. Aqui elas saem dos tokens,
  * que é o que faz o fundo ser animado **e** continuar sendo este produto: a
- * névoa é o fundo da página, o corpo da onda é o azul da Yaitec, e a crista
+ * névoa é o fundo da página, o corpo da onda é o azul-aço da marca, e a crista
  * brilha na cor do marca-texto.
  */
 const WAVE_TOKENS = ['--wave-horizon', '--primary', '--highlight'] as const

@@ -49,17 +49,17 @@ from tests.fakes import (
     matches_embedding,
 )
 
-PERGUNTA = "quais servicos a YAITEC oferece?"
+PERGUNTA = "como o consentimento deve ser obtido?"
 CONTINUACAO = "e quanto a isso?"
 
 # Um trecho longo o bastante para o recorte da citação ter o que cortar: o
 # `snippet` promete no máximo 240 caracteres em fronteira de palavra, e um texto
 # curto tornaria a promessa vacuamente verdadeira.
 TRECHO_LONGO = (
-    "A YAITEC desenvolve software sob medida para empresas que precisam de "
-    "integracao entre sistemas legados e plataformas modernas, cobrindo "
-    "descoberta, arquitetura, implementacao e sustentacao do que foi entregue, "
-    "com equipes dedicadas por projeto e prazos acordados antes do inicio."
+    "O consentimento devera ser fornecido por escrito ou por outro meio que "
+    "demonstre a manifestacao de vontade do titular, e nas hipoteses em que "
+    "constar de clausula contratual devera estar destacado das demais "
+    "clausulas, cabendo ao controlador o onus da prova de que foi obtido."
 )
 
 

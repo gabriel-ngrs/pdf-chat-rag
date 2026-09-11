@@ -35,10 +35,10 @@ quality_gate:
 | | |
 |---|---|
 | **O quê** | A pessoa conversa com o documento processado: pergunta, recebe resposta em streaming fundamentada nos trechos recuperados, com citação de página, e o chat entende perguntas de continuação. |
-| **Por quê** | É o requisito 2 do desafio e o eixo mais pesado da avaliação: chunking, embeddings, retrieval, montagem do prompt e fundamentação. |
+| **Por quê** | É o requisito 2 do escopo e o eixo mais pesado do trabalho: chunking, embeddings, retrieval, montagem do prompt e fundamentação. |
 | **Backend-Infra** | Tabelas de conversa e mensagem; condensação com heurística e fallback; busca por cosseno com limiar; SSE nativo do FastAPI; eval com métricas que podem falhar; logs por turno. |
 | **Frontend** | Chat sobre o design system, streaming incremental, chips de citação, avisos por código, retomada após recarregar. |
-| **Entrega** | Fase final com gate próprio: README completo, `demo.sh`, vídeo, ensaio de clone limpo e **convite ao colaborador `ygorbalves`**. |
+| **Entrega** | Fase final com gate próprio: README completo, `demo.sh`, vídeo, ensaio de clone limpo e **convite ao colaborador do cliente**. |
 | **Tamanho** | L — 7 fases no Track A (backend) e 5 no Track B (frontend). |
 
 ## Sumário
@@ -55,11 +55,11 @@ quality_gate:
 
 ## 1. Problema e contexto
 
-Com o documento ingerido pela `FEAT-0001`, o banco tem chunks vetorizados e citáveis por página. Falta a parte que o desafio avalia com mais peso: transformar uma pergunta em linguagem natural numa resposta que **comprovadamente veio do documento**.
+Com o documento ingerido pela `FEAT-0001`, o banco tem chunks vetorizados e citáveis por página. Falta a parte central do escopo: transformar uma pergunta em linguagem natural numa resposta que **comprovadamente veio do documento**.
 
 Duas frases do enunciado carregam quase toda a dificuldade.
 
-**"Compreender perguntas de continuação."** Quando alguém pergunta *"e quanto a isso?"* logo depois de *"quais serviços a YAITEC oferece?"*, buscar por *"e quanto a isso?"* no índice vetorial não recupera nada — o pronome não carrega semântica. A pergunta precisa ser condensada numa query autocontida **antes** do retrieval. Sem esse passo, a memória existe no prompt e não existe na busca, e o sistema falha exatamente onde o enunciado cobra. Este é o ponto que mais separa uma implementação que entendeu RAG de uma que seguiu tutorial.
+**"Compreender perguntas de continuação."** Quando alguém pergunta *"e quanto a isso?"* logo depois de *"quais serviços a empresa oferece?"*, buscar por *"e quanto a isso?"* no índice vetorial não recupera nada — o pronome não carrega semântica. A pergunta precisa ser condensada numa query autocontida **antes** do retrieval. Sem esse passo, a memória existe no prompt e não existe na busca, e o sistema falha exatamente onde o enunciado cobra. Este é o ponto que mais separa uma implementação que entendeu RAG de uma que seguiu tutorial.
 
 **"Respostas fundamentadas, citando o trecho ou a página."** Fundamentar não é instruir o modelo a citar; é decidir o que fazer quando o documento não tem a resposta. Por isso o limiar e a recusa são requisitos, e por isso o eval precisa de perguntas que **devem** ser recusadas — sem esse contrapeso, otimizar o limiar por recall o empurra para zero e destrói a recusa.
 
@@ -339,7 +339,7 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
 - **id:** `A.4`
 - **slug:** `chat-endpoint`
 - **Objetivo:** amarrar o pipeline numa rota SSE que responde incrementalmente, registra o turno em log, persiste com honestidade e falha com clareza.
-- **Por que esta fase existe:** é onde o requisito 2 do desafio passa a existir. E é a fase com mais armadilhas: buffering que mata o streaming, erro que chega antes de o stream abrir, cliente que desconecta, resposta parcial que precisa ser preservada sem mentir que está completa.
+- **Por que esta fase existe:** é onde o requisito 2 do escopo passa a existir. E é a fase com mais armadilhas: buffering que mata o streaming, erro que chega antes de o stream abrir, cliente que desconecta, resposta parcial que precisa ser preservada sem mentir que está completa.
 - **Depende de:** `A.1`, `A.2`, `A.3`
 - **Contexto que o agente precisa:** use `fastapi.sse.EventSourceResponse` (verificado disponível em 0.141.1) — ele já cuida de `Content-Type`, `Cache-Control`, `X-Accel-Buffering` e keep-alive; escrever o frame à mão é retrabalho com risco de divergir do parser do cliente. **Não adicione `GZipMiddleware`**: compressão quebra SSE. O `429` do Gemini chega majoritariamente na **primeira** chamada, isto é, antes de qualquer byte sair — por isso a distinção pré/mid-stream de FR-11 não é caso de borda, é o caso comum. `embed_query` **já existe** desde `FEAT-0001 A.3`: consuma, não reimplemente.
 - **Arquivos novos:** `backend/app/api/conversations.py`, `backend/app/chat.py`. **Arquivos alterados:** `backend/app/{main,api/schemas,config}.py`, `backend/app/adapters/gemini.py`.
@@ -355,7 +355,7 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
   9. `GET /api/conversations/{id}/messages`.
 - **Testes:** streaming concatenado (AC-2); fallback de condensação (AC-5); recusa sem chamar LLM (AC-8); citações completas (AC-10); histórico e `truncated` (AC-11); erro pré e mid-stream (AC-12); desconexão encerra o gerador (AC-13); documento não-`ready` (AC-1); eventos de log com `conversation_id` (AC-15).
 - **Escopo travado / violações BLOQUEANTES:** nenhuma chamada ao Gemini fora do adapter; **não bufferizar a resposta inteira** antes de emitir; **não persistir resposta parcial como completa**; **não adicionar `GZipMiddleware`**; não reimplementar `embed_query`; não logar o prompt integral nem a pergunta completa em nível `info`.
-- **Critério de conclusão (gate):** pergunta real sobre o `Exemplo-YAITEC.pdf` responde em streaming **através do `docker compose`** com citação de página correta, primeiro token em ≤ 5 s (AC-23); `make check` zero.
+- **Critério de conclusão (gate):** pergunta real sobre o `documento-de-exemplo.pdf` responde em streaming **através do `docker compose`** com citação de página correta, primeiro token em ≤ 5 s (AC-23); `make check` zero.
 
 ### Fase A.5 — Eval de retrieval *(tamanho M; ≈2h)*
 
@@ -364,10 +364,10 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
 - **Objetivo:** **medir** a qualidade do retrieval com métricas que podem falhar, e calibrar o limiar com dado em vez de palpite.
 - **Por que esta fase existe:** o eixo IA/RAG é o mais pesado da avaliação, e quase nenhum candidato **mede** o retrieval — só constrói. Mas uma métrica que não pode falhar é pior que nenhuma: `recall@5` num documento de 5 chunks é 1,0 por construção, e um avaliador percebe em dez segundos. Esta fase existe para o número ser honesto.
 - **Depende de:** `A.3`
-- **Contexto que o agente precisa:** com o chunking por página da `FEAT-0001` (500 chars), o `Exemplo-YAITEC.pdf` produz ~10 chunks — por isso `recall@3` é uma métrica que **pode** falhar, e `recall@5` não seria. A calibração do limiar exige rodar o eval várias vezes: **não reingerir o PDF a cada execução**, receber um `document_id` já pronto como parâmetro, senão cada rodada queima quota. O contrapeso do recall é a falsa recusa — sem ele, o ótimo é limiar zero.
+- **Contexto que o agente precisa:** com o chunking por página da `FEAT-0001` (500 chars), o `documento-de-exemplo.pdf` produz ~10 chunks — por isso `recall@3` é uma métrica que **pode** falhar, e `recall@5` não seria. A calibração do limiar exige rodar o eval várias vezes: **não reingerir o PDF a cada execução**, receber um `document_id` já pronto como parâmetro, senão cada rodada queima quota. O contrapeso do recall é a falsa recusa — sem ele, o ótimo é limiar zero.
 - **Arquivos novos:** `backend/eval/{dataset.json,run_eval.py}`. **Arquivos alterados:** `backend/eval/README.md` (já criado na `FEAT-0001 A.3`), `.env.example`.
 - **Passos:**
-  1. **`dataset.json`** com 8–12 perguntas **positivas** (campo `expected_page`) sobre o `Exemplo-YAITEC.pdf` e **4 negativas** (`expected_page: null`) comprovadamente fora do documento. Incluir ao menos **uma pergunta de continuação** cuja página só é alcançável se a condensação funcionar.
+  1. **`dataset.json`** com 8–12 perguntas **positivas** (campo `expected_page`) sobre o `documento-de-exemplo.pdf` e **4 negativas** (`expected_page: null`) comprovadamente fora do documento. Incluir ao menos **uma pergunta de continuação** cuja página só é alcançável se a condensação funcionar.
   2. **`run_eval.py`** — recebe `--document-id`, roda o retrieval de cada item, e calcula: `recall@1`, `recall@3` e `MRR` nas positivas; taxa de recusa correta nas negativas; taxa de falsa recusa nas positivas; e a distribuição de similaridade (mín/média/máx) **separada por grupo**.
   3. Imprimir relatório por pergunta e agregado, em formato colável no README.
   4. Saída não-zero quando abaixo dos limiares de NFR-7.
@@ -474,7 +474,7 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
   5. Mostrar o `score` de forma discreta apenas se agregar (ex.: tooltip) — não poluir a leitura.
 - **Testes:** alcançar a citação por `Tab` e acioná-la revela trecho e página (AC-18); resposta sem citação não exibe a área (AC-19).
 - **Escopo travado / violações BLOQUEANTES:** **não recortar o snippet no cliente**; **não fabricar citação** — renderizar só o que veio no evento; não usar cor fora dos tokens.
-- **Critério de conclusão (gate):** citações reais de uma pergunta sobre o `Exemplo-YAITEC.pdf` exibidas, expansíveis e navegáveis por teclado; lint e typecheck zero.
+- **Critério de conclusão (gate):** citações reais de uma pergunta sobre o `documento-de-exemplo.pdf` exibidas, expansíveis e navegáveis por teclado; lint e typecheck zero.
 
 ### Fase B.4 — Avisos, recusa e persistência de sessão *(tamanho M; ≈2h)*
 
@@ -508,14 +508,14 @@ Mesmo formato de `FEAT-0001` §4.4, com `conversation_id` no contexto:
 - **Arquivos novos:** `scripts/demo.sh`, `docs/demo.gif` (ou link). **Arquivos alterados:** `README.md`, `.env.example`.
 - **Passos:**
   1. **README**, nesta ordem: o que é, em duas frases; **captura ou GIF logo no topo**; setup em três comandos com o aviso do tempo de build; como usar; **arquitetura** com o diagrama de pipeline de §4.1; **tabela de decisões** (escolhi / por quê / rejeitei) cobrindo chunking por página, dimensão 768, `task_type`, condensação condicional, limiar com recusa, SSE, sem framework de RAG; **resultados do eval colados**; **limitações conhecidas** (`session_id` organiza mas não protege; sem OCR; um documento por conversa; leitura adotada de "histórico"); **ferramentas de IA usadas**, dizendo quais, para quê e o que foi revisado e alterado; parágrafo explicando que `.codeflow/` é o framework pessoal de planejamento do autor; **próximos passos** (biblioteca de documentos, autenticação, busca híbrida se não executada).
-  2. **`scripts/demo.sh`** — sobe o `Exemplo-YAITEC.pdf` por `curl`, faz polling até `ready`, faz três perguntas (uma delas de continuação, uma fora do documento) e imprime resposta e citações. Serve de prova de vida, smoke test e plano B se a UI engasgar.
+  2. **`scripts/demo.sh`** — sobe o `documento-de-exemplo.pdf` por `curl`, faz polling até `ready`, faz três perguntas (uma delas de continuação, uma fora do documento) e imprime resposta e citações. Serve de prova de vida, smoke test e plano B se a UI engasgar.
   3. **Demonstração gravada de ~90 s**, três cenas: upload com progresso real; pergunta respondida em streaming com o chip de citação aberto; **e uma pergunta que o documento não responde, mostrando a recusa**. A terceira cena é a mais forte e leva dez segundos.
   4. **Ensaio de entrega:** `git clone` numa pasta nova e descartável, `cp .env.example .env`, preencher a chave, `docker compose up --build` cronometrado, rodar `scripts/demo.sh`. Corrigir o que quebrar.
-  5. **Criar o repositório privado no GitHub e adicionar `ygorbalves` como colaborador**, confirmando que o convite foi enviado.
+  5. **Criar o repositório privado no GitHub e adicionar o contato do cliente como colaborador**, confirmando que o convite foi enviado.
   6. Redigir a mensagem de entrega em cinco linhas: o que está pronto, o que ficou fora e por quê, uma decisão técnica de que se orgulha, e o que faria com mais oito horas.
 - **Testes:** `scripts/demo.sh` roda de ponta a ponta contra o compose e imprime resposta com citação (AC-22); README sem TODOs e com todas as seções (AC-21); clone limpo sobe sem intervenção (AC-22).
 - **Escopo travado / violações BLOQUEANTES:** **não deixar `<!-- TODO -->`** no README entregue; **não colar resultado de eval que não foi medido**; não vazar chave no README, no script ou no vídeo; **não prometer no README o que não foi implementado**; não pular o ensaio de clone limpo.
-- **Critério de conclusão (gate):** README completo; `demo.sh` funcionando; vídeo gravado; ensaio de clone limpo executado com sucesso; **colaborador `ygorbalves` convidado e convite confirmado**.
+- **Critério de conclusão (gate):** README completo; `demo.sh` funcionando; vídeo gravado; ensaio de clone limpo executado com sucesso; **colaborador do cliente convidado e convite confirmado**.
 
 ## 6. Riscos
 
@@ -545,7 +545,7 @@ Rollback é `git revert` da fase. Mudança de schema exige `make down` antes do 
 
 ## 8. Open Questions
 
-- **OQ-2 — Escopo do retrieval.** **RESOLVIDO (2026-08-17):** sempre filtrado pelo `document_id` da conversa. *Justificativa:* o desafio pede "conversa sobre o PDF", singular; filtrar deixa a citação inequívoca e a fundamentação limpa, e é o caminho de menos trabalho. *Rejeitado:* busca em toda a biblioteca; toggle híbrido.
+- **OQ-2 — Escopo do retrieval.** **RESOLVIDO (2026-08-17):** sempre filtrado pelo `document_id` da conversa. *Justificativa:* o escopo pede "conversa sobre o PDF", singular; filtrar deixa a citação inequívoca e a fundamentação limpa, e é o caminho de menos trabalho. *Rejeitado:* busca em toda a biblioteca; toggle híbrido.
 - **OQ-3 — Memória da conversa.** **RESOLVIDO (2026-08-17):** janela de 6 mensagens mais condensação **condicional**. *Justificativa:* sem condensar, a memória existe no prompt e não no retrieval, e perguntas de continuação não recuperam nada. A condicionalidade veio da revisão: "condensar só quando há histórico" não controla custo, porque sempre há histórico a partir da segunda pergunta. *Rejeitado:* histórico integral no prompt; condensação incondicional.
 - **OQ-6 — Transporte do streaming.** **RESOLVIDO (2026-08-17):** SSE sobre `POST` com `fastapi.sse.EventSourceResponse`, consumido por `fetch` + `ReadableStream`. *Justificativa:* fluxo unidirecional; a classe nativa entrega headers e keep-alive que precisaríamos escrever à mão. *Rejeitado:* `StreamingResponse` manual; WebSocket; resposta única. *Nota:* `EventSource` não suporta `POST` nem headers.
 - **OQ-10 — Valor de `SIMILARITY_THRESHOLD`.** **RESOLVIDO quanto ao método (2026-08-17); o número sai da `A.5`.** *Justificativa:* o plano anterior — calibrar pelo `recall@k` — era circular, porque recall melhora monotonicamente quanto mais baixo o limiar. O método correto é o contraste entre as distribuições de similaridade de positivas e negativas, com falsa recusa como contrapeso. *Rejeitado:* calibrar só por recall.
@@ -586,5 +586,5 @@ Rollback é `git revert` da fase. Mudança de schema exige `make down` antes do 
 - [ ] Identificadores em inglês; textos de UI em pt-BR; toda cor e tamanho vindos dos tokens.
 - [ ] `.env.example` documenta toda variável, com `SIMILARITY_THRESHOLD` calibrado.
 - [ ] README sem `<!-- TODO -->`, com decisões, limitações, ferramentas de IA e resultados do eval.
-- [ ] Repositório privado criado e **`ygorbalves` adicionado como colaborador**.
+- [ ] Repositório privado criado e **contato do cliente adicionado como colaborador**.
 - [ ] Nenhuma regressão em `FEAT-0001`.

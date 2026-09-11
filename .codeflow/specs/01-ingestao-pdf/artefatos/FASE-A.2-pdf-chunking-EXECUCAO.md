@@ -62,7 +62,7 @@ nenhuma hierarquia nova foi criada. `pypdf` já estava no `pyproject.toml`;
   e não ganha código de envelope.
 - **Sanidade contra a spec:** uma página de ~1.220 caracteres com
   `CHUNK_SIZE=500` produz 3 chunks — exatamente a faixa "2 a 3" que a spec
-  prevê. Conferido também contra o `Exemplo-YAITEC.pdf` real (3 páginas,
+  prevê. Conferido também contra o `documento-de-exemplo.pdf` real (3 páginas,
   1500/1407/758 caracteres), coerente com os ~10 chunks que a spec projeta.
 
 **Desvios da spec — dois, ambos aditivos e declarados.**

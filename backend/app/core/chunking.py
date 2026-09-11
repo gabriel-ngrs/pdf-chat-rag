@@ -44,7 +44,7 @@ def chunk_pages(pages: list[PageText], size: int, overlap: int) -> list[Chunk]:
     páginas. É essa regra que torna a citação exata por construção — o
     `page_number` do chunk é o da página de onde cada caractere saiu, sem
     heurística de "de qual página este trecho provavelmente veio". Um único
-    chunk que cruzasse a fronteira já bastaria para o avaliador ver uma
+    chunk que cruzasse a fronteira já bastaria para a interface mostrar uma
     citação apontando para a página errada.
 
     `chunk_index` é sequencial no documento inteiro para servir de ordem

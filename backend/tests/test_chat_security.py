@@ -71,7 +71,7 @@ PERGUNTAS_COM_SQL = (
     "'; DROP TABLE chunks; --",
     "' OR '1'='1",
     'x" OR 1=1 --',
-    "quais servicos a YAITEC oferece'; DELETE FROM messages WHERE 1=1; --",
+    "como obter consentimento'; DELETE FROM messages WHERE 1=1; --",
 )
 
 
@@ -108,7 +108,7 @@ class LeakingChatModels:
         falha = self.exception
 
         async def pedacos() -> Any:
-            yield Pedaco("A YAITEC ")
+            yield Pedaco("O consentimento ")
             raise falha
 
         return pedacos()

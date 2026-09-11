@@ -19,7 +19,7 @@ Zero BLOQUEANTES e zero IMPORTANTES. A suíte cumpre o que a fase prometia e o
 faz de um jeito que resiste a inspeção adversarial: reproduzi os 119 testes
 offline **sem chave, sem banco e com o `DATABASE_URL` apontando para um endereço
 inalcançável**, e ainda em duas condições que o executor não testou — com a
-`GEMINI_API_KEY` definida no ambiente (o caso de quem for avaliar o desafio) e
+`GEMINI_API_KEY` definida no ambiente (o caso de quem for rodar o projeto) e
 com variáveis de limite divergentes. Passa nas três.
 
 Também verifiquei por mutação, sem tocar no repositório, que dois dos testes mais
@@ -96,7 +96,7 @@ Required test coverage of 90% reached. Total coverage: 98.98%
 ```
 
 **Duas condições que o relatório não cobre e que valem para quem for avaliar o
-desafio:**
+escopo:**
 
 ```text
 $ GEMINI_API_KEY="AIza...-do-avaliador" uv run pytest -q

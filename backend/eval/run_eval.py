@@ -71,6 +71,19 @@ GATE_RECALL_K = 3
 MIN_RECALL_AT_3 = 0.8
 MIN_MRR = 0.7
 
+# Negativa "fora do documento" é a que o limiar TEM de pegar: assunto sem
+# nenhuma relação com o texto. O `kind` do dataset é quem a declara.
+#
+# A outra família — mesmo vocabulário, recorte de fora — não é trabalho do
+# limiar. Medido no documento da LGPD: a pergunta sobre sanções administrativas
+# alcança 0,686 e a menor positiva legítima fica em 0,680, então **nenhum**
+# limiar separa as duas sem recusar uma pergunta que o documento responde. Quem
+# recusa essas é a instrução de fundamentação do prompt, que vê o trecho inteiro
+# e não só a distância — e isso foi verificado ponta a ponta contra a API real.
+# Gatear o limiar por elas seria exigir dele o que ele não pode dar, e o preço
+# sairia em falsa recusa, que é o pior erro deste produto (BUG-002).
+OFF_TOPIC_KIND = "fora do documento"
+
 SWEEP_STEPS = 13
 SWEEP_MARGIN = 0.02
 
@@ -157,7 +170,11 @@ class Metrics:
     * `MRR` — média do inverso da posição do primeiro acerto. Diferencia
       "acertou em primeiro" de "acertou em terceiro", que o recall trata igual.
     * `correct_refusal_rate` — fração das negativas corretamente recusadas. É o
-      contrapeso do recall: sem ele, o ótimo é limiar zero.
+      contrapeso do recall: sem ele, o ótimo é limiar zero. Informativa: cobre
+      as duas famílias de negativa, e uma delas não é trabalho do limiar.
+    * `off_topic_refusal_rate` — a mesma taxa, restrita às negativas declaradas
+      "fora do documento". É esta que o gate cobra, porque é a que o limiar
+      sozinho consegue cumprir sem pagar em falsa recusa.
     * `false_refusal_rate` — fração das positivas recusadas por engano. É o
       contrapeso da recusa: sem ele, o ótimo é limiar 1.
     * `positive_scores` / `negative_scores` — as distribuições que justificam o
@@ -169,6 +186,7 @@ class Metrics:
     recall_at_3: float
     mrr: float
     correct_refusal_rate: float
+    off_topic_refusal_rate: float
     false_refusal_rate: float
     positive_scores: Distribution
     negative_scores: Distribution
@@ -279,6 +297,10 @@ def compute_metrics(results: Sequence[ItemResult], threshold: float, top_k: int)
     correct_refusals = sum(
         1 for result in negatives if is_refused(result.main.scores[:top_k], threshold)
     )
+    off_topic = [result for result in negatives if result.item.kind.startswith(OFF_TOPIC_KIND)]
+    off_topic_refusals = sum(
+        1 for result in off_topic if is_refused(result.main.scores[:top_k], threshold)
+    )
 
     return Metrics(
         threshold=threshold,
@@ -286,6 +308,7 @@ def compute_metrics(results: Sequence[ItemResult], threshold: float, top_k: int)
         recall_at_3=recall_at_k(ranks, GATE_RECALL_K),
         mrr=mean_reciprocal_rank(ranks),
         correct_refusal_rate=_rate(correct_refusals, len(negatives)),
+        off_topic_refusal_rate=_rate(off_topic_refusals, len(off_topic)),
         false_refusal_rate=_rate(false_refusals, len(positives)),
         positive_scores=summarize(positive_best),
         negative_scores=summarize(negative_best),
@@ -298,11 +321,16 @@ def meets_nfr7(metrics: Metrics) -> bool:
     Os quatro pisos juntos, e não um "score" combinado: uma média esconderia
     exatamente o caso que o requisito proíbe — recall alto pago com falsa
     recusa, ou recusa perfeita paga com recall no chão.
+
+    A recusa cobrada é a das negativas **fora do documento**, e não a de todas.
+    Ver `OFF_TOPIC_KIND`: cobrar as de mesmo vocabulário aqui tornaria o gate
+    insatisfazível por construção neste documento, e um gate que não pode passar
+    deixa de informar qualquer coisa sobre a configuração medida.
     """
     return (
         metrics.recall_at_3 >= MIN_RECALL_AT_3
         and metrics.mrr >= MIN_MRR
-        and metrics.correct_refusal_rate >= 1.0
+        and metrics.off_topic_refusal_rate >= 1.0
         and metrics.false_refusal_rate <= 0.0
     )
 
@@ -487,11 +515,11 @@ def format_report(
 ) -> str:
     """Monta o relatório inteiro em markdown, pronto para colar no README.
 
-    Markdown e não JSON porque o consumidor é humano: a fase de entrega manda
-    colar estes números no README, e o avaliador não vai rodar `make eval`.
+    Markdown e não JSON porque o consumidor é humano: estes números são para
+    colar no README, e quem lê o README não vai rodar `make eval`.
     """
     lines: list[str] = []
-    lines.append("## Eval de retrieval — `Exemplo-YAITEC.pdf`")
+    lines.append("## Eval de retrieval — `lgpd-capitulos-1-2.pdf`")
     lines.append("")
     lines.append(f"- `document_id`: `{document_id}`")
     lines.append(f"- chunks no banco: **{chunk_count}**")
@@ -598,8 +626,12 @@ def _aggregate_table(metrics: Metrics) -> list[str]:
         f"{_ok(metrics.mrr >= MIN_MRR)} |"
     )
     lines.append(
-        f"| taxa de recusa correta (negativas) | {metrics.correct_refusal_rate:.3f} | 1.00 | "
-        f"{_ok(metrics.correct_refusal_rate >= 1.0)} |"
+        f"| recusa correta — fora do documento | {metrics.off_topic_refusal_rate:.3f} | 1.00 | "
+        f"{_ok(metrics.off_topic_refusal_rate >= 1.0)} |"
+    )
+    lines.append(
+        f"| recusa correta — todas as negativas | {metrics.correct_refusal_rate:.3f} | — | "
+        "informativa |"
     )
     lines.append(
         f"| taxa de falsa recusa (positivas) | {metrics.false_refusal_rate:.3f} | 0.00 | "
@@ -677,11 +709,15 @@ def _sweep_table(sweep: Sequence[Metrics]) -> list[str]:
     melhora o recall.
     """
     lines = ["### Varredura de limiar (offline, sem custo de quota)", ""]
-    lines.append("| limiar | recusa correta (negativas) | falsa recusa (positivas) | NFR-7 |")
-    lines.append("|---|---|---|---|")
+    lines.append(
+        "| limiar | recusa fora do documento | recusa de todas as negativas | "
+        "falsa recusa (positivas) | NFR-7 |"
+    )
+    lines.append("|---|---|---|---|---|")
     for metrics in sweep:
         lines.append(
-            f"| {metrics.threshold:.3f} | {metrics.correct_refusal_rate:.3f} | "
+            f"| {metrics.threshold:.3f} | {metrics.off_topic_refusal_rate:.3f} | "
+            f"{metrics.correct_refusal_rate:.3f} | "
             f"{metrics.false_refusal_rate:.3f} | {_ok(meets_nfr7(metrics))} |"
         )
     return lines

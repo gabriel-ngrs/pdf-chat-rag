@@ -12,7 +12,7 @@ range: d1536f0..e696ab7
 
 # FASE B.2 — Relatório de execução
 
-> Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-chatB`, branch
+> Executada no worktree `/home/gabriel/Projetos/pdf-chat-rag-chatB`, branch
 > `feat/chat-rag-trackB`.
 
 ## ✅ Gate executado na tentativa 2 (o aviso abaixo é da tentativa 1)
@@ -122,8 +122,8 @@ cd frontend && npm run test
 ## 6. Critérios de aceite da fase (com evidência)
 
 - [x] **AC-2** (FR-2, FR-16) — "mostra 'pensando' e depois a resposta chegando aos
-  poucos": depois do primeiro token a tela mostra `A YAITEC`, e só depois do
-  segundo mostra `A YAITEC oferece consultoria.` — a asserção falharia se o
+  poucos": depois do primeiro token a tela mostra `A empresa`, e só depois do
+  segundo mostra `A empresa oferece consultoria.` — a asserção falharia se o
   cliente esperasse o stream inteiro.
 - [x] **AC-17** (FR-16) — o mesmo teste confirma "Pensando na resposta." antes do
   primeiro token e sua saída **no primeiro token** (não no fim); o teste
@@ -193,7 +193,7 @@ que continua aberto (topo deste relatório). As três sugestões foram aplicadas
 
 ## 10. Gate pelo `docker compose` (tentativa 2, 2026-08-17)
 
-Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `Exemplo-YAITEC.pdf`
+Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `documento-de-exemplo.pdf`
 ingerido pela API do compose (3 páginas, 10 chunks, `status: ready`), navegador
 dirigido por Playwright contra `http://localhost:5173` (o nginx do frontend, não
 o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.
@@ -202,8 +202,8 @@ o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.
 HTTP 200 | Content-Type: text/event-stream; charset=utf-8
 [ 3.244s] cabeçalhos recebidos
 [ 3.244s] token     'A YA'
-[ 3.304s] token     'ITEC foi fundada por **Ygor Alves** (páginas 2 e 3), que é'
-[ 3.348s] token     ' **engenheiro eletricista pela UFPB** (página 2).'
+[ 3.304s] token     'ITEC foi fundada pelo **fundador** (páginas 2 e 3), que é'
+[ 3.348s] token     ' **engenheiro eletricista** (página 2).'
 [ 3.360s] citations {5 citações}
 [ 3.361s] done      {"message_id": 2, "truncated": false}
 primeiro token: 3.244s  (AC-23: <= 5s -> OK)

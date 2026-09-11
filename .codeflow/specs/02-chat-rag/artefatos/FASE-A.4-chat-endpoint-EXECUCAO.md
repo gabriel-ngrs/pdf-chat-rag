@@ -156,7 +156,7 @@ $ git diff 7fe47de..9f0a2b1 | grep -ciE "AIza|api[_-]?key *=|postgresql://.*:.*@
 
 ### Gate da fase — contra o `docker compose`, com a API real
 
-Upload e ingestão do `Exemplo-YAITEC.pdf` pelo compose, documento `ready`; depois
+Upload e ingestão do `documento-de-exemplo.pdf` pelo compose, documento `ready`; depois
 `POST /api/conversations` e três perguntas na mesma conversa.
 
 ```text
@@ -168,19 +168,17 @@ status: 200 | content-type: text/event-stream; charset=utf-8
 cache-control: no-cache | x-accel-buffering: no
 PRIMEIRO EVENTO em 2.21s
 stream completo em 2.58s
-[citations] {"citations": [{"page_number": 2, "snippet": "Ygor Alves, fundador e CEO,
-  engenheiro eletricista pela UFPB e com mais de 5 anos de experiência em IA. …",
+[citations] {"citations": [{"page_number": 2, "snippet": "o fundador e CEO,
+  engenheiro eletricista e com mais de 5 anos de experiência em IA. …",
   "chunk_index": 6, "score": 0.761}, …]}
 [done] {"message_id": 26, "truncated": false}
-RESPOSTA: A YAITEC foi fundada por **Ygor Alves**. Ele é **engenheiro eletricista
-  formado pela UFPB** (Universidade Federal da Paraíba) e possui mais de 5 anos de
+RESPOSTA: A empresa foi fundada pelo **fundador**. Ele é **engenheiro eletricista** e possui mais de 5 anos de
   experiência em IA.
 eventos token: 5
 
 # 2) pergunta de continuação ("e quais deles são os clientes?")
 PRIMEIRO EVENTO em 3.46s
-RESPOSTA: … os clientes e parcerias da YAITEC são: ATC Analytics, ChatADV, Langflow,
-  PagBank, StartStak.
+RESPOSTA: … os clientes e parcerias da empresa são: cinco clientes nomeados.
 
 # 3) pergunta fora do documento ("Qual a receita do bolo de cenoura…")
 PRIMEIRO EVENTO em 0.39s
@@ -215,8 +213,8 @@ $ POST .../messages com {"question":"   "}
 422 {"code":"arquivo_invalido","message":"Os dados enviados são inválidos. …"}
 
 $ GET /api/conversations/<id>/messages
-25 user      False 0  Quem fundou a YAITEC e qual a formação dele?
-26 assistant False 5  A YAITEC foi fundada por **Ygor Alves** …
+25 user      False 0  Quem fundou a empresa e qual a formação dele?
+26 assistant False 5  A empresa foi fundada pelo **fundador** …
 27 user      False 0  e quais deles são os clientes?
 28 assistant False 5  Com base nos trechos fornecidos, os clientes … 
 29 user      False 0  Qual a receita do bolo de cenoura …
@@ -505,11 +503,10 @@ $ curl -s http://localhost:8001/api/health
 PRIMEIRO EVENTO em 1.39s   (NFR-1: teto de 5 s)
 [citations] página 2, chunk_index 6, score 0.761, snippet recortado
 [done] {"message_id": 52, "truncated": false}
-RESPOSTA: A YAITEC foi fundada por Ygor Alves, que é engenheiro eletricista formado
-  pela UFPB e possui mais de 5 anos de experiência em inteligência artificial.
+RESPOSTA: A empresa foi fundada pelo fundador, que é engenheiro eletricista e possui mais de 5 anos de experiência em inteligência artificial.
 
 # pergunta de continuação — chat.condensed com used_llm=true, fallback=false
-RESPOSTA: … os clientes e parcerias: ATC Analytics, ChatADV, Langflow, PagBank, StartStak
+RESPOSTA: … os clientes e parcerias: cinco clientes nomeados
 
 # pergunta fora do documento, com SIMILARITY_THRESHOLD=0.625
 [citations] {"citations": []}

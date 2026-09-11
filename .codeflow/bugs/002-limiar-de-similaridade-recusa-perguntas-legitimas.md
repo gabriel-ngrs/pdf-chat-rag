@@ -17,14 +17,14 @@ Perguntas legítimas, cuja resposta está no PDF, são recusadas:
 | pergunta | resultado | resposta existe? |
 |---|---|---|
 | `Qual o e-mail de contato?` | **recusou** | sim, página 3 |
-| `O que é a UFPB no documento?` | **recusou** | sim, página 2 |
+| `O que é a sigla citada no documento?` | **recusou** | sim, página 2 |
 
 E as mesmas informações são entregues quando a pergunta muda de forma:
 
 | pergunta | resultado |
 |---|---|
-| `contato@yaitec.com` | responde certo |
-| `UFPB` | responde certo |
+| `contato@exemplo.com.br` | responde certo |
+| `sigla do documento` | responde certo |
 
 ## Medição
 
@@ -50,8 +50,8 @@ mais alta (`0,526`) e a positiva mais baixa (`0,724`) do dataset. A folga de
 `0,198` parecia confortável.
 
 **O dataset não representa o uso real.** As 12 perguntas positivas mencionam
-"YAITEC" explicitamente — `"Qual é o e-mail de contato da YAITEC?"`,
-`"Quais são os valores da YAITEC?"`. O nome da empresa aparece em quase todos os
+"o nome da empresa" explicitamente — `"Qual é o e-mail de contato da empresa?"`,
+`"Quais são os valores da empresa?"`. O nome da empresa aparece em quase todos os
 chunks de um documento institucional, e funciona como âncora que empurra a
 similaridade para cima.
 
@@ -62,7 +62,7 @@ A folga não é vazia; ela é ocupada pela forma como gente de verdade pergunta.
 
 ## Por que isto é grave
 
-A recusa é o mecanismo que o desafio avalia com mais peso, e a falsa recusa é o
+A recusa é o mecanismo central do escopo, e a falsa recusa é o
 pior modo de falha: o sistema tem a informação, foi perguntado de forma clara, e
 diz que não sabe. Numa demonstração, some com a credibilidade do produto.
 
@@ -76,7 +76,7 @@ derrubá-la seria trocar um defeito por outro. O caminho medido:
 
 1. **Acrescentar ao `eval/dataset.json` perguntas positivas sem a âncora** —
    as mesmas informações, perguntadas como o owner perguntou (`"Qual o e-mail de
-   contato?"`, `"O que é a UFPB?"`). São elas que revelam o piso real.
+   contato?"`, `"O que é a sigla citada?"`). São elas que revelam o piso real.
 2. **Remedir a distribuição** e recalibrar. Com as novas positivas, a positiva
    mais baixa deve cair para a casa dos `0,53`, e o ponto médio se move.
 3. **Se a folga sumir** — negativas e positivas se sobrepondo —, aí a decisão é

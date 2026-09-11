@@ -41,7 +41,7 @@ CREATE INDEX ON messages (conversation_id, created_at);
 -- A busca densa **borra termo exato**: um e-mail, um telefone ou um nome
 -- próprio ficam a milésimos de distância de qualquer outro trecho do mesmo
 -- assunto — foi medido no eval da fase A.5, onde a página do e-mail de contato
--- ganhou a primeira posição por 0,001. Quem procura "contato@yaitec.com" não
+-- ganhou a primeira posição por 0,001. Quem procura "encarregado@exemplo.gov.br" não
 -- quer o trecho semanticamente parecido; quer aquele token.
 --
 -- A coluna é `GENERATED ALWAYS AS ... STORED` e não um gatilho: o Postgres

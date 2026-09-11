@@ -138,12 +138,12 @@ ficar direto sobre o shader: ele fica sobre uma superfície (`--card`, ou o
 
 As três decisões foram tomadas com o owner na abertura do trabalho e estão
 consolidadas em
-[`decisions/2026-08-18-paleta-yaitec-e-fundos-das-telas.md`](../decisions/2026-08-18-paleta-yaitec-e-fundos-das-telas.md).
+[`decisions/2026-08-18-paleta-e-fundos-das-telas.md`](../decisions/2026-08-18-paleta-e-fundos-das-telas.md).
 O documento de decisões foi escrito no fechamento; as decisões precederam o
 código, que era o que este critério protegia.
 
 **Decisão 1 — paleta.** Nem (a), nem (b), nem (c) como estavam escritas: o owner
-pediu a paleta do site da yaitec.com. Ela foi extraída do CSS do site
+pediu a paleta do site da exemplo.com.br. Ela foi extraída do CSS do site
 (`#7BA6D1`, `#12191F`, `#1D2730`, `#9BBFDF`, `#AACDF2`, `#FBF9F8`), convertida
 para `oklch` e escrita nos tokens que já existiam — nenhum token novo, nenhum
 renomeado. O efeito prático cobre o que (a) e (b) queriam: o fundo escuro desce

@@ -121,7 +121,7 @@ $ git status --short
 
 ## 7. Itens da fase / DoD não atendidos
 
-Nenhum. O item aberto na tentativa 1 — "citações reais do `Exemplo-YAITEC.pdf`
+Nenhum. O item aberto na tentativa 1 — "citações reais do `documento-de-exemplo.pdf`
 exibidas, expansíveis e navegáveis por teclado" — está fechado nas três partes,
 e a primeira eu reconferi por conta própria.
 

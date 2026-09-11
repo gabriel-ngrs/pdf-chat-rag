@@ -14,11 +14,10 @@ status: corrigido e verificado (/double-check 2026-08-18)
 
 Na interface, a sequência:
 
-1. `Quem fundou a YAITEC?` → responde certo, cita a página 2
+1. `Quem fundou a empresa?` → responde certo, cita a página 2
 2. `e a formação dele?` → **"Não encontrei essa informação no documento enviado"**
 
-O documento diz, na página 2: *"Ygor Alves, fundador e CEO, engenheiro eletricista
-pela UFPB"*. A resposta existe e o sistema recusou.
+O documento diz, na página 2: *"o fundador e CEO, engenheiro eletricista"*. A resposta existe e o sistema recusou.
 
 O owner relatou "às vezes funciona, outras não" — a diferença é o número de
 palavras da pergunta, não o acaso.

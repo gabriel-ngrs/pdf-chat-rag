@@ -78,7 +78,7 @@ cada um deles sem depender do relatório.
 ```text
 APOS FALHA:   []
 APOS REPETIR: ["Você perguntou: qual o e-mail?",
-               "RespostaO TalkDoc respondeu:contato@yaitec.compágina 2",
+               "RespostaO TalkDoc respondeu:contato@exemplo.com.brpágina 2",
                "página 2"]                       ← o 3º <li> é o chip da citação
 APOS CANCELAR: ["Você perguntou: resuma o documento"]   ← contrapeso preservado
 ```
@@ -91,7 +91,7 @@ pergunta na conversa. É exatamente a distinção que `useChat.ts:192-197` faz.
 
 ```text
 copias_da_pergunta = 1
-#59 user      'quais são os valores da YAITEC?'
+#59 user      'quais são os valores da empresa?'
 #60 assistant  5 citações, truncated = f
 ```
 
@@ -150,7 +150,7 @@ $ rm -f src/components/__avaliacao_tmp.test.tsx
 # I-1 no servidor
 $ docker exec …db-1 psql -c "select count(*) from messages
     where conversation_id='dbde8a74-…' and role='user'
-      and content='quais são os valores da YAITEC?'"
+      and content='quais são os valores da empresa?'"
  1
 
 # recusa pelo caminho real: token(recusa) → citations [] → done, sem chamar o LLM

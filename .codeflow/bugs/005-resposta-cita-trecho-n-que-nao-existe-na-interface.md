@@ -17,10 +17,10 @@ lugar nenhum da interface**. Das telas do teste:
 
 | pergunta | o que a resposta diz | o que a tela oferece |
 |---|---|---|
-| `Quem fundou a YAITEC?` | "consta na página 2 **(Trechos 1 e 2)**" | chips: página 1, 2, 2, 3, 3 |
-| `contato@yaitec.com` | "página 3, **Trecho 5**" | chips: página 1, 2, 2, 3, 3 |
-| `A YAITEC trabalha com a StartStak?` | "conforme o **Trecho 1**, página 2" | chips: página 1, 1, 2, 2, 3 |
-| `UFPB` | "página 2, **Trechos 1 e 2**" | chips: página 1, 2, 2, 3, 3 |
+| `Quem fundou a empresa?` | "consta na página 2 **(Trechos 1 e 2)**" | chips: página 1, 2, 2, 3, 3 |
+| `contato@exemplo.com.br` | "página 3, **Trecho 5**" | chips: página 1, 2, 2, 3, 3 |
+| `A empresa trabalha com a Empresa-X?` | "conforme o **Trecho 1**, página 2" | chips: página 1, 1, 2, 2, 3 |
+| `sigla do documento` | "página 2, **Trechos 1 e 2**" | chips: página 1, 2, 2, 3, 3 |
 
 Quem lê "Trecho 5" procura o trecho 5 e não encontra: os chips são rotulados só
 por página.

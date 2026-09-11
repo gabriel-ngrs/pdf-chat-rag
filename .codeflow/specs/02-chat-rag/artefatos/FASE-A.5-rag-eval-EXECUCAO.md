@@ -94,7 +94,7 @@ Required test coverage of 90% reached. Total coverage: 99.55%
 
 ### `make eval` com a configuração final
 
-`document_id` = `97959135-49da-4f15-85d9-cfbff1488b3a` (10 chunks do `Exemplo-YAITEC.pdf`,
+`document_id` = `97959135-49da-4f15-85d9-cfbff1488b3a` (10 chunks do `documento-de-exemplo.pdf`,
 ingerido **uma vez**).
 
 ```text
@@ -133,8 +133,8 @@ EXIT=1
 
 | id | página esperada | query crua | rank cru | query condensada | rank condensado |
 |---|---|---|---|---|---|
-| C01 | 2 | "e a formação?" | **4** | "Quem fundou a YAITEC? e a formação?" | **1** |
-| C02 | 3 | "e quem mora longe de lá?" | 1 | "Onde o time da YAITEC se reúne? e quem mora longe de lá?" | 1 |
+| C01 | 2 | "e a formação?" | **4** | "Quem fundou a empresa? e a formação?" | **1** |
+| C02 | 3 | "e quem mora longe de lá?" | 1 | "Onde o time da empresa se reúne? e quem mora longe de lá?" | 1 |
 
 ## 6. Critérios de aceite da fase (com evidência)
 

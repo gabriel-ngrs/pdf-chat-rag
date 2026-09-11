@@ -128,8 +128,8 @@ def fallback_query(history: list[Message], question: str) -> str:
     """Devolve a query a usar quando a condensação falha ou estoura o timeout.
 
     Concatenar a última pergunta do usuário com a atual restaura o referente da
-    anáfora sem custo, sem latência e sem erro visível: "quais serviços a YAITEC
-    oferece?" + "e quanto a isso?" ainda embeda perto dos chunks sobre serviços,
+    anáfora sem custo, sem latência e sem erro visível: "quais são os princípios
+    do tratamento?" + "e quanto a isso?" ainda embeda perto dos chunks do tema,
     porque os termos que importam voltaram ao texto da busca.
 
     É pior que a reescrita do modelo — carrega palavras a mais —, e é por isso

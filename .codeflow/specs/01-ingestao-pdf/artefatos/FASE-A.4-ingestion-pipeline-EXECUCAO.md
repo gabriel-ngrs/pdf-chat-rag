@@ -14,13 +14,13 @@ range: a3a775c..8cc9eb14ab19faed861817a6e74ef2871b901c52
 
 ## 1. Resumo do que foi feito
 
-O requisito 1 do desafio passa a existir de fato: `POST /api/documents` aceita o
+O requisito 1 do escopo passa a existir de fato: `POST /api/documents` aceita o
 PDF e responde `202` em milissegundos, e o pipeline de background leva o
 documento por `pending → processing → ready`, com progresso consultável. A
 divisão do que se valida onde é a decisão central — na requisição ficam só as
 checagens baratas, e tudo que exige abrir o PDF acontece no background, onde a
 falha vira `failed` com mensagem em pt-BR em vez de segurar um request.
-Verificado contra o compose real: o `Exemplo-YAITEC.pdf` chega a `ready` com 3
+Verificado contra o compose real: o `documento-de-exemplo.pdf` chega a `ready` com 3
 páginas e 10 chunks, todos com 768 dimensões e norma L2 igual a 1.
 
 ## 2. Arquivos CRIADOS
@@ -125,7 +125,7 @@ $ uv run bandit -q -r app        -> (sem saída; 0 achados)
 
 # ---- gate de conclusão: upload real através do nginx ----
 $ curl -X POST http://localhost:5273/api/documents \
-       -H 'X-Session-Id: sessao-teste-a4' -F "file=@Exemplo-YAITEC.pdf"
+       -H 'X-Session-Id: sessao-teste-a4' -F "file=@documento-de-exemplo.pdf"
 HTTP/1.1 202 Accepted
 x-request-id: d8591d03-67b0-48e4-8064-665d21177ae1
 {"id":"fabf9b43-fccf-4859-8f2a-1bd3c166f130","status":"pending"}
@@ -137,7 +137,7 @@ t=2s {"status":"ready","page_count":3,"chunks_total":10,"chunks_processed":10,
 
 # ---- AC-18: a ingestão inteira num único grep por request_id ----
 $ docker compose logs backend | grep d8591d03-67b0-48e4-8064-665d21177ae1
-{"document_id":"fabf9b43...","filename":"Exemplo-YAITEC.pdf","size_bytes":259731,
+{"document_id":"fabf9b43...","filename":"documento-de-exemplo.pdf","size_bytes":259731,
  "event":"document.received","request_id":"d8591d03...","level":"info", ...}
 {"page_count":3,"char_count":3665,"duration_ms":307,"event":"document.extracted",
  "request_id":"d8591d03...","document_id":"fabf9b43...","level":"info", ...}

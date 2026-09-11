@@ -12,7 +12,7 @@ status: corrigido e verificado (/double-check 2026-08-18)
 
 ## Sintoma
 
-Subindo o `Exemplo-YAITEC.pdf` e amostrando o DOM a cada 120 ms, o **único**
+Subindo o `documento-de-exemplo.pdf` e amostrando o DOM a cada 120 ms, o **único**
 valor que a barra chega a exibir é:
 
 ```
@@ -44,7 +44,7 @@ A docstring explica a decisão, e ela está certa:
 > documento no teto da spec passa de meio minuto: sem isso a tela ficaria
 > parada em zero e pareceria travada (NFR-1).
 
-Só que o `Exemplo-YAITEC.pdf` tem 3 páginas e 3.665 caracteres, o que vira
+Só que o `documento-de-exemplo.pdf` tem 3 páginas e 3.665 caracteres, o que vira
 **10 chunks**, e `EMBEDDING_BATCH_SIZE=16`. Dez cabem em um lote. Um lote é uma
 gravação, no fim — que é precisamente o cenário que a docstring diz querer
 evitar.
@@ -68,7 +68,7 @@ cai antes de o único lote fechar.
 ## Reprodução
 
 `docker compose up --build` a partir de estado limpo, subir o
-`Exemplo-YAITEC.pdf` e observar a barra. Ou, para não depender do olho:
+`documento-de-exemplo.pdf` e observar a barra. Ou, para não depender do olho:
 
 ```js
 // no console, durante a ingestão

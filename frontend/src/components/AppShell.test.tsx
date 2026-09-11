@@ -25,27 +25,33 @@ describe('AppShell', () => {
     vi.unstubAllGlobals()
   })
 
-  it('assina a marca com a logo da Yaitec, sem tirar o TalkDoc do primeiro plano', () => {
-    render(<AppShell>conteúdo</AppShell>)
+  it('desenha o lockup com o símbolo e o wordmark do produto', () => {
+    const { container } = render(<AppShell>conteúdo</AppShell>)
 
     expect(screen.getByText('Talk')).toBeTruthy()
+    expect(screen.getByText('Doc')).toBeTruthy()
 
-    const logo = screen.getByRole('link', { name: /por Yaitec/ })
-    expect(logo.getAttribute('href')).toBe('https://yaitec.com')
-    expect(logo.getAttribute('target')).toBe('_blank')
-    expect(logo.getAttribute('rel')).toBe('noreferrer')
-
-    // A logo é desenho, não texto: o nome acessível vem do link, e o `svg` não
-    // pode anunciar a mesma coisa uma segunda vez.
-    const marca = logo.querySelector('svg')
+    // O símbolo é desenho, não texto: o nome do produto já está no wordmark ao
+    // lado, e o `svg` não pode anunciar a mesma coisa uma segunda vez.
+    const marca = container.querySelector('header svg')
     expect(marca?.getAttribute('aria-hidden')).toBe('true')
   })
 
-  it('mantém o cabeçalho na altura de sempre depois de ganhar a segunda marca', () => {
+  it('não leva nenhum link para fora a partir do cabeçalho', () => {
     const { container } = render(<AppShell>conteúdo</AppShell>)
 
-    // `h-14` é o que sustenta a proporção do cabeçalho contra o conteúdo. A
-    // logo entrou menor que o wordmark justamente para não empurrar isto.
+    // O único link da casca é o "pular para o conteúdo", que é âncora interna.
+    const externos = [...container.querySelectorAll('a[href]')].filter(
+      (a) => !a.getAttribute('href')!.startsWith('#'),
+    )
+    expect(externos).toHaveLength(0)
+  })
+
+  it('mantém o cabeçalho na altura de sempre com o símbolo ao lado do nome', () => {
+    const { container } = render(<AppShell>conteúdo</AppShell>)
+
+    // `h-14` é o que sustenta a proporção do cabeçalho contra o conteúdo. O
+    // símbolo entrou menor que o wordmark justamente para não empurrar isto.
     expect(container.querySelector('header .h-14')).not.toBeNull()
   })
 

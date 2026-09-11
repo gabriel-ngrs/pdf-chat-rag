@@ -12,7 +12,7 @@ range: f01ed27..3be5eed
 
 # FASE B.2 — Relatório de execução
 
-> Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-trackB`, branch
+> Executada no worktree `/home/gabriel/Projetos/pdf-chat-rag-trackB`, branch
 > `feat/trackB-frontend`.
 
 ## 1. Resumo do que foi feito
@@ -87,7 +87,7 @@ nenhuma cor própria. A `AppShell` foi reaproveitada sem alteração.
 ```text
 # testes (frontend)
 $ cd frontend && npm run test
- RUN  v4.1.10 /home/gabriel/Projetos/Yaitec-TalkDoc-trackB/frontend
+ RUN  v4.1.10 /home/gabriel/Projetos/pdf-chat-rag-trackB/frontend
  Test Files  2 passed (2)
       Tests  10 passed (10)
    Duration  261ms

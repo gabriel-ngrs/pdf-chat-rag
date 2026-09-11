@@ -73,7 +73,7 @@ errada.
 ```bash
 python3 - <<'EOF'
 import json, urllib.request
-q = 'A YAITEC é uma empresa. ' * 130          # 3.120 caracteres
+q = 'A empresa é uma empresa. ' * 130          # 3.120 caracteres
 body = json.dumps({'question': q}).encode()
 req = urllib.request.Request(
     'http://localhost:8000/api/conversations/<id>/messages',

@@ -1,154 +1,174 @@
 {
-  "version": 1,
-  "document": "Exemplo-YAITEC.pdf",
+  "version": 2,
+  "document": "samples/lgpd-capitulos-1-2.pdf",
   "notes": [
-    "Perguntas escritas a partir do texto extraído do PDF (3 páginas, 10 chunks de 500 chars).",
-    "Página 1 = chunks 0-3, página 2 = chunks 4-7, página 3 = chunks 8-9.",
-    "Cada positiva tem resposta em UMA página só. Temas que aparecem em duas páginas — o mais",
-    "notório é 'RAG evita alucinação', presente nas páginas 2 e 3 — foram deliberadamente",
-    "evitados: com resposta ambígua, o recall mediria a sorte do desempate, não o retrieval.",
-    "As negativas são assuntos que o documento não menciona nem de raspão; elas existem para",
-    "que a calibração do limiar não seja circular (ver eval/README.md).",
-    "P11–P16 e C03 foram acrescentadas pelo BUG-002: são as mesmas informações das positivas",
-    "anteriores, perguntadas SEM o nome da empresa. O nome aparece em quase todo chunk de um",
-    "documento institucional e funciona como âncora que empurra a similaridade para cima; sem",
-    "ele, a pergunta cai na faixa que o limiar calibrado só com positivas ancoradas recusava."
+    "Perguntas escritas a partir do texto extraído do PDF (12 páginas, ~30 mil caracteres).",
+    "O gabarito de página NÃO foi presumido: cada resposta foi localizada por busca literal no",
+    "texto que o pypdf extrai de cada página, que é exatamente o texto que a ingestão vê. O mapa",
+    "resultante está em samples/README.md.",
+    "Cada positiva tem resposta em UMA página só. Temas que atravessam páginas — o mais notório é",
+    "'consentimento', que aparece em seis delas — foram perguntados pelo recorte que só uma página",
+    "responde: a definição (art. 5º, p3) e a forma de obtenção (art. 8º, p7) são perguntas",
+    "diferentes. Com resposta ambígua, o recall mediria a sorte do desempate, não o retrieval.",
+    "A âncora aqui não é o nome de uma empresa, como seria num documento institucional, e sim o",
+    "número do artigo. P11-P16 repetem informações das positivas anteriores SEM citar o artigo:",
+    "é a mesma assimetria que o BUG-002 mediu, e é o que separa o que a busca lexical resolve",
+    "(o token 'art. 7º') do que só a busca vetorial alcança (a pergunta em linguagem corrente).",
+    "As negativas são de dois tipos. N01-N03 estão fora do documento por completo. N04-N06 são",
+    "assuntos da PRÓPRIA LGPD que ficaram fora dos Capítulos I e II — sanções administrativas",
+    "(art. 52), comunicação de incidente de segurança (art. 48) e revisão de decisão automatizada",
+    "(art. 20). São as negativas que importam: o vocabulário é o mesmo do documento, e só a",
+    "fundamentação real as recusa.",
+    "Cada uma das seis foi conferida por busca literal no texto extraído antes de entrar aqui. As",
+    "duas primeiras candidatas a N05 e N06 — transferência internacional e competências da ANPD —",
+    "foram DESCARTADAS por esse teste: o art. 5º define os dois termos e o art. 4º trata de dados",
+    "vindos do exterior, então o documento responde parcialmente às duas. Uma negativa que o",
+    "documento responde não mede recusa, mede erro de rótulo."
   ],
   "items": [
     {
       "id": "P01",
       "group": "positive",
       "kind": "fato pontual",
-      "question": "A YAITEC atende que tipo de mercado?",
+      "question": "Qual é o objeto da Lei nº 13.709, segundo o art. 1º?",
       "expected_page": 1
     },
     {
       "id": "P02",
       "group": "positive",
-      "kind": "fato pontual",
-      "question": "O que os agentes SQL da YAITEC fazem?",
-      "expected_page": 1
+      "kind": "lista",
+      "question": "A quais tratamentos de dados a Lei não se aplica, conforme o art. 4º?",
+      "expected_page": 2
     },
     {
       "id": "P03",
       "group": "positive",
-      "kind": "fato pontual",
-      "question": "O que inclui o serviço de consultoria e prototipação da YAITEC?",
-      "expected_page": 1
+      "kind": "termo exato",
+      "question": "Como o art. 5º define banco de dados?",
+      "expected_page": 3
     },
     {
       "id": "P04",
       "group": "positive",
-      "kind": "nome próprio",
-      "question": "Quem fundou a YAITEC?",
-      "expected_page": 2
+      "kind": "termo exato",
+      "question": "Como o art. 5º define a autoridade nacional?",
+      "expected_page": 4
     },
     {
       "id": "P05",
       "group": "positive",
-      "kind": "número",
-      "question": "Quantos projetos e clientes a YAITEC já entregou?",
-      "expected_page": 2
+      "kind": "lista",
+      "question": "Quais princípios o art. 6º manda observar no tratamento de dados pessoais?",
+      "expected_page": 5
     },
     {
       "id": "P06",
       "group": "positive",
-      "kind": "lista de nomes próprios",
-      "question": "Quais empresas estão entre os clientes e parcerias da YAITEC?",
-      "expected_page": 2
+      "kind": "lista",
+      "question": "Em quais hipóteses o art. 7º autoriza o tratamento de dados pessoais?",
+      "expected_page": 6
     },
     {
       "id": "P07",
       "group": "positive",
-      "kind": "lista",
-      "question": "Quais são os valores da YAITEC?",
-      "expected_page": 2
+      "kind": "fato pontual",
+      "question": "De que forma o consentimento deve ser fornecido segundo o art. 8º?",
+      "expected_page": 7
     },
     {
       "id": "P08",
       "group": "positive",
-      "kind": "termo exato",
-      "question": "Qual é o e-mail de contato da YAITEC?",
-      "expected_page": 3
+      "kind": "lista",
+      "question": "Em que situações o art. 11 permite o tratamento de dados pessoais sensíveis?",
+      "expected_page": 8
     },
     {
       "id": "P09",
       "group": "positive",
       "kind": "fato pontual",
-      "question": "A atuação da YAITEC é presencial ou remota?",
-      "expected_page": 3
+      "question": "O que o art. 12 diz sobre dados anonimizados?",
+      "expected_page": 10
     },
     {
       "id": "P10",
       "group": "positive",
       "kind": "fato pontual",
-      "question": "Em que cidade o time da YAITEC se reúne no coworking?",
-      "expected_page": 3
+      "question": "Como o art. 14 trata os dados pessoais de crianças e adolescentes?",
+      "expected_page": 11
     },
     {
       "id": "P11",
       "group": "positive",
       "kind": "termo exato, sem âncora",
-      "question": "Qual o e-mail de contato?",
+      "question": "Quem é a pessoa indicada para ser o canal de comunicação entre o controlador e os titulares?",
       "expected_page": 3
     },
     {
       "id": "P12",
       "group": "positive",
-      "kind": "sigla, sem âncora",
-      "question": "O que é a UFPB no documento?",
-      "expected_page": 2
+      "kind": "lista, sem âncora",
+      "question": "Quais são os princípios que devem ser observados no tratamento de dados pessoais?",
+      "expected_page": 5
     },
     {
       "id": "P13",
       "group": "positive",
       "kind": "fato pontual, sem âncora",
-      "question": "Que tipo de mercado é atendido?",
-      "expected_page": 1
+      "question": "O que o controlador precisa fazer quando trata dados com base no legítimo interesse?",
+      "expected_page": 8
     },
     {
       "id": "P14",
       "group": "positive",
-      "kind": "número, sem âncora",
-      "question": "Quantos projetos já foram entregues?",
-      "expected_page": 2
+      "kind": "fato pontual, sem âncora",
+      "question": "O titular tem direito a consulta facilitada sobre o tratamento dos seus dados?",
+      "expected_page": 7
     },
     {
       "id": "P15",
       "group": "positive",
-      "kind": "fato pontual, sem âncora",
-      "question": "O trabalho é presencial ou remoto?",
-      "expected_page": 3
+      "kind": "lista, sem âncora",
+      "question": "Quando termina o tratamento de dados pessoais?",
+      "expected_page": 12
     },
     {
       "id": "P16",
       "group": "positive",
-      "kind": "nome próprio, sem âncora",
-      "question": "Quem é o fundador?",
-      "expected_page": 2
+      "kind": "lista, sem âncora",
+      "question": "Quais são os fundamentos da proteção de dados pessoais?",
+      "expected_page": 1
     },
     {
       "id": "C01",
       "group": "positive",
       "kind": "continuação (anáfora por elipse)",
-      "question": "e a formação?",
-      "expected_page": 2,
+      "question": "e o da finalidade?",
+      "expected_page": 5,
       "history": [
-        { "role": "user", "content": "Quem fundou a YAITEC?" },
-        { "role": "assistant", "content": "A YAITEC foi fundada por Ygor Alves, fundador e CEO." }
+        {
+          "role": "user",
+          "content": "O que é o princípio da necessidade?"
+        },
+        {
+          "role": "assistant",
+          "content": "É a limitação do tratamento ao mínimo necessário para as finalidades pretendidas (página 4)."
+        }
       ]
     },
     {
       "id": "C02",
       "group": "positive",
-      "kind": "continuação (marcador anafórico 'lá')",
-      "question": "e quem mora longe de lá?",
-      "expected_page": 3,
+      "kind": "continuação (marcador anafórico 'nesse caso')",
+      "question": "e nesse caso vale para crianças?",
+      "expected_page": 11,
       "history": [
-        { "role": "user", "content": "Onde o time da YAITEC se reúne?" },
+        {
+          "role": "user",
+          "content": "Como o consentimento deve ser fornecido?"
+        },
         {
           "role": "assistant",
-          "content": "Em um coworking em João Pessoa, uma vez por semana."
+          "content": "Por escrito ou por outro meio que demonstre a manifestação de vontade do titular (página 6)."
         }
       ]
     },
@@ -156,11 +176,17 @@
       "id": "C03",
       "group": "positive",
       "kind": "continuação (forma contraída 'dele')",
-      "question": "e a formação dele?",
-      "expected_page": 2,
+      "question": "e a definição dele?",
+      "expected_page": 3,
       "history": [
-        { "role": "user", "content": "Quem fundou a YAITEC?" },
-        { "role": "assistant", "content": "A YAITEC foi fundada por Ygor Alves, fundador e CEO." }
+        {
+          "role": "user",
+          "content": "Quem é o operador no tratamento de dados?"
+        },
+        {
+          "role": "assistant",
+          "content": "É quem realiza o tratamento de dados pessoais em nome do controlador (página 3)."
+        }
       ]
     },
     {
@@ -174,21 +200,35 @@
       "id": "N02",
       "group": "negative",
       "kind": "fora do documento",
-      "question": "Quantos gols Pelé marcou pela seleção brasileira?",
+      "question": "De quanto em quanto tempo devo trocar o óleo do motor do carro?",
       "expected_page": null
     },
     {
       "id": "N03",
       "group": "negative",
       "kind": "fora do documento",
-      "question": "De quanto em quanto tempo devo trocar o óleo do motor do carro?",
+      "question": "Quais são os sintomas da dengue?",
       "expected_page": null
     },
     {
       "id": "N04",
       "group": "negative",
-      "kind": "fora do documento",
-      "question": "Quais são os sintomas da dengue?",
+      "kind": "mesmo vocabulário, fora do recorte",
+      "question": "Quais são as sanções administrativas aplicáveis por infração a esta Lei?",
+      "expected_page": null
+    },
+    {
+      "id": "N05",
+      "group": "negative",
+      "kind": "mesmo vocabulário, fora do recorte",
+      "question": "Em quanto tempo o controlador deve comunicar um incidente de segurança à autoridade nacional?",
+      "expected_page": null
+    },
+    {
+      "id": "N06",
+      "group": "negative",
+      "kind": "mesmo vocabulário, fora do recorte",
+      "question": "O titular pode solicitar a revisão de decisões tomadas exclusivamente de forma automatizada?",
       "expected_page": null
     }
   ]

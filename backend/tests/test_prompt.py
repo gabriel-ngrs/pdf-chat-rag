@@ -39,7 +39,7 @@ def _conversation(turns: int) -> list[Message]:
 
 def _chunks() -> list[RetrievedChunk]:
     contents = [
-        (4, "A YAITEC atua com dados."),
+        (4, "A Lei trata de dados pessoais."),
         (5, "A sede fica em Fortaleza."),
         (7, "O contato é pelo site."),
     ]

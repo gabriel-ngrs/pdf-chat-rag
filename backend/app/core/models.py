@@ -30,7 +30,7 @@ class PageText:
     """Texto extraído de uma única página, com o número de página base 1.
 
     O número vem da posição real no PDF e é propagado sem transformação até a
-    citação — é ele que o avaliador confere à mão contra o documento.
+    citação — é ele que quem lê a resposta confere à mão contra o documento.
     """
 
     page_number: int
@@ -73,8 +73,8 @@ class Citation:
 
     É o campo próprio do payload que a constitution exige: a citação é dado
     estruturado, não texto embutido na resposta gerada — só assim a UI consegue
-    exibir página e trecho como elemento próprio, e só assim o avaliador
-    confere a página à mão contra o PDF.
+    exibir página e trecho como elemento próprio, e só assim quem lê a
+    resposta confere a página à mão contra o PDF.
 
     `snippet` já vem recortado para exibição (≤ 240 caracteres, em fronteira de
     palavra); `score` é a similaridade de cosseno em `[0,1]` do chunk que a

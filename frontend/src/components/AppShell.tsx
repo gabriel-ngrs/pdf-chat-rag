@@ -5,7 +5,7 @@ import { MoonIcon, QuoteIcon, ShieldCheckIcon, SunIcon } from 'lucide-react'
 
 import { AppBackground } from '@/components/backgrounds/AppBackground'
 import type { BackgroundKind } from '@/components/backgrounds/AppBackground'
-import { YaitecMark } from '@/components/YaitecMark'
+import { BrandMark } from '@/components/BrandMark'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -57,11 +57,10 @@ function ThemeToggle() {
 /**
  * Marca do produto.
  *
- * Sans bold com "Doc" no azul da Yaitec, como no mockup de 2026-08-18. Antes
- * era Instrument Serif com o "Doc" dentro de um chip da cor do marca-texto —
- * a mesma cor que marca a citação no chat, o que amarrava a marca ao que o
- * produto faz. O lockup ficou mais direto e menos particular; a ligação com a
- * citação passou a ser só a cor, sem o gesto do chip.
+ * Sans bold com "Doc" no azul-aço — a mesma cor que marca a citação no chat, o
+ * que amarra a marca ao que o produto faz. Antes era Instrument Serif com o
+ * "Doc" dentro de um chip: o gesto do chip migrou para o símbolo, e no wordmark
+ * a ligação com a citação passou a ser só a cor.
  *
  * `tracking-tight` porque em 21 px e peso 700 o Plex abre demais entre as
  * letras e o lockup deixa de ler como uma palavra só.
@@ -75,28 +74,17 @@ function Wordmark() {
 }
 
 /**
- * O lockup do cabeçalho: o produto, um fio, e quem o assina.
+ * O lockup do cabeçalho: o símbolo e o nome do produto.
  *
- * A hierarquia é a informação. Duas marcas do mesmo tamanho brigariam e a
- * página deixaria de dizer qual é o produto — daí o "Y" da Yaitec vir menor que
- * o wordmark e em `text-muted-foreground`, subindo para o primeiro plano só no
- * hover. A separação é um fio de 1 px na cor de borda porque é assim que este
- * sistema resolve profundidade: por traço, não por sombra.
+ * A hierarquia é a informação. O símbolo vem menor que o wordmark e na cor do
+ * marca-texto, porque ele repete o que o nome já diz — quem lê o cabeçalho
+ * precisa ler "TalkDoc" primeiro, e reconhecer a folha marcada depois.
  */
 function Lockup() {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2.5">
+      <BrandMark className="text-primary size-6" />
       <Wordmark />
-      <span aria-hidden="true" className="bg-border h-5 w-px" />
-      <a
-        href="https://yaitec.com"
-        target="_blank"
-        rel="noreferrer"
-        aria-label="por Yaitec, abre o site em nova aba"
-        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
-      >
-        <YaitecMark className="size-5" />
-      </a>
     </div>
   )
 }
