@@ -2,7 +2,7 @@
 versão: 1.0
 status: estável
 atualizado: 2026-08-18
-total_decisions: 6
+total_decisions: 7
 última_atualização: 2026-08-18
 ---
 
@@ -18,6 +18,7 @@ total_decisions: 6
 | 2026-08-17 | Correções do lote `feat-0002-teste-ponta-a-ponta`                     | batch-bugfix | rag, retrieval, prompt, ui, entrega       | ativa  |
 | 2026-08-18 | Paleta do cliente, fundos das telas e o limite do movimento           | melhorias   | ui, design-system, motion, acessibilidade, dependencias, entrega | ativa  |
 | 2026-08-18 | Correções da segunda rodada do teste de ponta a ponta                    | batch-bugfix | ui, ingestao, chat, observabilidade, configuracao, entrega | ativa |
+| 2026-09-10 | Auditoria de dependências do frontend na abertura do repositório | seguranca | seguranca, dependencias, entrega | ativa |
 
 ## Por tag
 
