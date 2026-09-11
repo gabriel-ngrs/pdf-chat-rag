@@ -139,7 +139,7 @@ $ git merge-base --is-ancestor 3be5eed HEAD
 # ciclo completo pelo navegador, contra o compose real (volume novo, A.4 na árvore)
 $ python3 gate.py
 {
- "antes_do_envio": "Exemplo-YAITEC.pdf | 254 KB | Clique ou arraste outro arquivo para trocar.",
+ "antes_do_envio": "documento-de-exemplo.pdf | 254 KB | Clique ou arraste outro arquivo para trocar.",
  "amostras": [
   {"estado": "Lendo o documento", "valuenow": null, "skeleton": true,
    "descricao": "Lendo o documento | Cada página vira trechos consultáveis. Isso leva alguns segundos."},
@@ -222,7 +222,7 @@ verificado de forma independente.
 Nenhuma. Confrontei cada afirmação da §5 e da §6 do relatório com medição
 própria e todas se sustentam, inclusive as duas mais delicadas:
 
-- **"`valores_da_barra: []` com o `Exemplo-YAITEC.pdf`"** — o relatório explica
+- **"`valores_da_barra: []` com o `documento-de-exemplo.pdf`"** — o relatório explica
   que a janela determinada dura menos que um ciclo de polling com um PDF de 3
   páginas, e mostra a barra com um PDF de 18. **Confirmo o fenômeno:** no meu
   ciclo contra o backend real, a interface também foi de indeterminado direto

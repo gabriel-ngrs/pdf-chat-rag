@@ -83,7 +83,7 @@ tentativa 2:  estado: failed | chunks_total: None | erro: PDF sem texto extraív
               documento escaneado.
 ```
 
-**As propriedades centrais, reconferidas contra o `Exemplo-YAITEC.pdf` real para
+**As propriedades centrais, reconferidas contra o `documento-de-exemplo.pdf` real para
 garantir que a correção não mexeu no que já estava certo:**
 
 ```text

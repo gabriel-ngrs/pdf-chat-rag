@@ -12,7 +12,7 @@ range: 26ba58610514ac27c86595b01ee657795d382c92..655c44fb5eb9640a6a376a439780d36
 
 # FASE B.1 — Relatório de execução
 
-> Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-trackB`, branch
+> Executada no worktree `/home/gabriel/Projetos/pdf-chat-rag-trackB`, branch
 > `feat/trackB-frontend`, criada a partir de `dev` (`26ba586`) porque os agentes
 > do Track A trabalham em paralelo em `feat/trackA-ingestao`.
 

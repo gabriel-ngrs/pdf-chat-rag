@@ -34,7 +34,7 @@ RUN npm run build
 # ── Produção: nginx servindo o build estático ────────────────────────────────
 #
 # Último estágio de propósito: é o que `docker build` escolhe sem `--target`, e
-# é o que sustenta o "clone limpo + docker compose up --build" do desafio.
+# é o que sustenta o "clone limpo + docker compose up --build" do README.
 FROM nginx:1.27-alpine AS runtime
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf

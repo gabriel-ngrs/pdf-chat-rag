@@ -132,8 +132,8 @@ Contracts: 3 kept, 0 broken.
 # gates de backend, e não pelo alvo agregador.
 
 # boot a frio #1 — docker compose down -v && up --build
-Container yaitec-talkdoc-tracka-db-1  Healthy
-Container yaitec-talkdoc-tracka-backend-1  Started
+Container talkdoc-tracka-db-1  Healthy
+Container talkdoc-tracka-backend-1  Started
 backend pronto em 3s
 
 $ curl -is http://localhost:5273/api/health     # ATRAVÉS DO NGINX
@@ -148,8 +148,8 @@ $ curl -s http://localhost:5273/api/config
 {"max_upload_mb":25,"max_pdf_pages":20,"max_extracted_chars":60000}
 
 # boot a frio #2 — docker compose down -v (volume REMOVIDO) && up --build
-Volume yaitec-talkdoc-tracka_pgdata  Removed
-Container yaitec-talkdoc-tracka-db-1  Healthy
+Volume talkdoc-tracka_pgdata  Removed
+Container talkdoc-tracka-db-1  Healthy
 backend pronto em 2s
 HTTP/1.1 200 OK
 x-request-id: c81d31d6-f95a-43e0-b714-c45ab3609e30

@@ -487,8 +487,8 @@ def format_report(
 ) -> str:
     """Monta o relatório inteiro em markdown, pronto para colar no README.
 
-    Markdown e não JSON porque o consumidor é humano: a fase de entrega manda
-    colar estes números no README, e o avaliador não vai rodar `make eval`.
+    Markdown e não JSON porque o consumidor é humano: estes números são para
+    colar no README, e quem lê o README não vai rodar `make eval`.
     """
     lines: list[str] = []
     lines.append("## Eval de retrieval — `lgpd-capitulos-1-2.pdf`")

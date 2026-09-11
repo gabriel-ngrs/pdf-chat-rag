@@ -30,7 +30,7 @@ ledger é o contrato de execução e a entrada do `/double-check`.
 | id | título | status | repro/teste | fix (arquivo:linha) | decision | verificação |
 |----|--------|--------|-------------|---------------------|----------|-------------|
 | B1 | Continuação de 4 palavras não condensa → recusa falsa | corrigido | `backend/tests/test_condensation.py::test_fronteira_de_tamanho_condensa_ate_quatro_palavras_e_para_na_quinta` + `::test_formas_contraidas_sao_reconhecidas_como_marcador_anaforico` | `backend/app/core/condensation.py:29` (formas contraídas) e `:68` (limiar 4→5) | 2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md | ✓ 2026-08-18 |
-| B5 | Resposta cita "Trecho N", rótulo que não existe na tela | corrigido | `backend/tests/test_prompt.py::test_prompt_proibe_citar_o_numero_do_trecho_e_manda_citar_so_a_pagina` (instrução presente) + repro manual: perguntar `Quem fundou a YAITEC?` na interface e conferir que a resposta cita só a página | `backend/app/core/prompt.py:36` | 2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md | ✓ 2026-08-18 |
+| B5 | Resposta cita "Trecho N", rótulo que não existe na tela | corrigido | `backend/tests/test_prompt.py::test_prompt_proibe_citar_o_numero_do_trecho_e_manda_citar_so_a_pagina` (instrução presente) + repro manual: perguntar `Quem fundou a empresa?` na interface e conferir que a resposta cita só a página | `backend/app/core/prompt.py:36` | 2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md | ✓ 2026-08-18 |
 | B2 | Limiar 0,625 recusa perguntas legítimas | corrigido | `EVAL_DOCUMENT_ID=ce4e9cd0-fa3a-45e4-852d-5103b73fb736 make eval` (gate NFR-7, exit 0) + `backend/tests/test_eval_metrics.py::TestDataset` | `backend/app/config.py:51` (0,625→0,561), `backend/eval/dataset.json` (+P11–P16, +C03), `.env.example:44` | 2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md | ✓ 2026-08-18 |
 | B3 | Citações exibem os chunks recuperados, não os usados | corrigido | `frontend/src/components/CitationChip.test.tsx` → "diz que o trecho foi consultado, não que ele sustentou a resposta" | `frontend/src/components/CitationChip.tsx:51,61,63`, `frontend/src/components/MessageList.tsx:130`, `.codeflow/specs/02-chat-rag/SPEC_02_CHAT_RAG.md:87,95` (FR-8) e AC-10 | 2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md | ✓ 2026-08-18 |
 | B4 | Mensagem de quota promete "um minuto"; o limite é diário | corrigido | `backend/tests/test_gemini_adapter.py::test_mensagem_de_quota_do_chat_nao_promete_um_minuto` + `frontend/src/lib/errors.test.ts` → "não promete que esperar um minuto resolve o limite de uso" | `backend/app/adapters/gemini.py:67`, `frontend/src/lib/errors.ts:65` | 2026-08-17-lote-de-bugs-do-teste-de-ponta-a-ponta.md | ✓ 2026-08-18 |
@@ -62,10 +62,10 @@ interface.
 
 | bug | pergunta | antes | depois |
 |---|---|---|---|
-| B5 | `Quem fundou a YAITEC?` | "consta na página 2 (Trechos 1 e 2)" | "Ygor Alves (página 2)" — sem "Trecho N" |
+| B5 | `Quem fundou a empresa?` | "consta na página 2 (Trechos 1 e 2)" | "o fundador (página 2)" — sem "Trecho N" |
 | B1 | `e a formação dele?` | recusa; `should_condense` = `False`, `top_score` 0,527 | responde; `chat.condensed used_llm=true`, `top_score` **0,796** |
-| B2 | `Qual o e-mail de contato?` | recusa, `top_score` 0,596 < 0,625 | responde `contato@yaitec.com (página 3)` |
-| B2 | `O que é a UFPB no documento?` | recusa, `top_score` 0,612 < 0,625 | responde, citando a página 2 |
+| B2 | `Qual o e-mail de contato?` | recusa, `top_score` 0,596 < 0,625 | responde `contato@exemplo.com.br (página 3)` |
+| B2 | `O que é a sigla citada no documento?` | recusa, `top_score` 0,612 < 0,625 | responde, citando a página 2 |
 
 B3 e B4 não têm reprodução contra a API: são texto de interface, cobertos por
 teste de unidade no frontend (`CitationChip.test.tsx`, `errors.test.ts`) e no

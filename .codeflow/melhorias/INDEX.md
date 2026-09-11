@@ -21,13 +21,13 @@ ordem de execução.
 |---|---|---|---|---|---|
 | [MELH-001](001-legibilidade-da-resposta-do-chat.md) | Resposta do chat chega em Markdown e é exibida crua | frontend + prompt | alta | médio | implementado (2026-08-18) |
 | [MELH-002](002-background-animado-e-paleta-escura.md) | Background animado (WebGL) e paleta mais escura | frontend | média | alto | implementado (2026-08-18) |
-| [MELH-003](003-logo-da-yaitec-no-cabecalho.md) | Logo da Yaitec ao lado da marca TalkDoc | frontend | média | baixo | implementado (2026-08-18) |
+| [MELH-003](003-simbolo-da-marca-no-cabecalho.md) | Logo do cliente ao lado da marca TalkDoc | frontend | média | baixo | implementado (2026-08-18) |
 | [MELH-004](004-animacoes-de-interacao.md) | Animações de mouse, cards e textos | frontend | média | médio | implementado (2026-08-18) |
 | [MELH-005](005-envio-de-varios-documentos-de-uma-vez.md) | Arrastar e soltar vários documentos de uma vez | frontend + backend + dados | média | médio (A) / alto (B) | aberto — análise de custo entregue |
 
 **As quatro primeiras estão fechadas.** As decisões que faltavam foram tomadas com o owner
 na abertura do trabalho e estão em
-[`decisions/2026-08-18-paleta-yaitec-e-fundos-das-telas.md`](../decisions/2026-08-18-paleta-yaitec-e-fundos-das-telas.md).
+[`decisions/2026-08-18-paleta-e-fundos-das-telas.md`](../decisions/2026-08-18-paleta-e-fundos-das-telas.md).
 
 ## Ordem em que foram executadas
 
@@ -37,7 +37,7 @@ e o mesmo conjunto de tokens — separá-las significaria pintar o `AppShell` du
 vezes.
 
 1. **MELH-001** — renderizador de Markdown e o vazamento dos rótulos na cópia.
-2. **MELH-002** e **MELH-003** — paleta da Yaitec, os dois fundos, e a logo.
+2. **MELH-002** e **MELH-003** — paleta do cliente, os dois fundos, e a logo.
 3. **MELH-004** — o movimento, por último, sobre a paleta já assentada.
 
 A **MELH-005** chegou depois desse bloco, durante o teste do sistema, e é de
@@ -50,7 +50,7 @@ de spec própria: ele mexe em banco, retrieval e citação.
 ## Como as dependências se resolveram
 
 - As três decisões da **MELH-002** vieram do owner: paleta do site da
-  yaitec.com; `GradientWaves` na tela de envio e `ShapeGrid` **estático** na
+  exemplo.com.br; `GradientWaves` na tela de envio e `ShapeGrid` **estático** na
   tela de chat; cores do shader saindo dos tokens.
 - O bloqueio da **MELH-003** saiu com o arquivo entregue pelo owner. Ele não era
   vetor — 538 kB de PNG embrulhado em SVG, sobre fundo navy chapado —, e o
@@ -97,7 +97,7 @@ Arquivos novos que passam a ser referência para o que vier depois:
 
 - `components/Markdown.tsx` — Markdown do modelo virando tokens do design
   system, com HTML exibido como texto e nunca executado;
-- `components/YaitecMark.tsx` — a logo em `currentColor`, e o
+- `components/BrandMark.tsx` — a logo em `currentColor`, e o
   `public/favicon.svg` que sai dela;
 - `components/backgrounds/` — `GradientWaves` (WebGL), `ShapeGrid` (estático) e
   o `AppBackground` que escolhe entre eles e os recorta para longe do texto;

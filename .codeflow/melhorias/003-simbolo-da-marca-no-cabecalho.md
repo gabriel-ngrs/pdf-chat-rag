@@ -1,6 +1,6 @@
 ---
 id: MELH-003
-titulo: "Exibir a logo da Yaitec ao lado da marca TalkDoc"
+titulo: "Exibir a logo do cliente ao lado da marca TalkDoc"
 solicitado_em: 2026-08-17
 solicitado_por: owner
 tipo: identidade visual
@@ -12,11 +12,11 @@ implementado_em: 2026-08-18
 fase_dona: B.2 (app-shell)
 ---
 
-# MELH-003 — A logo da Yaitec ao lado do TalkDoc
+# MELH-003 — A logo do cliente ao lado do TalkDoc
 
 ## O pedido
 
-Colocar a logo da Yaitec na página, ao lado de "TalkDoc".
+Colocar a logo do cliente na página, ao lado de "TalkDoc".
 
 ## O que existe hoje
 
@@ -36,7 +36,7 @@ function Wordmark() {
 
 O marca-texto âmbar sobre "Doc" é a identidade inteira em um gesto — e é a mesma
 cor que marca a citação no chat. Isso é relevante para esta melhoria: a logo da
-Yaitec vai conviver com um lockup que já tem uma cor forte.
+cliente vai conviver com um lockup que já tem uma cor forte.
 
 Não existe `frontend/public/`, não existe `frontend/src/assets/`, e o
 `index.html` não declara favicon. Nenhum arquivo de imagem está versionado fora
@@ -44,7 +44,7 @@ das capturas de tela das avaliações.
 
 ## Bloqueio
 
-**Não temos o arquivo.** O `Exemplo-YAITEC.pdf` foi inspecionado com `pypdf` e
+**Não temos o arquivo.** O `documento-de-exemplo.pdf` foi inspecionado com `pypdf` e
 não contém nenhuma imagem embutida nas três páginas — o logo não sai de lá.
 
 O owner precisa fornecer, de preferência nesta ordem:
@@ -58,11 +58,11 @@ tem dois temas, e uma logo de tinta preta some no tema escuro.
 
 ## O que fazer quando o arquivo chegar
 
-**Relação entre as marcas.** Precisa ficar claro o que a Yaitec é aqui: dona do
+**Relação entre as marcas.** Precisa ficar claro o que o cliente é aqui: dona do
 produto, cliente, ou autor do desafio. Isso decide a forma:
 
 - se for **dona/autora**, o padrão é `TalkDoc` à esquerda, separador vertical
-  fino, logo da Yaitec menor à direita, com texto acessível "por Yaitec";
+  fino, logo do cliente menor à direita, com texto acessível "por cliente";
 - se for **cliente**, o lugar convencional é o rodapé, não o cabeçalho.
 
 **Recomendação:** cabeçalho, à direita do wordmark, separada por um `1px` da cor
@@ -74,8 +74,8 @@ hierarquia precisa dizer qual é o produto.
 
 - SVG inline como componente React (não `<img>`), para poder herdar `currentColor`
   e responder ao tema sem carregar dois arquivos;
-- se for `<img>`, `alt="Yaitec"` — nunca `alt=""`, porque a marca é informação;
-- se a logo for link para o site da Yaitec, `rel="noreferrer"` e `target="_blank"`;
+- se for `<img>`, `alt="cliente"` — nunca `alt=""`, porque a marca é informação;
+- se a logo for link para o site do cliente, `rel="noreferrer"` e `target="_blank"`;
 - altura fixa em token da escala de espaçamento, largura `auto`;
 - o cabeçalho tem `h-14` — a logo não pode empurrar essa altura.
 
@@ -95,7 +95,7 @@ primeira impressão de uma demonstração.
 
 ## Resolução — 2026-08-18
 
-**O bloqueio saiu:** o owner entregou o `Svg Yaitec.svg` na raiz do projeto.
+**O bloqueio saiu:** o owner entregou o `logo-do-cliente.svg` na raiz do projeto.
 
 **Mas o arquivo não é vetor.** São 538 kB de PNG de 1440 px embrulhado em SVG,
 sobre um retângulo navy chapado. Servido como veio, seria meio megabyte no
@@ -105,17 +105,31 @@ documento antecipou ao pedir SVG "de preferência".
 **O que foi feito:** o desenho foi vetorizado a partir daquele arquivo —
 contornos traçados sobre o bitmap e simplificados a três formas fechadas, num
 total de 1 kB — e entrou como componente React em
-`frontend/src/components/YaitecMark.tsx`, pintado com `currentColor`. Atravessa
+`frontend/src/components/BrandMark.tsx`, pintado com `currentColor`. Atravessa
 os dois temas sem dois arquivos, e serve também de favicon, que o projeto não
-tinha. O original está preservado em
-[`anexos/003-logo/`](anexos/003-logo/svg-yaitec-original.svg).
+tinha. O arquivo original não está versionado: é ativo de marca de terceiro.
 
 **A relação entre as marcas** ficou como este documento recomendou: TalkDoc à
-esquerda, fio de 1 px na cor `--border`, e o "Y" menor e em
-`text-muted-foreground`, subindo para o primeiro plano no hover. A logo é link
-para o site da Yaitec, com `target="_blank"` e `rel="noreferrer"`, e o nome
-acessível ("por Yaitec") vive no link — o `svg` é `aria-hidden`, para a marca
-não ser anunciada duas vezes.
+esquerda, fio de 1 px na cor `--border`, e o símbolo do cliente menor e em
+`text-muted-foreground`, subindo para o primeiro plano no hover. Era link para o
+site dele, com `target="_blank"` e `rel="noreferrer"`, e o nome acessível vivia
+no link — o `svg` era `aria-hidden`, para a marca não ser anunciada duas vezes.
 
 Verificado em navegador a 360 px: a linha do cabeçalho continua com 56 px
 (`h-14`) e a página não ganha rolagem horizontal.
+
+## Revertido — 2026-09-10
+
+Ao abrir o repositório, a marca do cliente saiu inteira: símbolo, favicon, link
+externo e as menções nos comentários do design system. Marca de terceiro não
+viaja junto com um projeto público, e aqui ela nunca foi o produto.
+
+O lugar dela no lockup **não virou buraco**. Entrou uma marca própria —
+`BrandMark`, uma folha com o canto dobrado e o retângulo do marca-texto dentro —
+e com ela o lockup ficou melhor do que era: o símbolo passou a dizer o que o
+produto faz, em vez de dizer de quem ele é. O cabeçalho perdeu o único link para
+fora, e há teste travando isso (`AppShell.test.tsx`).
+
+O que este documento decidiu continua valendo onde importa: a hierarquia diz qual
+é o produto, o símbolo é menor que o wordmark, `h-14` intacto, e o favicon — que
+o projeto ganhou por causa daqui — segue no ar, agora com o desenho próprio.

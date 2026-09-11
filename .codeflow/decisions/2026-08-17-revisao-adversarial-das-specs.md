@@ -14,7 +14,7 @@ relaciona-com: []
 
 ## Contexto
 
-As três specs (`FEAT-0001` ingestão, `FEAT-0002` chat com RAG, `FEAT-0003` biblioteca) foram submetidas a cinco revisores adversariais em paralelo: um crítico por spec, um de coerência cruzada e um simulando o avaliador da YAITEC. Os revisores encontraram seis defeitos de infraestrutura no esqueleto do `/bootstrap` — vários verificados empiricamente, rodando nginx, `pg_isready` e `uv` — capazes de derrubar o `docker compose up` do avaliador, que é o único critério binário do desafio.
+As três specs (`FEAT-0001` ingestão, `FEAT-0002` chat com RAG, `FEAT-0003` biblioteca) foram submetidas a cinco revisores adversariais em paralelo: um crítico por spec, um de coerência cruzada e um simulando o avaliador da empresa. Os revisores encontraram seis defeitos de infraestrutura no esqueleto do `/bootstrap` — vários verificados empiricamente, rodando nginx, `pg_isready` e `uv` — capazes de derrubar o `docker compose up` do avaliador, que é o único critério binário do desafio.
 
 Quatro revisores independentes apontaram o mesmo bug de roteamento no nginx; três apontaram que o README, entregável literal do enunciado, não tinha dono em nenhuma das 27 fases planejadas. O orçamento também não fechava: 27 fases com gate próprio, para 30h corridas num desafio estimado em 8h.
 
@@ -95,4 +95,4 @@ Estas decisões consolidam os cortes e fixam os contratos que estavam em aberto.
 - Reescrever `FEAT-0001` e `FEAT-0002` incorporando estas decisões e os demais achados dos revisores (contrato de API explícito, infraestrutura de teste com banco, distinção entre erro pré-stream e mid-stream, eval com perguntas negativas).
 - Verificar contra a API real, antes da fase de embeddings, que um lote de N textos devolve N vetores distintos — o comportamento difere entre modelos de embedding e nenhum teste offline detecta a falha.
 - Calibrar `SIMILARITY_THRESHOLD` com a distribuição de similaridade medida pelo `make eval`, e registrar o valor com a justificativa no `.env.example`.
-- Adicionar `ygorbalves` como colaborador do repositório privado antes de responder à YAITEC.
+- Adicionar o contato do cliente como colaborador do repositório privado antes de responder à empresa.

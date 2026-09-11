@@ -10,7 +10,7 @@ supersede: null
 relaciona-com: [MELH-001, MELH-002, MELH-003, MELH-004]
 ---
 
-# Decisões: paleta da Yaitec, fundos das telas e o limite do movimento
+# Decisões: paleta do cliente, fundos das telas e o limite do movimento
 
 ## Contexto
 
@@ -26,9 +26,9 @@ inclusive onde a regra de CSS não alcança.
 
 ## Decisões tomadas
 
-### 1. A paleta é a do site da yaitec.com, traduzida para os tokens que já existem
+### 1. A paleta é a do site da exemplo.com.br, traduzida para os tokens que já existem
 
-**O que o owner respondeu:** "quero manter a paleta do site da yaitec.com".
+**O que o owner respondeu:** "quero manter a paleta do site da exemplo.com.br".
 
 **O que isso virou:** o CSS do site foi lido e a paleta extraída — `#7BA6D1`
 (azul-aço das ações), `#12191F` e `#1D2730` (as duas superfícies escuras),
@@ -104,7 +104,7 @@ então com 15 o campo inteiro se dissolvia no fundo e o efeito era invisível.
 
 ### 4. A logo entrou vetorizada, não como o arquivo entregue
 
-**O que o owner respondeu:** "coloquei na raiz do projeto" — o `Svg Yaitec.svg`.
+**O que o owner respondeu:** "coloquei na raiz do projeto" — o `logo-do-cliente.svg`.
 
 **O problema:** o arquivo tem 538 kB e não é vetor. É um PNG de 1440 px
 embrulhado em SVG, sobre um retângulo navy chapado. Servido como está, seria
@@ -115,7 +115,7 @@ traçados e simplificados a três formas fechadas, 1 kB — e entrou como
 componente React pintado com `currentColor`. Atravessa os dois temas sem dois
 arquivos e serve também de favicon, que o projeto não tinha. O arquivo original
 está preservado em
-[`anexos/003-logo/`](../melhorias/anexos/003-logo/svg-yaitec-original.svg).
+não versionado: é ativo de marca de terceiro.
 
 **Alternativa rejeitada:** máscara CSS sobre o PNG recortado. Resolveria o tema,
 mas manteria o peso e a borda serrilhada em telas de alta densidade.

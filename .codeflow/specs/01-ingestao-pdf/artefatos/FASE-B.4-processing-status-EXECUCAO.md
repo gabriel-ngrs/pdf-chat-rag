@@ -12,7 +12,7 @@ range: f00210e..3be5eed
 
 # FASE B.4 — Relatório de execução
 
-> Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-trackB`, branch
+> Executada no worktree `/home/gabriel/Projetos/pdf-chat-rag-trackB`, branch
 > `feat/trackB-frontend`.
 
 ## ✅ Verificado contra o backend real na tentativa 2
@@ -164,7 +164,7 @@ $ npm run test -- progress
 ✓ desenha o indicador na proporção do valor
 ```
 
-> Nota honesta sobre `valores_da_barra: []` acima: com o `Exemplo-YAITEC.pdf`
+> Nota honesta sobre `valores_da_barra: []` acima: com o `documento-de-exemplo.pdf`
 > (3 páginas, 10 trechos, um único lote de embeddings) a janela determinada dura
 > menos que um ciclo de polling de 1,5 s, então a interface vai de indeterminado
 > direto para `Pronto`. O comportamento está certo — a barra determinada existe e

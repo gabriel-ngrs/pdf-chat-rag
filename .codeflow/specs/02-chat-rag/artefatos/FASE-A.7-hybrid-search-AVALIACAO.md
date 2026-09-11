@@ -88,7 +88,7 @@ Nenhum.
   consulta por termo literal, e por isso o delta dá zero. **Ele fez certo em não
   mexer no dataset no meio de uma medição antes/depois.** A continuação natural,
   quando não houver medição em curso: acrescentar duas positivas de termo literal
-  (`contato@yaitec.com`, `UFPB`), remedir a baseline e registrar. Aí o ganho da
+  (`contato@exemplo.com.br`, `sigla do documento`), remedir a baseline e registrar. Aí o ganho da
   `A.7` deixa de depender de consultas ad-hoc e passa a ser reprodutível por
   `make eval`.
 - **Manter a fusão com delta zero custa uma consulta a mais por turno.** É
@@ -182,7 +182,7 @@ A UI reordena por página antes de renderizar os chips. A ordem da fusão **não
 chega à tela** — ver §8.
 
 **Não re-executado por mim:** `make eval` nos dois modos e as consultas ad-hoc
-(`contato@yaitec.com`, `UFPB`) contra a API real. Continua sem chave utilizável
+(`contato@exemplo.com.br`, `sigla do documento`) contra a API real. Continua sem chave utilizável
 nesta sessão e a medição gasta quota do owner. O que compensa parcialmente: o
 mecanismo tem prova offline no teste `db` acima, e a sequência de medição
 declarada no `eval/README.md` (baseline remedida sobre a mesma ingestão) é a

@@ -12,7 +12,7 @@ range: 8a1e191..e696ab7
 
 # FASE B.4 — Relatório de execução
 
-> Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-chatB`, branch
+> Executada no worktree `/home/gabriel/Projetos/pdf-chat-rag-chatB`, branch
 > `feat/chat-rag-trackB`.
 
 ## ✅ Gate executado na tentativa 2 (o aviso abaixo é da tentativa 1)
@@ -258,7 +258,7 @@ passada contra o `docker compose` com a `A.4` já na `dev` — evidências na §
 
 ## 10. Gate contra o backend real (tentativa 2, 2026-08-17)
 
-Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `Exemplo-YAITEC.pdf`
+Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `documento-de-exemplo.pdf`
 ingerido pela API do compose (3 páginas, 10 chunks, `status: ready`), navegador
 dirigido por Playwright contra `http://localhost:5173` (o nginx do frontend, não
 o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.
@@ -299,7 +299,7 @@ F5 no meio do stream:         4 mensagens             | conversas novas: 0 | 'Re
 ```text
 envio falhou → 0 balões na conversa, pergunta de volta no campo: True
 após 'Tentar de novo': 2 balões (1 pergunta + 1 resposta) | 5 chips
-no banco: #59 user 'quais são os valores da YAITEC?' | #60 assistant (5 citações)
+no banco: #59 user 'quais são os valores da empresa?' | #60 assistant (5 citações)
 → cópias da pergunta no histórico: 1
 ```
 

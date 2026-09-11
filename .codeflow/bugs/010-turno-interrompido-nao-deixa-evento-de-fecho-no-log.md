@@ -37,8 +37,8 @@ $ docker compose logs backend | grep -c client_disconnected
 
 ```
  id | role      | truncated | len | inicio
- 32 | assistant | t         | 664 | A YAITEC Solutions é uma startup brasileira especializada em
- 34 | assistant | t         | 889 | A YAITEC Solutions é uma startup brasileira focada no mercad
+ 32 | assistant | t         | 664 | A empresa do documento é uma startup brasileira especializada em
+ 34 | assistant | t         | 889 | A empresa do documento é uma startup brasileira focada no mercad
  36 | assistant | t         |   9 | Segundo o
 ```
 

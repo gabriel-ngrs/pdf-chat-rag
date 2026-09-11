@@ -82,7 +82,7 @@ definida acendeu a falha.
 
 ## Reprodução
 
-1. `docker compose up --build`, subir o `Exemplo-YAITEC.pdf`.
+1. `docker compose up --build`, subir o `documento-de-exemplo.pdf`.
 2. Fazer 10 perguntas na mesma conversa, numa janela de 900 px de altura.
 3. Observar: a página inteira ganhou barra de rolagem, e o campo de pergunta
    não está mais visível.

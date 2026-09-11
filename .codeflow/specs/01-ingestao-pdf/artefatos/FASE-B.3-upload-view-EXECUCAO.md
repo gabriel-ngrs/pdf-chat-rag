@@ -12,7 +12,7 @@ range: cb386f4..3be5eed
 
 # FASE B.3 — Relatório de execução
 
-> Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-trackB`, branch
+> Executada no worktree `/home/gabriel/Projetos/pdf-chat-rag-trackB`, branch
 > `feat/trackB-frontend`.
 
 ## ✅ Dependência `A.4` satisfeita na tentativa 2
@@ -23,7 +23,7 @@ cumprido contra um stub, o que gerou o BLOQUEANTE B-1 e a reprovação.
 
 O Track A foi concluído e mergeado em `dev` (`9c5d8e8`). Nesta tentativa o gate
 foi cumprido **contra o backend real**: `docker compose down -v && docker compose
-up --build`, `.env` com `GEMINI_API_KEY` válida, e o `Exemplo-YAITEC.pdf`
+up --build`, `.env` com `GEMINI_API_KEY` válida, e o `documento-de-exemplo.pdf`
 percorrendo o caminho inteiro pelo nginx. As saídas estão na §5.
 
 ## 1. Resumo do que foi feito
@@ -91,9 +91,9 @@ $ cd frontend && npm run lint        # exit 0
 
 # TENTATIVA 2 — compose real, com a A.4 na árvore
 $ docker compose down -v && docker compose up --build -d
-Container yaitec-talkdoc-trackb-db-1        Healthy
-Container yaitec-talkdoc-trackb-backend-1   Started
-Container yaitec-talkdoc-trackb-frontend-1  Started
+Container talkdoc-trackb-db-1        Healthy
+Container talkdoc-trackb-backend-1   Started
+Container talkdoc-trackb-frontend-1  Started
 
 $ curl -s -i http://localhost:5173/api/health | head -8
 HTTP/1.1 200 OK
@@ -150,7 +150,7 @@ $ python3 audit_upload.py http://localhost:5173
 - [x] **AC-20** — arquivo de 31 MB com limite de 25 MB é recusado **antes** da
   requisição: `ac20_nenhum_post: true` (nenhum `POST` no log de rede da página)
   e o aviso traz título, o tamanho real medido e a ação sugerida, em pt-BR.
-- [x] **AC-21** — PDF válido mostra nome (`Exemplo-YAITEC.pdf`) e tamanho
+- [x] **AC-21** — PDF válido mostra nome (`documento-de-exemplo.pdf`) e tamanho
   (`254 KB`, em fonte mono para comparar com o limite); durante o envio aparece
   "Enviando o arquivo…" com `role="status"` e ícone girando.
 - [x] **AC-23 (parte de teclado)** — o terceiro `Tab` da página chega ao input

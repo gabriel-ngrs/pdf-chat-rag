@@ -17,9 +17,9 @@ trechos ela de fato usou. Exemplos das telas do teste:
 
 | pergunta | o que a resposta diz | chips exibidos |
 |---|---|---|
-| `contato@yaitec.com` | "página 3, Trecho 5" | páginas 1, 2, 2, 3, 3 |
-| `UFPB` | "página 2, Trechos 1 e 2" | páginas 1, 2, 2, 3, 3 |
-| `A YAITEC trabalha com a StartStak?` | "Trecho 1, página 2" | páginas 1, 1, 2, 2, 3 |
+| `contato@exemplo.com.br` | "página 3, Trecho 5" | páginas 1, 2, 2, 3, 3 |
+| `sigla do documento` | "página 2, Trechos 1 e 2" | páginas 1, 2, 2, 3, 3 |
+| `A empresa trabalha com a Empresa-X?` | "Trecho 1, página 2" | páginas 1, 1, 2, 2, 3 |
 
 O usuário vê cinco fontes; o texto aponta uma. Quem clicar nos outros quatro
 chips encontra trechos que não têm relação com a resposta — e a leitura natural é

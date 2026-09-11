@@ -56,7 +56,7 @@ acionável.
 
 | # | Dimensão | Peso | Nota (0–5) | Evidência (arquivo:linha ou saída) |
 |---|----------|------|------------|------------------------------------|
-| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | **Contra o backend real, medido por mim:** AC-1 `202 {"id":"657457…","status":"pending"}` pelo nginx; AC-2 `413` `application/json` `{"code":"arquivo_grande"}`; AC-3 `422 arquivo_invalido` para `.txt` renomeado; `404 nao_encontrado`. **No navegador:** AC-20 (31 MB recusado sem nenhum `POST`, aviso com o tamanho real), AC-21 (`Exemplo-YAITEC.pdf \| 254 KB`), AC-23 (input é o 3º ponto de foco, `:focus-visible`, borda do label em `oklch(0.58 0.16 62)`). Escopo travado: `grep` de `XMLHttpRequest\|onUploadProgress` = 0, nenhuma cor fora dos tokens, nenhum outro formato aceito |
+| 1 | Conformidade com a fase — ACs e escopo travado | 3 | 5 | **Contra o backend real, medido por mim:** AC-1 `202 {"id":"657457…","status":"pending"}` pelo nginx; AC-2 `413` `application/json` `{"code":"arquivo_grande"}`; AC-3 `422 arquivo_invalido` para `.txt` renomeado; `404 nao_encontrado`. **No navegador:** AC-20 (31 MB recusado sem nenhum `POST`, aviso com o tamanho real), AC-21 (`documento-de-exemplo.pdf \| 254 KB`), AC-23 (input é o 3º ponto de foco, `:focus-visible`, borda do label em `oklch(0.58 0.16 62)`). Escopo travado: `grep` de `XMLHttpRequest\|onUploadProgress` = 0, nenhuma cor fora dos tokens, nenhum outro formato aceito |
 | 2 | Arquitetura e direção de dependências | 3 | 5 | Lógica pura em `useUpload.ts` fora do componente; rede só via `api.ts` da `B.2` |
 | 3 | Segurança / LGPD / multi-tenant | 3 | 5 | `useUpload.ts:31-37` continua declarando que a validação local não substitui a do servidor — e agora isso está **provado**: o `.txt` renomeado passa pelo cliente e é o servidor que devolve `422`. `grep` de segredo = 0; `make security` = 0 |
 | 4 | Reusar/espelhar, não duplicar | 3 | 5 | `uploadDocument`, `ApiError` e as frases do `errors.ts` reusados; nenhuma mensagem duplicada no componente |
@@ -134,9 +134,9 @@ $ git merge-base --is-ancestor 3be5eed HEAD
 
 # compose real, do worktree no mesmo commit que dev, volume novo
 $ docker compose -f docker-compose.yml -f <override que não publica a 5432> up --build -d
- Container yaitec-talkdoc-trackb-db-1        Healthy
- Container yaitec-talkdoc-trackb-backend-1   Started
- Container yaitec-talkdoc-trackb-frontend-1  Started
+ Container talkdoc-trackb-db-1        Healthy
+ Container talkdoc-trackb-backend-1   Started
+ Container talkdoc-trackb-frontend-1  Started
 
 $ curl -s -i http://localhost:5173/api/health | head -5
 HTTP/1.1 200 OK
@@ -166,7 +166,7 @@ status=404
 
 # AC-1 e gate da fase — ciclo pelo navegador, contra o compose real
 $ python3 gate.py
- "antes_do_envio": "Exemplo-YAITEC.pdf | 254 KB | Clique ou arraste outro arquivo para trocar."
+ "antes_do_envio": "documento-de-exemplo.pdf | 254 KB | Clique ou arraste outro arquivo para trocar."
  "posts": ["http://localhost:5173/api/documents"]
  "id_em_storage": "65745776-fa91-42e3-ad8b-2d3c607c51f8"
  "apos_reset": {"storage": null, "voltou_ao_envio": true}
@@ -191,7 +191,7 @@ $ python3 ac20b.py
  que quem recusou foi o `422` do servidor, e não a validação local.
 
 # AC-21 e AC-23 no navegador
- "antes_do_envio": "Exemplo-YAITEC.pdf | 254 KB | Clique ou arraste outro arquivo para trocar."
+ "antes_do_envio": "documento-de-exemplo.pdf | 254 KB | Clique ou arraste outro arquivo para trocar."
  3o Tab -> {"tag":"input","type":"file","focusVisible":true,
             "caixaFoco":{"borderColor":"oklch(0.58 0.16 62)","boxShadow":"… 0px 0px 0px 3px"}}
 

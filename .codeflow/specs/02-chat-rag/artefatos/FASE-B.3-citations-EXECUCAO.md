@@ -12,18 +12,18 @@ range: 199ce9f..e696ab7
 
 # FASE B.3 — Relatório de execução
 
-> Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-chatB`, branch
+> Executada no worktree `/home/gabriel/Projetos/pdf-chat-rag-chatB`, branch
 > `feat/chat-rag-trackB`.
 
 ## ✅ Gate executado na tentativa 2 (o aviso abaixo é da tentativa 1)
 
-Cinco citações reais de uma pergunta sobre o `Exemplo-YAITEC.pdf` foram exibidas
+Cinco citações reais de uma pergunta sobre o `documento-de-exemplo.pdf` foram exibidas
 e **conferidas página a página contra o PDF**. Evidências em §10.
 
 ## ⚠️ (Tentativa 1) Gate com dado real ainda PENDENTE
 
 O critério de conclusão pede "citações reais de uma pergunta sobre o
-`Exemplo-YAITEC.pdf` exibidas". Com a `A.4` e a `A.3` do Track A ainda não
+`documento-de-exemplo.pdf` exibidas". Com a `A.4` e a `A.3` do Track A ainda não
 implementadas, não há de onde tirar citação real. O que está provado é a
 renderização, a ordenação, a navegação por teclado e a ausência da área quando
 não há citação — tudo contra o formato do evento `citations` da §4.3.
@@ -126,7 +126,7 @@ $ grep -nE "#[0-9a-fA-F]{3,6}|text-(gray|slate|zinc)-" src/components/CitationCh
   não há valor padrão para página, trecho ou score no caminho de exibição.
 - [x] **Score discreto** — não aparece no chip (asserção de ausência) e aparece
   no diálogo como `similaridade 0,83`.
-- [x] **Critério de conclusão com citação real do `Exemplo-YAITEC.pdf`**:
+- [x] **Critério de conclusão com citação real do `documento-de-exemplo.pdf`**:
   cumprido na tentativa 2 (§10) — 5 chips reais, cada trecho conferido contra a
   página que o chip declara, abertos por `Tab`+`Enter` e fechados por `Esc`.
 
@@ -145,7 +145,7 @@ $ grep -nE "#[0-9a-fA-F]{3,6}|text-(gray|slate|zinc)-" src/components/CitationCh
 Rework da avaliação `FASE-B.3-citations-AVALIACAO.md` (tentativa 1, REPROVADO,
 score 9,4). Nenhuma mudança em `CitationChip.tsx` nem em `MessageList.tsx` —
 não havia BLOQUEANTE de código nem IMPORTANTE, e o único bloqueio é o gate com
-citação real do `Exemplo-YAITEC.pdf`, que continua aberto (topo deste relatório).
+citação real do `documento-de-exemplo.pdf`, que continua aberto (topo deste relatório).
 
 As duas dúvidas do §9 foram resolvidas pela avaliação, ambas a favor do que está
 no código: o par `--highlight` / `--highlight-foreground` dá 10,68:1 (claro) e
@@ -169,12 +169,12 @@ está. A terceira observação — `score` chegando ao diálogo sem validação 
 
 ## 10. Gate com citação real (tentativa 2, 2026-08-17)
 
-Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `Exemplo-YAITEC.pdf`
+Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `documento-de-exemplo.pdf`
 ingerido pela API do compose (3 páginas, 10 chunks, `status: ready`), navegador
 dirigido por Playwright contra `http://localhost:5173` (o nginx do frontend, não
 o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.
 
-Pergunta: *"Quem fundou a YAITEC e qual a formação dele?"* — 5 citações, cada
+Pergunta: *"Quem fundou a empresa e qual a formação dele?"* — 5 citações, cada
 `snippet` comparado com o texto extraído da página que o chip declara:
 
 ```text
@@ -194,7 +194,7 @@ Esc fechou; foco devolvido para 'ver trecho da página 1'
 - **Citações reais exibidas:** os cinco chips vieram do turno real e estão
   ordenados por página, como a fase promete.
 - **Página confere com o PDF:** conferência automatizada trecho→página contra o
-  texto extraído do `Exemplo-YAITEC.pdf` — as cinco batem, nenhuma aparece em
+  texto extraído do `documento-de-exemplo.pdf` — as cinco batem, nenhuma aparece em
   página diferente da declarada. É a verificação que nenhum teste offline faz.
 - **Recorte do servidor cabe no diálogo:** os `snippet` chegaram entre 227 e 238
   caracteres (teto de 240) e o diálogo os mostrou inteiros, sem quebrar o layout

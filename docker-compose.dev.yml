@@ -7,8 +7,8 @@
 # **Por que um arquivo separado, e não `docker-compose.override.yml`.** O
 # override de nome padrão é carregado sozinho por qualquer `docker compose up`.
 # Se o modo de desenvolvimento morasse nele, o `docker compose up --build` de um
-# clone limpo — que é requisito literal do desafio — subiria o servidor do Vite
-# em vez do nginx, e o avaliador testaria uma coisa diferente da que se entrega.
+# clone limpo — que é o caminho que o README promete — subiria o servidor do Vite
+# em vez do nginx, e quem clonasse testaria uma coisa diferente da que se entrega.
 # Este arquivo só entra quando alguém o nomeia.
 #
 # Exige Docker Compose 2.24+ pelo `!override` (a versão instalada é 2.40).

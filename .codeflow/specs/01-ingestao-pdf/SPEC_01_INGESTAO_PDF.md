@@ -51,7 +51,7 @@ quality_gate:
 
 ## 1. Problema e contexto
 
-O desafio da YAITEC pede um app onde a pessoa envia um PDF e conversa com ele, com respostas fundamentadas citando trecho ou página. Antes de qualquer conversa, o documento precisa virar dado consultável por similaridade.
+O desafio da empresa pede um app onde a pessoa envia um PDF e conversa com ele, com respostas fundamentadas citando trecho ou página. Antes de qualquer conversa, o documento precisa virar dado consultável por similaridade.
 
 **O detalhe que decide a nota está na extração.** Se o PDF virar um texto único e só depois for cortado, o número da página se perde e citar vira adivinhação. Extrair por página e **nunca deixar um chunk cruzar a fronteira** faz a citação ser exata por construção — e o avaliador vai conferir contra um PDF de 3 páginas que ele mesmo enviou.
 
@@ -366,7 +366,7 @@ Componentes previstos: `button`, `card`, `progress`, `scroll-area`, `separator`,
   7. Gravar `session_id` do header `X-Session-Id` (sem usá-lo para autorização).
 - **Testes:** upload responde rápido em `pending` (AC-1); limites da requisição recusados no envelope certo (AC-2, AC-3); violações de parse terminam `failed` (AC-4, AC-5); progresso monotônico (AC-12); falha permanente vira `failed` sem vazar chave (AC-13); reenvio idêntico não reprocessa (AC-15); dois uploads simultâneos serializam (AC-28); os eventos de log aparecem com o mesmo `request_id` (AC-18).
 - **Escopo travado / violações BLOQUEANTES:** nenhuma chamada ao Gemini fora do adapter da `A.3`; nenhum SQL concatenado; **não deixar documento preso em `processing`**; não parsear o PDF duas vezes; não bloquear o event loop com `pypdf`; não implementar retrieval nem chat; não gravar o conteúdo do PDF em log.
-- **Critério de conclusão (gate):** upload real do `Exemplo-YAITEC.pdf` chega a `ready` com chunks embedados; o índice HNSW é o de cosseno (AC-11); um `docker compose logs backend | grep <request_id>` mostra a ingestão inteira; `make check` zero.
+- **Critério de conclusão (gate):** upload real do `documento-de-exemplo.pdf` chega a `ready` com chunks embedados; o índice HNSW é o de cosseno (AC-11); um `docker compose logs backend | grep <request_id>` mostra a ingestão inteira; `make check` zero.
 
 ### Fase A.5 — Suíte de testes da ingestão *(tamanho M; ≈2h)*
 
@@ -536,7 +536,7 @@ fechado:
 - [✓] `A.1 foundation` — compose sobe a frio duas vezes; `/api/health` `200` através do nginx com `X-Request-Id`; envelope de erro aplicado; `make arch` passa. *(APROVADO 9,5 · tentativa 2)*
 - [✓] `A.2 pdf-chunking` — chunking por página, determinístico, offline, cobertura ≥ 90%. *(APROVADO 9,8 · tentativa 2)*
 - [✓] `A.3 gemini-embeddings` — verificação contra a API real registrada; lote, backoff, `task_type` e L2 testados com fake. *(APROVADO 9,8 · tentativa 2)*
-- [✓] `A.4 ingestion-pipeline` — `Exemplo-YAITEC.pdf` chega a `ready`; ingestão rastreável por `request_id` no log. *(APROVADO 9,8 · tentativa 2)*
+- [✓] `A.4 ingestion-pipeline` — `documento-de-exemplo.pdf` chega a `ready`; ingestão rastreável por `request_id` no log. *(APROVADO 9,8 · tentativa 2)*
 - [✓] `A.5 ingestion-tests` — `make test` verde sem chave e sem banco, cobertura de `core/` ≥ 90%; `make test-db` verde. *(APROVADO 9,8 · tentativa 1)*
 - [✓] `A.6 quality-gates` — `make arch` reprova violação injetada; `make security` sem achado alto. *(APROVADO 9,7 · tentativa 1)*
 - [✓] `B.1 design-system` — casca nos dois temas, responsiva a 375 px, navegável por teclado. *(APROVADO · tentativa 1)*

@@ -12,7 +12,7 @@ status: corrigido e verificado (/double-check 2026-08-18)
 
 ## Sintoma
 
-Na pergunta `StartStak` — nove caracteres, um termo solto — o turno levou
+Na pergunta `Empresa-X` — nove caracteres, um termo solto — o turno levou
 **8,9 s**, dos quais 5 foram a condensação esperando o timeout inteiro antes de
 desistir:
 
@@ -38,7 +38,7 @@ Não há erro de lógica. O desenho é: condensar com o LLM, e se demorar demais
 cair para a pergunta crua. O que o desenho não faz é **evitar a chamada quando
 ela não tem trabalho a fazer**.
 
-`StartStak` é um termo autocontido. Não há pronome, não há elipse, não há nada
+`Empresa-X` é um termo autocontido. Não há pronome, não há elipse, não há nada
 que a condensação pudesse resolver — a pergunta crua e a condensada seriam a
 mesma string. A chamada foi paga (e neste caso paga em dobro: 5 s de espera e
 uma requisição gasta da cota) para produzir o que já estava em mãos.
@@ -58,7 +58,7 @@ Não é determinística — depende da latência do provedor. O que dá para obs
 sempre é a condição que a torna possível:
 
 1. Fazer uma pergunta qualquer (para haver histórico).
-2. Perguntar um termo autocontido: `StartStak`, `UFPB`, `contato@yaitec.com`.
+2. Perguntar um termo autocontido: `Empresa-X`, `sigla do documento`, `contato@exemplo.com.br`.
 3. `docker compose logs backend | grep chat.condensed` — o evento aparece com
    `used_llm: true` em toda pergunta a partir da segunda, inclusive nas que não
    têm o que condensar.

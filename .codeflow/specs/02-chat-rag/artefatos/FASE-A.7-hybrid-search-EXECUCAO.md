@@ -22,7 +22,7 @@ que permitiu medir os dois modos pelo mesmo caminho de código.
 
 **O delta no dataset é zero.** As seis métricas e as tabelas por pergunta saem idênticas.
 Em consulta por **termo literal** — que o dataset não contém — a fusão conserta o que a
-densa perde: `contato@yaitec.com` não aparecia no top-3 denso e passa à 2ª posição.
+densa perde: `contato@exemplo.com.br` não aparecia no top-3 denso e passa à 2ª posição.
 
 ## 2. Arquivos CRIADOS
 
@@ -129,9 +129,9 @@ diferente. Documento `89774e1c-009d-47c5-80e4-ba6c7324f3d3`, 10 chunks, 3 págin
 
 | consulta | posição do trecho com o termo — densa | híbrida |
 |---|---|---|
-| `contato@yaitec.com` | **ausente do top-3** | **2ª** |
-| `UFPB` | 2ª | **1ª** |
-| `StartStak` | 1ª | 1ª |
+| `contato@exemplo.com.br` | **ausente do top-3** | **2ª** |
+| `sigla do documento` | 2ª | **1ª** |
+| `Empresa-X` | 1ª | 1ª |
 
 ### Prova de que os testes mordem
 

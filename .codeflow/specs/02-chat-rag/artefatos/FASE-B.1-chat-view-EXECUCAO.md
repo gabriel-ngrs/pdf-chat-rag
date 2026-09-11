@@ -12,7 +12,7 @@ range: dd621eb..e696ab7
 
 # FASE B.1 — Relatório de execução
 
-> Executada no worktree `/home/gabriel/Projetos/Yaitec-TalkDoc-chatB`, branch
+> Executada no worktree `/home/gabriel/Projetos/pdf-chat-rag-chatB`, branch
 > `feat/chat-rag-trackB`, criada a partir de `dev` (`dd621eb`).
 
 ## ✅ Gate executado na tentativa 2 (o aviso abaixo é da tentativa 1)
@@ -223,7 +223,7 @@ que continua aberto (topo deste relatório). As três sugestões foram aplicadas
 
 ## 10. Gate contra o backend real (tentativa 2, 2026-08-17)
 
-Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `Exemplo-YAITEC.pdf`
+Ambiente: `docker compose` da `dev` com a `A.4` mergeada, `documento-de-exemplo.pdf`
 ingerido pela API do compose (3 páginas, 10 chunks, `status: ready`), navegador
 dirigido por Playwright contra `http://localhost:5173` (o nginx do frontend, não
 o dev server). Chave real do Gemini; nenhum dublê em nenhum ponto do caminho.

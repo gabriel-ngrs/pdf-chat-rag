@@ -205,7 +205,7 @@ Nada mais foi tocado: as regras puras de `core/retrieval.py` não mudaram uma li
 
 - **O `EXPLAIN` foi feito com um documento sintético de 2.000 chunks**, criado e apagado
   por um script descartável fora do repositório. Com os ~10 chunks do
-  `Exemplo-YAITEC.pdf` o planejador escolheria varredura sequencial — e estaria certo:
+  `documento-de-exemplo.pdf` o planejador escolheria varredura sequencial — e estaria certo:
   numa tabela desse tamanho ela é mais barata. O que precisava ser provado é que o
   operador da query casa com o opclass do índice, e é isso que o plano acima mostra.
 - **O teste novo força o regime em vez de esperá-lo.** Ele mexe em duas opções de

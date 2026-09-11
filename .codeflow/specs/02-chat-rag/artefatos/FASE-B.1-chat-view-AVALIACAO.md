@@ -80,7 +80,7 @@ Nenhum.
   (`FASE-B.1-chat-view-EXECUCAO.md:206`): "Não se aplica — primeira execução.",
   logo abaixo do texto que descreve o rework. Idem em `B.2` e `B.3`.
 - **S-3 — A resposta mostra markdown cru.** Em `gate-b/06-f5-no-meio-do-stream.png`
-  aparecem `### **1. Quem é a YAITEC**` e `* **Descrição e Foco:**` literais: o
+  aparecem `### **1. Quem é a empresa**` e `* **Descrição e Foco:**` literais: o
   modelo devolve markdown e a tela renderiza como texto (`whitespace-pre-wrap`).
   A spec não pede renderização de markdown, então não é desvio — mas é o que
   o avaliador do desafio vai ver na demonstração.
@@ -115,7 +115,7 @@ EventSource: 0 | alert(: 0 | segredo: 0 | estado global: 0 | cor crua: 0
 $ curl -s http://localhost:8000/api/health
 {"status":"ok","database":"ok"}
 $ docker exec …db-1 psql -c "select filename, status, page_count from documents"
- Exemplo-YAITEC.pdf | ready | 3
+ documento-de-exemplo.pdf | ready | 3
 $ curl -s -X POST http://localhost:5173/api/conversations -d '{"document_id":"b3d6b31d-…"}'
 {"id":"ee3671ac-0997-4960-b7d1-d7b378d9e038"}
 
