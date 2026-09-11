@@ -15,6 +15,7 @@ from pathlib import Path
 
 from eval.run_eval import (
     NEGATIVE,
+    OFF_TOPIC_KIND,
     POSITIVE,
     Distribution,
     first_hit_rank,
@@ -118,12 +119,24 @@ class TestDataset:
         items = load_dataset(DATASET)
         positives = [item for item in items if item.group == POSITIVE]
         negatives = [item for item in items if item.group == NEGATIVE]
-        # O teto subiu de 12 para 20 no BUG-002: as sete positivas sem âncora
-        # (P11–P16 e C03) são o que revela o piso real de similaridade de quem
-        # pergunta sem repetir o nome da empresa. O intervalo continua existindo
-        # para que mexer no dataset seja deliberado, não acidental.
+        # O teto subiu de 12 para 20 no BUG-002: as positivas sem âncora são o
+        # que revela o piso real de similaridade de quem pergunta em linguagem
+        # corrente, sem repetir o termo que o documento martela. O intervalo
+        # continua existindo para que mexer no dataset seja deliberado, não
+        # acidental.
         assert 8 <= len(positives) <= 20
-        assert len(negatives) == 4
+        assert 4 <= len(negatives) <= 10
+
+    def test_keeps_off_topic_negatives_because_the_gate_depends_on_them(self) -> None:
+        """O gate de NFR-7 cobra recusa das negativas "fora do documento".
+
+        Sem nenhuma delas no dataset, a taxa vira 0/0 e o gate passaria a
+        aprovar qualquer limiar — inclusive zero, que destrói a recusa. Três é o
+        piso que mantém a medida com alguma resolução.
+        """
+        negatives = [item for item in load_dataset(DATASET) if item.group == NEGATIVE]
+        fora = [item for item in negatives if item.kind.startswith(OFF_TOPIC_KIND)]
+        assert len(fora) >= 3
 
     def test_every_positive_has_a_page_and_every_negative_has_none(self) -> None:
         for item in load_dataset(DATASET):

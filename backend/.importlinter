@@ -84,7 +84,7 @@ forbidden_modules =
     app.logging_setup
 
 ; ── 3. Sem framework de RAG ───────────────────────────────────────────────────
-; O RAG é o objeto da avaliação: terceirizá-lo a um framework apagaria a
+; O RAG é o objeto deste projeto: terceirizá-lo a um framework apagaria a
 ; decisão de chunking, de embedding e de retrieval que a spec justifica linha a
 ; linha. Os pacotes `langchain_*` e `llama_index_*` são distribuições de
 ; primeiro nível distintas — proibir só `langchain` deixaria `langchain_core`

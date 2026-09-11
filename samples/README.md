@@ -1,12 +1,13 @@
 # Documento de exemplo
 
-`lgpd-capitulos-1-2.pdf` — 9 páginas, ~36 mil caracteres de texto extraível.
+`lgpd-capitulos-1-2.pdf` — 12 páginas, ~30 mil caracteres de texto extraível.
 
 É o excerto dos **Capítulos I e II da Lei nº 13.709/2018 (LGPD)**, artigos 1º a
 16, com a redação dada pela Lei nº 13.853/2019. O texto vem do Portal da
 Legislação da Presidência da República (`planalto.gov.br`) e foi recomposto em
-PDF para servir de documento de teste: tipografia limpa, uma página por bloco de
-artigos e nenhuma imagem, para que a extração por página seja verificável.
+PDF para servir de documento de teste: tipografia limpa, quebra de página
+declarada antes dos artigos longos e nenhuma imagem, para que a extração por
+página seja verificável.
 
 ## Por que este documento
 
@@ -31,14 +32,21 @@ possa abrir e conferir. Este serve bem por quatro razões:
 
 | Página | Artigos | Assunto |
 |---|---|---|
-| 1 | 1º, 2º | Objeto da Lei e fundamentos da disciplina |
-| 2 | 3º, 4º | Âmbito de aplicação e hipóteses de não aplicação |
-| 3 | 5º | Definições (dado pessoal, dado sensível, controlador, operador, encarregado…) |
-| 4 | 6º | Princípios do tratamento |
-| 5 | 7º | Hipóteses em que o tratamento pode ser realizado |
-| 6 | 8º, 9º, 10 | Consentimento, acesso facilitado e legítimo interesse |
-| 7 | 11 | Tratamento de dados pessoais sensíveis |
-| 8 | 12, 13, 14 | Dados anonimizados, estudos em saúde pública e dados de crianças |
-| 9 | 15, 16 | Término do tratamento e eliminação dos dados |
+| 1 | 1º, 2º, 3º | Objeto da Lei, fundamentos e âmbito de aplicação |
+| 2 | 4º | Hipóteses em que a Lei não se aplica |
+| 3 | 5º | Definições — dado pessoal, dado sensível, consentimento, controlador, operador, encarregado, banco de dados |
+| 4 | 5º (cont.) | Últimas definições, entre elas a de autoridade nacional |
+| 5 | 6º | Princípios do tratamento |
+| 6 | 7º | Hipóteses em que o tratamento pode ser realizado |
+| 7 | 8º, 9º | Consentimento e acesso facilitado à informação |
+| 8 | 10, 11 | Legítimo interesse e tratamento de dados sensíveis |
+| 9 | 11 (cont.) | Vedações e comunicação de dados sensíveis |
+| 10 | 12, 13 | Dados anonimizados e estudos em saúde pública |
+| 11 | 14 | Dados pessoais de crianças e adolescentes |
+| 12 | 15, 16 | Término do tratamento e eliminação dos dados |
 
-O mapa acima é o gabarito do `expected_page` em `backend/eval/dataset.json`.
+Este mapa é o gabarito do `expected_page` em `backend/eval/dataset.json`, e ele
+**não foi presumido pelo desenho da página**: cada resposta foi localizada por
+busca literal no texto que o `pypdf` extrai de cada página — o mesmo texto que a
+ingestão recebe. Gabarito tirado do layout, e não do texto extraído, mede o
+gerador de PDF, não o retrieval.
