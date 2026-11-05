@@ -5,9 +5,7 @@ slug_fase: <slug>
 status: executado
 tentativa: 1
 reprovacoes: 0
-sha_inicial: <sha>
-sha_final: <sha>
-range: <sha_inicial>..<sha_final>
+base: <ramo remoto de origem, ex. origin/main, ou sha da ponta no início da fase>
 ---
 
 <!-- Preenchido pelo EXECUTOR (/execute-spec-phase) ao final da fase. Serve de
@@ -15,10 +13,14 @@ range: <sha_inicial>..<sha_final>
      código real. Schema em ARTIFACTS_SPEC §2.9.
 
      status: "executado" (nova execução) ou "rework".
-     Nova execução: tentativa=1, reprovacoes=0, sha_inicial = HEAD no início da fase.
-     Rework: tentativa = anterior+1; reprovacoes = anterior+1 (o veredito
-       não-APROVADO que motivou o rework); sha_inicial = REUSAR o do EXECUCAO
-       anterior. range é sempre sha_inicial..sha_final (a fase inteira).
+     Nova execução: tentativa=1, reprovacoes=0, base = de onde a fase partiu.
+     Rework: tentativa = anterior+1; reprovacoes = anterior+1 (o REPROVADO
+       que motivou o rework); base = REUSAR a do EXECUCAO anterior.
+     O intervalo da fase é <merge-base de base e HEAD>..HEAD; o avaliador o
+       calcula, então não há sha a acertar depois. O relatório vai no último
+       commit da fase, junto do código ou logo depois.
+     Formato anterior (sha_inicial, sha_final, range) segue válido.
+     Teto: 60 linhas de corpo, fora as saídas coladas.
      Sem campo de branch: o pipeline trabalha na branch atual. -->
 
 # FASE <id> — Relatório de execução
@@ -27,17 +29,18 @@ range: <sha_inicial>..<sha_final>
 
 (2–5 linhas — o incremento que a fase entregou.)
 
-## 2. Arquivos CRIADOS
+## 2. Commits da fase
 
-| Arquivo | Propósito |
-|---------|-----------|
-| `caminho/...` | ... |
+(Um por linha, por assunto, na ordem do `git log --oneline <merge-base>..HEAD`.
+O commit que leva este relatório entra pelo assunto, sem sha.)
 
-## 3. Arquivos ALTERADOS
+- `<tipo>(<escopo>): <assunto>`
 
-| Arquivo | O que mudou |
-|---------|-------------|
-| `caminho/...` | ... |
+## 3. Arquivos (`git diff --stat <merge-base>..HEAD`)
+
+```text
+(cole a saída; o propósito vai ao lado só quando não é óbvio)
+```
 
 ## 4. Confirmação do REUSO e decisões de design
 
@@ -45,11 +48,21 @@ range: <sha_inicial>..<sha_final>
 - Decisões de design e **qualquer desvio** da spec/rules: o quê, por quê, se foi
   conversado. "Nenhum desvio" é resposta válida — se for verdade.
 
-## 5. Comandos rodados + saídas reais
+## 5. Herdados
+
+(IMPORTANTES abertos de fases anteriores destinados a esta fase — ARTIFACTS_SPEC
+§2.11.5. Corrigi-los é escopo autorizado da fase. Um por linha; o avaliador
+confere, e o que ficar aberto vira BLOQUEANTE. "nenhum", se não houver.)
+
+- `FASE <id> I-<n>` — o problema — resolvido em `<sha>` | não resolvido: <motivo>
+
+## 6. Comandos rodados + saídas reais
 
 > Rode os **comandos de validação do projeto** (do `.codeflow/manifest.md`; se um
 > gate não existir, marque `[—]` com justificativa). Cole as **saídas reais** —
-> nunca apenas "passou". Adapte aos gates que se aplicam a esta fase.
+> nunca apenas "passou". Cada saída: as **últimas 20 linhas** e o código de saída;
+> a inteira fica no log de `.codeflow/checkpoints/` (o do `fim-de-fase.sh`, quando
+> a fase o rodou). Adapte aos gates que se aplicam a esta fase.
 
 ```text
 # lint
@@ -68,12 +81,12 @@ range: <sha_inicial>..<sha_final>
 ...
 ```
 
-## 6. Critérios de aceite da fase (com evidência)
+## 7. Critérios de aceite da fase (com evidência)
 
 - [ ] AC-… — evidência: ...
 - [ ] AC-… — evidência: ...
 
-## 7. Definition of Done da fase
+## 8. Definition of Done da fase
 
 - [ ] Testes da fase verdes
 - [ ] Comandos de validação do projeto limpos nos arquivos tocados (ou `[—]` justificado)
@@ -81,10 +94,10 @@ range: <sha_inicial>..<sha_final>
 - [ ] Nenhum segredo/PII em log/DTO/exceção
 - [ ] Commits em pt-BR (Conventional Commits)
 
-## 8. (Em rework) O que mudou nesta tentativa
+## 9. (Em rework) O que mudou nesta tentativa
 
 (Quais achados BLOQUEANTES/IMPORTANTES da avaliação foram corrigidos e como.)
 
-## 9. Itens em aberto / dúvidas para o avaliador
+## 10. Itens em aberto / dúvidas para o avaliador
 
 (O que ficou incerto, incompleto ou precisa de olhar externo. Seja honesto.)
